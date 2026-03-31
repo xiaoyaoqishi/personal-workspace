@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 · 骁遥骑士</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Georgia', 'Noto Serif SC', 'SimSun', serif;
+      min-height: 100vh;
+      overflow: hidden;
+      color: #3a3a3a;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: linear-gradient(180deg, #e8dfd0 0%, #d4c8b0 30%, #c2b89e 50%, #b8c4b0 70%, #9ab09a 100%);
+    }
+
+    .mountains {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 60vh;
+      z-index: 1;
+    }
+
+    .mist {
+      position: fixed;
+      width: 200%;
+      height: 120px;
+      z-index: 2;
+      opacity: 0.4;
+      animation: drift 30s linear infinite;
+    }
+    .mist-1 { bottom: 25vh; }
+    .mist-2 { bottom: 40vh; animation-duration: 45s; animation-direction: reverse; opacity: 0.25; }
+
+    @keyframes drift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .content {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-box {
+      background: rgba(255, 252, 245, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(160, 145, 120, 0.3);
+      border-radius: 16px;
+      padding: 48px 40px 40px;
+      width: 380px;
+      max-width: 90vw;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .login-header h1 {
+      font-size: 1.8rem;
+      font-weight: 400;
+      letter-spacing: 0.4rem;
+      color: #4a4035;
+      margin-bottom: 8px;
+    }
+
+    .login-header .line {
+      width: 40px;
+      height: 1px;
+      background: #8a7d6b;
+      margin: 0 auto 10px;
+    }
+
+    .login-header .subtitle {
+      font-size: 0.85rem;
+      color: #8a7d6b;
+      letter-spacing: 0.2rem;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: #6a6050;
+      margin-bottom: 6px;
+      letter-spacing: 0.1rem;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgba(160, 145, 120, 0.35);
+      border-radius: 8px;
+      background: rgba(255, 255, 250, 0.6);
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: #3a3a3a;
+      outline: none;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .input-wrap input:focus {
+      border-color: rgba(120, 110, 90, 0.6);
+      box-shadow: 0 0 0 3px rgba(120, 110, 90, 0.08);
+    }
+
+    .input-wrap input::placeholder {
+      color: #b0a590;
+    }
+
+    .input-wrap .toggle-pwd {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #8a7d6b;
+      font-size: 1.1rem;
+      padding: 4px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .input-wrap .toggle-pwd:hover {
+      color: #5a5040;
+    }
+
+    .input-wrap .toggle-pwd svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #7a7060, #5a5040);
+      color: #f0ebe0;
+      font-family: inherit;
+      font-size: 1rem;
+      letter-spacing: 0.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 8px;
+    }
+
+    .btn-login:hover {
+      background: linear-gradient(135deg, #6a6050, #4a4030);
+      box-shadow: 0 6px 20px rgba(80, 60, 30, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    .btn-login:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-msg {
+      color: #a05040;
+      font-size: 0.82rem;
+      text-align: center;
+      margin-top: 14px;
+      min-height: 1.2em;
+      letter-spacing: 0.05rem;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 2rem;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 10;
+      color: #8a7d6b;
+      font-size: 0.85rem;
+      letter-spacing: 0.3rem;
+      font-style: italic;
+    }
+
+    @media (max-width: 480px) {
+      .login-box { padding: 36px 24px 30px; }
+      .login-header h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<svg class="mountains" viewBox="0 0 1440 600" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,300 Q180,120 360,280 Q540,100 720,260 Q900,80 1080,240 Q1260,120 1440,300 L1440,600 L0,600 Z" fill="rgba(120,130,110,0.25)" />
+  <path d="M0,380 Q120,220 300,350 Q420,180 600,320 Q780,160 960,300 Q1140,200 1320,340 Q1380,310 1440,380 L1440,600 L0,600 Z" fill="rgba(100,115,95,0.35)" />
+  <path d="M0,440 Q200,300 400,420 Q500,340 700,400 Q850,300 1000,380 Q1150,320 1300,410 Q1370,380 1440,440 L1440,600 L0,600 Z" fill="rgba(80,95,75,0.4)" />
+  <path d="M0,500 Q360,480 720,500 Q1080,480 1440,500 L1440,600 L0,600 Z" fill="rgba(140,160,150,0.3)" />
+  <path d="M0,530 Q360,520 720,535 Q1080,520 1440,530 L1440,600 L0,600 Z" fill="rgba(130,150,140,0.2)" />
+</svg>
+
+<svg class="mist mist-1" viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="400" cy="60" rx="500" ry="40" fill="rgba(220,215,200,0.5)" />
+  <ellipse cx="1200" cy="50" rx="600" ry="35" fill="rgba(220,215,200,0.4)" />
+  <ellipse cx="2000" cy="65" rx="450" ry="38" fill="rgba(220,215,200,0.45)" />
+  <ellipse cx="2800" cy="55" rx="500" ry="42" fill="rgba(220,215,200,0.4)" />
+</svg>
+<svg class="mist mist-2" viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="300" cy="55" rx="450" ry="35" fill="rgba(210,205,190,0.4)" />
+  <ellipse cx="1000" cy="60" rx="550" ry="30" fill="rgba(210,205,190,0.35)" />
+  <ellipse cx="1800" cy="50" rx="400" ry="38" fill="rgba(210,205,190,0.4)" />
+  <ellipse cx="2600" cy="58" rx="480" ry="32" fill="rgba(210,205,190,0.35)" />
+</svg>
+
+<div class="content">
+  <div class="login-box">
+    <div class="login-header">
+      <h1>骁遥骑士</h1>
+      <div class="line"></div>
+      <div class="subtitle">请登录以继续</div>
+    </div>
+
+    <form id="loginForm" autocomplete="on">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <div class="input-wrap">
+          <input type="text" id="username" name="username" placeholder="请输入用户名" autocomplete="username" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">密码</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password" placeholder="请输入密码" autocomplete="current-password" required>
+          <button type="button" class="toggle-pwd" id="togglePwd" title="显示/隐藏密码">
+            <svg id="eyeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+              <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <svg id="eyeOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login" id="btnLogin">登 录</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+  </div>
+</div>
+
+<div class="footer">行到水穷处 坐看云起时</div>
+
+<script>
+  const pwdInput = document.getElementById('password');
+  const toggleBtn = document.getElementById('togglePwd');
+  const eyeOff = document.getElementById('eyeOff');
+  const eyeOn = document.getElementById('eyeOn');
+
+  toggleBtn.addEventListener('click', () => {
+    const showing = pwdInput.type === 'text';
+    pwdInput.type = showing ? 'password' : 'text';
+    eyeOff.style.display = showing ? '' : 'none';
+    eyeOn.style.display = showing ? 'none' : '';
+    pwdInput.focus();
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnLogin');
+    const errEl = document.getElementById('errorMsg');
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!username || !password) {
+      errEl.textContent = '请填写用户名和密码';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '登录中…';
+    errEl.textContent = '';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const redirect = new URLSearchParams(location.search).get('redirect') || '/';
+        location.href = redirect;
+      } else {
+        errEl.textContent = data.detail || '登录失败';
+      }
+    } catch {
+      errEl.textContent = '网络连接失败，请重试';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '登 录';
+    }
+  });
+
+  (async () => {
+    try {
+      const res = await fetch('/api/auth/check');
+      const data = await res.json();
+      if (data.authenticated) {
+        location.href = '/';
+      }
+    } catch {}
+  })();
+</script>
+
+</body>
+</html>

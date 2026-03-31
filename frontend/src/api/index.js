@@ -2,6 +2,16 @@ import axios from 'axios';
 
 const api = axios.create({ baseURL: '/api' });
 
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+    }
+    return Promise.reject(err);
+  }
+);
+
 export const tradeApi = {
   list: (params) => api.get('/trades', { params }),
   get: (id) => api.get(`/trades/${id}`),

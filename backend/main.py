@@ -1,7 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from pydantic import BaseModel
 import json
 
 from database import engine, get_db, Base, SessionLocal
@@ -12,6 +15,7 @@ from schemas import (
     NotebookCreate, NotebookUpdate, NotebookResponse,
     NoteCreate, NoteUpdate, NoteResponse,
 )
+from auth import load_credentials, save_credentials, check_login, create_token, verify_token
 
 Base.metadata.create_all(bind=engine)
 
@@ -40,6 +44,62 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+AUTH_COOKIE = "session_token"
+AUTH_WHITELIST = {"/api/auth/login", "/api/auth/check", "/api/auth/setup"}
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path.startswith("/api/") and request.url.path not in AUTH_WHITELIST:
+            token = request.cookies.get(AUTH_COOKIE)
+            if not token or not verify_token(token):
+                return JSONResponse(status_code=401, content={"detail": "未登录"})
+        return await call_next(request)
+
+
+app.add_middleware(AuthMiddleware)
+
+
+class LoginBody(BaseModel):
+    username: str
+    password: str
+
+
+@app.get("/api/auth/check")
+def auth_check(request: Request):
+    token = request.cookies.get(AUTH_COOKIE)
+    if token and verify_token(token):
+        return {"authenticated": True, "username": verify_token(token)}
+    return {"authenticated": False}
+
+
+@app.post("/api/auth/setup")
+def auth_setup(body: LoginBody):
+    if load_credentials():
+        raise HTTPException(400, "账号已存在，无法重复初始化")
+    save_credentials(body.username, body.password)
+    return {"ok": True}
+
+
+@app.post("/api/auth/login")
+def auth_login(body: LoginBody, response: Response):
+    if not load_credentials():
+        raise HTTPException(400, "请先初始化账号 (POST /api/auth/setup)")
+    if not check_login(body.username, body.password):
+        raise HTTPException(401, "用户名或密码错误")
+    token = create_token(body.username)
+    response.set_cookie(
+        AUTH_COOKIE, token,
+        max_age=7 * 86400, httponly=True, samesite="lax", path="/",
+    )
+    return {"ok": True, "username": body.username}
+
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    response.delete_cookie(AUTH_COOKIE, path="/")
+    return {"ok": True}
 
 
 # ── Trade ──

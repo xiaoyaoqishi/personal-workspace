@@ -19,8 +19,11 @@ cd ../frontend-notes
 npm install
 npm run build
 
+echo "=== 同步门户页面 ==="
+cp ../portal/*.html /opt/tradingRecords/portal/
+
 echo "=== 重启服务 ==="
-cp ../deploy/nginx.conf /etc/nginx/sites-available/trading
+cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-available/trading
 nginx -t && systemctl restart nginx
 systemctl restart trading
 
