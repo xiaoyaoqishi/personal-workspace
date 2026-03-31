@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, Date, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
@@ -117,3 +118,38 @@ class Review(Base):
     # 通用
     content = Column(Text)
     summary = Column(Text)
+
+
+class Notebook(Base):
+    __tablename__ = "notebooks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    icon = Column(String(10), default="📁")
+    parent_id = Column(Integer, ForeignKey("notebooks.id"), nullable=True)
+    sort_order = Column(Integer, default=0)
+
+    notes = relationship("Note", back_populates="notebook", cascade="all, delete-orphan")
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    notebook_id = Column(Integer, ForeignKey("notebooks.id"), nullable=False)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, default="")
+    note_type = Column(String(10), default="doc")
+    note_date = Column(Date, nullable=True)
+    tags = Column(Text)
+    is_pinned = Column(Boolean, default=False)
+    word_count = Column(Integer, default=0)
+
+    notebook = relationship("Notebook", back_populates="notes")

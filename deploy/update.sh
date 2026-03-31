@@ -9,8 +9,13 @@ echo "=== 安装后端依赖 ==="
 cd backend
 pip3 install -r requirements.txt --break-system-packages -q
 
-echo "=== 构建前端 ==="
+echo "=== 构建交易前端 ==="
 cd ../frontend
+npm install
+npm run build
+
+echo "=== 构建笔记前端 ==="
+cd ../frontend-notes
 npm install
 npm run build
 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import date, datetime
 
 
@@ -193,6 +193,68 @@ class ReviewUpdate(BaseModel):
 
 
 class ReviewResponse(ReviewCreate):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── Notebook ──
+
+
+class NotebookCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = "📁"
+    parent_id: Optional[int] = None
+    sort_order: Optional[int] = 0
+
+
+class NotebookUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    parent_id: Optional[int] = None
+    sort_order: Optional[int] = None
+
+
+class NotebookResponse(NotebookCreate):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── Note ──
+
+
+class NoteCreate(BaseModel):
+    notebook_id: int
+    title: str
+    content: Optional[str] = ""
+    note_type: Optional[str] = "doc"
+    note_date: Optional[date] = None
+    tags: Optional[str] = None
+    is_pinned: Optional[bool] = False
+    word_count: Optional[int] = 0
+
+
+class NoteUpdate(BaseModel):
+    notebook_id: Optional[int] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    note_type: Optional[str] = None
+    note_date: Optional[date] = None
+    tags: Optional[str] = None
+    is_pinned: Optional[bool] = None
+    word_count: Optional[int] = None
+
+
+class NoteResponse(NoteCreate):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

@@ -4,14 +4,32 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 import json
 
-from database import engine, get_db, Base
-from models import Trade, Review
+from database import engine, get_db, Base, SessionLocal
+from models import Trade, Review, Notebook, Note
 from schemas import (
     TradeCreate, TradeUpdate, TradeResponse,
     ReviewCreate, ReviewUpdate, ReviewResponse,
+    NotebookCreate, NotebookUpdate, NotebookResponse,
+    NoteCreate, NoteUpdate, NoteResponse,
 )
 
 Base.metadata.create_all(bind=engine)
+
+
+def _init_default_notebooks():
+    db = SessionLocal()
+    try:
+        if db.query(Notebook).count() == 0:
+            db.add_all([
+                Notebook(name="日记本", icon="📔", sort_order=0),
+                Notebook(name="文档", icon="📄", sort_order=1),
+            ])
+            db.commit()
+    finally:
+        db.close()
+
+
+_init_default_notebooks()
 
 app = FastAPI(title="交易记录系统")
 
@@ -259,5 +277,145 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
     if not r:
         raise HTTPException(404, "Review not found")
     db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Notebook ──
+
+
+@app.get("/api/notebooks", response_model=List[NotebookResponse])
+def list_notebooks(db: Session = Depends(get_db)):
+    return db.query(Notebook).order_by(Notebook.sort_order, Notebook.id).all()
+
+
+@app.post("/api/notebooks", response_model=NotebookResponse)
+def create_notebook(data: NotebookCreate, db: Session = Depends(get_db)):
+    obj = Notebook(**data.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@app.put("/api/notebooks/{nb_id}", response_model=NotebookResponse)
+def update_notebook(nb_id: int, data: NotebookUpdate, db: Session = Depends(get_db)):
+    nb = db.query(Notebook).filter(Notebook.id == nb_id).first()
+    if not nb:
+        raise HTTPException(404, "Notebook not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(nb, k, v)
+    db.commit()
+    db.refresh(nb)
+    return nb
+
+
+@app.delete("/api/notebooks/{nb_id}")
+def delete_notebook(nb_id: int, db: Session = Depends(get_db)):
+    nb = db.query(Notebook).filter(Notebook.id == nb_id).first()
+    if not nb:
+        raise HTTPException(404, "Notebook not found")
+    db.delete(nb)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Note ──
+
+
+@app.get("/api/notes", response_model=List[NoteResponse])
+def list_notes(
+    notebook_id: Optional[int] = None,
+    note_type: Optional[str] = None,
+    note_date: Optional[str] = None,
+    keyword: Optional[str] = None,
+    tag: Optional[str] = None,
+    is_pinned: Optional[bool] = None,
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Note)
+    if notebook_id:
+        q = q.filter(Note.notebook_id == notebook_id)
+    if note_type:
+        q = q.filter(Note.note_type == note_type)
+    if note_date:
+        q = q.filter(Note.note_date == note_date)
+    if keyword:
+        q = q.filter(
+            (Note.title.contains(keyword)) | (Note.content.contains(keyword))
+        )
+    if tag:
+        q = q.filter(Note.tags.contains(tag))
+    if is_pinned is not None:
+        q = q.filter(Note.is_pinned == is_pinned)
+    return (
+        q.order_by(Note.is_pinned.desc(), Note.updated_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+
+
+@app.get("/api/notes/calendar")
+def notes_calendar(
+    year: int = Query(...),
+    month: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import extract
+    dates = (
+        db.query(Note.note_date)
+        .filter(
+            Note.note_type == "diary",
+            Note.note_date.isnot(None),
+            extract("year", Note.note_date) == year,
+            extract("month", Note.note_date) == month,
+        )
+        .distinct()
+        .all()
+    )
+    return [str(d[0]) for d in dates]
+
+
+@app.post("/api/notes", response_model=NoteResponse)
+def create_note(data: NoteCreate, db: Session = Depends(get_db)):
+    nb = db.query(Notebook).filter(Notebook.id == data.notebook_id).first()
+    if not nb:
+        raise HTTPException(404, "Notebook not found")
+    obj = Note(**data.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@app.get("/api/notes/{note_id}", response_model=NoteResponse)
+def get_note(note_id: int, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id).first()
+    if not n:
+        raise HTTPException(404, "Note not found")
+    return n
+
+
+@app.put("/api/notes/{note_id}", response_model=NoteResponse)
+def update_note(note_id: int, data: NoteUpdate, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id).first()
+    if not n:
+        raise HTTPException(404, "Note not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(n, k, v)
+    db.commit()
+    db.refresh(n)
+    return n
+
+
+@app.delete("/api/notes/{note_id}")
+def delete_note(note_id: int, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id).first()
+    if not n:
+        raise HTTPException(404, "Note not found")
+    db.delete(n)
     db.commit()
     return {"ok": True}
