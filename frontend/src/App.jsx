@@ -1,48 +1,70 @@
-import { Layout, Menu } from 'antd';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
   OrderedListOutlined,
   FormOutlined,
   FileTextOutlined,
-  HomeOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import TradeList from './pages/TradeList';
 import TradeForm from './pages/TradeForm';
 import ReviewList from './pages/ReviewList';
 
-const { Sider, Content } = Layout;
+const tabs = [
+  { key: '/', icon: <DashboardOutlined />, label: '仪表盘' },
+  { key: '/trades', icon: <OrderedListOutlined />, label: '记录' },
+  { key: '/trades/new', icon: <FormOutlined />, label: '新建' },
+  { key: '/reviews', icon: <FileTextOutlined />, label: '复盘' },
+];
 
-function AppLayout() {
+function IconSidebar() {
   const location = useLocation();
-
-  const menuItems = [
-    { key: 'home', icon: <HomeOutlined />, label: <a href="/">返回首页</a> },
-    { key: '/', icon: <DashboardOutlined />, label: <Link to="/">仪表盘</Link> },
-    { key: '/trades', icon: <OrderedListOutlined />, label: <Link to="/trades">交易记录</Link> },
-    { key: '/trades/new', icon: <FormOutlined />, label: <Link to="/trades/new">新建交易</Link> },
-    { key: '/reviews', icon: <FileTextOutlined />, label: <Link to="/reviews">复盘</Link> },
-  ];
+  const current = location.pathname;
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible theme="dark">
-        <div className="logo">交易记录系统</div>
-        <Menu theme="dark" selectedKeys={[location.pathname]} items={menuItems} />
-      </Sider>
-      <Layout>
-        <Content style={{ margin: 16, padding: 24, background: '#fff', borderRadius: 8, overflow: 'auto' }}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/trades" element={<TradeList />} />
-            <Route path="/trades/new" element={<TradeForm />} />
-            <Route path="/trades/:id/edit" element={<TradeForm />} />
-            <Route path="/reviews" element={<ReviewList />} />
-          </Routes>
-        </Content>
-      </Layout>
-    </Layout>
+    <div className="icon-sidebar">
+      <a className="icon-sidebar-back" href="/" title="返回工作台">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 8l-4 4 4 4M8 12h8"/>
+        </svg>
+      </a>
+      <div className="icon-sidebar-tabs">
+        {tabs.map(t => (
+          <Link
+            key={t.key}
+            to={t.key}
+            className={`icon-tab ${current === t.key ? 'active' : ''}`}
+          >
+            <span className="icon-tab-icon">{t.icon}</span>
+            <span className="icon-tab-label">{t.label}</span>
+          </Link>
+        ))}
+      </div>
+      <div className="icon-sidebar-bottom">
+        <a className="icon-tab" href="/" title="退出">
+          <span className="icon-tab-icon"><LogoutOutlined /></span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function AppLayout() {
+  return (
+    <div className="app-layout">
+      <IconSidebar />
+      <div className="app-content">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/trades" element={<TradeList />} />
+          <Route path="/trades/new" element={<TradeForm />} />
+          <Route path="/trades/:id/edit" element={<TradeForm />} />
+          <Route path="/reviews" element={<ReviewList />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
 

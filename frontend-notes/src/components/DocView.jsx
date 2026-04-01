@@ -150,10 +150,15 @@ export default function DocView({ initialNoteId, notebooks, onReloadNotebooks })
   };
 
   const handleUpdateNote = useCallback(async (id, updates) => {
+    const { _flush, ...data } = updates;
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (_flush) {
+      try { await noteApi.update(id, data); } catch {}
+      return;
+    }
     saveTimer.current = setTimeout(async () => {
       try {
-        const res = await noteApi.update(id, updates);
+        const res = await noteApi.update(id, data);
         setActiveNote(res.data);
         loadNotes();
       } catch {}

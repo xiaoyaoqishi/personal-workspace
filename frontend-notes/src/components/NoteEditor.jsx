@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
-import ImageExt from '@tiptap/extension-image';
+import ResizableImage from './ResizableImage';
 import Link from '@tiptap/extension-link';
 import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -46,8 +47,28 @@ export const FONT_FAMILIES = [
   { label: 'Georgia', value: 'Georgia, serif' },
   { label: 'Courier', value: 'Courier New, monospace' },
 ];
-const COLORS = ['#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#95a5a6', '#ffffff'];
-const BG_COLORS = ['transparent', '#fef3cd', '#d4edda', '#d1ecf1', '#f8d7da', '#e2d9f3', '#fce4ec', '#fff3e0', '#e8f5e9'];
+const COLORS = [
+  '#000000', '#262626', '#595959', '#8c8c8c', '#bfbfbf', '#ffffff',
+  '#f5222d', '#fa541c', '#fa8c16', '#fadb14', '#52c41a', '#13c2c2',
+  '#1890ff', '#2f54eb', '#722ed1', '#eb2f96',
+  '#a8071a', '#ad2102', '#ad4e00', '#ad8b00', '#389e0d', '#08979c',
+  '#096dd9', '#1d39c4', '#531dab', '#c41d7f',
+  '#5c0011', '#610b00', '#612500', '#613400', '#135200', '#00474f',
+  '#003a8c', '#061178', '#22075e', '#780650',
+];
+const BG_COLORS = [
+  'transparent',
+  '#fff1f0', '#fff2e8', '#fff7e6', '#fffbe6', '#f6ffed', '#e6fffb',
+  '#e6f7ff', '#f0f5ff', '#f9f0ff', '#fff0f6',
+  '#ffccc7', '#ffd8bf', '#ffe7ba', '#fffb8f', '#b7eb8f', '#87e8de',
+  '#91d5ff', '#adc6ff', '#d3adf7', '#ffadd2',
+  '#ffa39e', '#ffbb96', '#ffd591', '#fff566', '#95de64', '#5cdbd3',
+  '#69c0ff', '#85a5ff', '#b37feb', '#ff85c0',
+  '#ff4d4f', '#ff7a45', '#ffa940', '#ffec3d', '#73d13d', '#36cfc9',
+  '#40a9ff', '#597ef7', '#9254de', '#f759ab',
+  '#cf1322', '#d4380d', '#d46b08', '#d4b106', '#3f8600', '#08979c',
+  '#096dd9', '#1d39c4', '#531dab', '#c41d7f',
+];
 const EMOJIS = [
   '😀','😂','🥰','😎','🤔','😢','😡','🥳','👍','👎',
   '❤️','🔥','⭐','💡','📌','✅','❌','⚠️','🎯','💯',
@@ -166,7 +187,7 @@ function Toolbar({ editor }) {
           <span style={{ background: '#fef3cd', padding: '0 3px', borderRadius: 2 }}>A</span>
         </button>
         {openDrop === 'bgcolor' && (
-          <div className="toolbar-dropdown color-dropdown">
+          <div className="toolbar-dropdown bg-color-dropdown">
             {BG_COLORS.map(c => (
               <div key={c} className="color-swatch"
                 style={{ background: c === 'transparent' ? '#fff' : c, border: '1px solid #ddd' }}
@@ -289,12 +310,29 @@ function renderMdBlocksInDom(container) {
   });
 }
 
+function parseContent(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'object') return raw;
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && obj.type === 'doc') return obj;
+  } catch {}
+  return raw;
+}
+
 export default function NoteEditor({ note, onUpdate, defaultEditing = false }) {
   const [title, setTitle] = useState(note?.title || '');
-  const [mode, setMode] = useState(defaultEditing ? 'edit' : 'read');
+  const [mode, setMode] = useState('read');
   const [mdSource, setMdSource] = useState('');
+  const [lightboxSrc, setLightboxSrc] = useState(null);
   const contentRef = useRef(null);
+  const readViewRef = useRef(null);
+  const noteRef = useRef(note);
+  const onUpdateRef = useRef(onUpdate);
   const settings = loadEditorSettings();
+
+  noteRef.current = note;
+  onUpdateRef.current = onUpdate;
 
   const editor = useEditor({
     extensions: [
@@ -307,7 +345,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false }) {
       Color,
       FontFamily,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      ImageExt.configure({ allowBase64: true }),
+      ResizableImage,
       Link.configure({ openOnClick: false }),
       Highlight.configure({ multicolor: true }),
       Table.configure({ resizable: true }),
@@ -319,12 +357,12 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false }) {
       Subscript,
       Superscript,
     ],
-    content: note?.content || '',
-    editable: defaultEditing,
+    content: parseContent(note?.content),
+    editable: false,
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
+      const json = JSON.stringify(editor.getJSON());
       const text = editor.getText();
-      onUpdate(note.id, { content: html, word_count: text.length });
+      onUpdateRef.current(noteRef.current.id, { content: json, word_count: text.length });
     },
     editorProps: {
       handleDrop: (view, event) => {
@@ -362,19 +400,18 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false }) {
     },
   });
 
+  useEffect(() => {
+    return () => {
+      if (editor && !editor.isDestroyed) {
+        const json = JSON.stringify(editor.getJSON());
+        const text = editor.getText();
+        onUpdateRef.current(noteRef.current.id, { content: json, word_count: text.length, _flush: true });
+      }
+    };
+  }, [editor]);
+
   const switchMode = useCallback((next) => {
     if (!editor) return;
-    if (mode === 'markdown' && next !== 'markdown') {
-      const cleaned = unwrapMarkdownFences(mdSource);
-      const html = markdownParser.render(cleaned);
-      editor.commands.setContent(html);
-      const text = editor.getText();
-      onUpdate(note.id, { content: editor.getHTML(), word_count: text.length });
-    }
-    if (next === 'markdown' && mode !== 'markdown') {
-      const md = editor.storage.markdown?.getMarkdown?.() || editor.getText();
-      setMdSource(md);
-    }
     if (next === 'edit') {
       editor.setEditable(true);
       editor.chain().focus().run();
@@ -382,27 +419,30 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false }) {
       editor.setEditable(false);
     }
     setMode(next);
-  }, [mode, editor, mdSource, note?.id, onUpdate]);
+  }, [editor]);
 
   useEffect(() => {
     setTitle(note?.title || '');
-    const nextMode = defaultEditing ? 'edit' : 'read';
-    setMode(nextMode);
+    setMode('read');
     if (editor) {
-      editor.setEditable(defaultEditing);
-      const cur = editor.getHTML();
-      if (cur !== (note.content || '')) {
-        editor.commands.setContent(note.content || '');
-      }
+      editor.setEditable(false);
+      editor.commands.setContent(parseContent(note.content));
     }
   }, [note?.id]);
 
   useEffect(() => {
-    if (mode === 'read') {
-      const timer = setTimeout(() => renderMdBlocksInDom(contentRef.current), 50);
-      return () => clearTimeout(timer);
+    if (mode === 'read' && readViewRef.current) {
+      const html = editor?.getHTML() || '';
+      readViewRef.current.innerHTML = html;
+      renderMdBlocksInDom(readViewRef.current);
     }
   }, [mode, note?.id]);
+
+  const handleReadViewClick = useCallback((e) => {
+    if (e.target.tagName === 'IMG') {
+      setLightboxSrc(e.target.src);
+    }
+  }, []);
 
   const handleTitleChange = (e) => {
     const val = e.target.value;
@@ -430,36 +470,31 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false }) {
           <div className="mode-toggle-group">
             <button className={`mode-btn ${mode === 'read' ? 'active' : ''}`} onClick={() => switchMode('read')} title="阅读模式">📖 阅读</button>
             <button className={`mode-btn ${mode === 'edit' ? 'active' : ''}`} onClick={() => switchMode('edit')} title="编辑模式">✏️ 编辑</button>
-            <button className={`mode-btn ${mode === 'markdown' ? 'active' : ''}`} onClick={() => switchMode('markdown')} title="Markdown源码">{'</>'}Md</button>
           </div>
         </div>
         {mode === 'edit' ? (
-          <input className="editor-title-input" placeholder={isDiary ? '日记标题...' : '输入标题...'} value={title} onChange={handleTitleChange} />
-        ) : mode === 'markdown' ? (
           <input className="editor-title-input" placeholder={isDiary ? '日记标题...' : '输入标题...'} value={title} onChange={handleTitleChange} />
         ) : (
           <div className="editor-title-readonly">{title || '无标题'}</div>
         )}
       </div>
       {mode === 'edit' && <Toolbar editor={editor} />}
-      {mode === 'markdown' ? (
-        <div className="markdown-source-wrap" style={editorStyle}>
-          <textarea
-            className="markdown-source"
-            value={mdSource}
-            onChange={e => setMdSource(e.target.value)}
-            placeholder="在此输入 Markdown 内容...&#10;&#10;# 标题&#10;**粗体** *斜体* ~~删除线~~&#10;- 列表项&#10;```python&#10;print('代码块')&#10;```"
-          />
-        </div>
-      ) : (
-        <div className="editor-content" style={editorStyle} ref={contentRef}>
-          <EditorContent editor={editor} />
-        </div>
-      )}
+      <div className="editor-content read-mode-content" style={{ ...editorStyle, display: mode === 'read' ? undefined : 'none' }}>
+        <div className="tiptap ProseMirror" ref={readViewRef} onClick={handleReadViewClick} />
+      </div>
+      <div className="editor-content" style={{ ...editorStyle, display: mode === 'edit' ? undefined : 'none' }} ref={contentRef}>
+        <EditorContent editor={editor} />
+      </div>
       <div className="editor-footer">
-        <span>{mode === 'markdown' ? mdSource.length : (note.word_count || 0)} 字</span>
+        <span>{note.word_count || 0} 字</span>
         <span>最后编辑: {dayjs(note.updated_at).format('YYYY-MM-DD HH:mm')}</span>
       </div>
+      {lightboxSrc && createPortal(
+        <div className="image-lightbox" onClick={() => setLightboxSrc(null)}>
+          <img src={lightboxSrc} alt="" onClick={e => e.stopPropagation()} />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

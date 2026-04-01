@@ -414,16 +414,21 @@ body {
 .dropdown-item:hover { background: #f0f7ff; }
 
 .color-dropdown {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(6, 22px);
+  gap: 3px;
   padding: 6px;
-  min-width: 140px;
+}
+.bg-color-dropdown {
+  display: grid;
+  grid-template-columns: repeat(10, 22px);
+  gap: 3px;
+  padding: 6px;
 }
 .color-swatch {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
   cursor: pointer;
   border: 2px solid transparent;
   transition: border-color 0.15s;
@@ -584,6 +589,50 @@ body {
 .md-rendered-block img { max-width: 100%; }
 
 .editor-content .tiptap img { max-width: 100%; border-radius: 4px; }
+
+.resizable-image-wrapper { display: inline-block; line-height: 0; }
+.resizable-image-container {
+  display: inline-block;
+  position: relative;
+  max-width: 100%;
+  line-height: 0;
+}
+.resizable-image-container img { border-radius: 4px; }
+.resizable-image-container.selected { outline: 2px solid #3498db; border-radius: 4px; }
+.resize-handle {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.resizable-image-container:hover .resize-handle,
+.resizable-image-container.resizing .resize-handle { opacity: 1; }
+.resize-handle-right { right: -3px; background: linear-gradient(to right, transparent, #3498db); }
+.resize-handle-left { left: -3px; background: linear-gradient(to left, transparent, #3498db); }
+
+.read-mode-content img { cursor: zoom-in; }
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.image-lightbox img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
 .editor-content .tiptap mark { padding: 1px 2px; }
 
 .editor-content .tiptap table {

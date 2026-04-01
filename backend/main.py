@@ -9,6 +9,12 @@ import json
 import os
 import uuid
 import shutil
+import threading
+import time as _time
+from datetime import datetime
+from collections import deque
+
+import psutil
 
 DEV_MODE = os.environ.get("DEV_MODE", "0") == "1"
 
@@ -584,3 +590,260 @@ def delete_note(note_id: int, db: Session = Depends(get_db)):
     db.delete(n)
     db.commit()
     return {"ok": True}
+
+
+# ══════════════════════════════════════════
+#  Server Monitor
+# ══════════════════════════════════════════
+
+_monitor_history: deque = deque(maxlen=720)
+_prev_net = psutil.net_io_counters()
+_prev_disk_io = psutil.disk_io_counters()
+_prev_ts = _time.time()
+_net_speed = {"up": 0.0, "down": 0.0}
+_disk_speed = {"read": 0.0, "write": 0.0}
+
+
+def _bytes_fmt(b):
+    for u in ["B", "KB", "MB", "GB", "TB"]:
+        if b < 1024:
+            return f"{b:.1f} {u}"
+        b /= 1024
+    return f"{b:.1f} PB"
+
+
+def _seconds_fmt(s):
+    d, s = divmod(int(s), 86400)
+    h, s = divmod(s, 3600)
+    m, s = divmod(s, 60)
+    parts = []
+    if d:
+        parts.append(f"{d}天")
+    if h:
+        parts.append(f"{h}小时")
+    if m:
+        parts.append(f"{m}分钟")
+    parts.append(f"{s}秒")
+    return " ".join(parts)
+
+
+def _sample():
+    global _prev_net, _prev_disk_io, _prev_ts, _net_speed, _disk_speed
+    now = _time.time()
+    dt = now - _prev_ts
+    if dt <= 0:
+        dt = 1
+
+    net = psutil.net_io_counters()
+    _net_speed = {
+        "up": (net.bytes_sent - _prev_net.bytes_sent) / dt,
+        "down": (net.bytes_recv - _prev_net.bytes_recv) / dt,
+    }
+    _prev_net = net
+
+    try:
+        dio = psutil.disk_io_counters()
+        if dio:
+            _disk_speed = {
+                "read": (dio.read_bytes - _prev_disk_io.read_bytes) / dt,
+                "write": (dio.write_bytes - _prev_disk_io.write_bytes) / dt,
+            }
+            _prev_disk_io = dio
+    except Exception:
+        pass
+
+    _prev_ts = now
+
+    cpu_pct = psutil.cpu_percent(interval=None)
+    mem = psutil.virtual_memory()
+    _monitor_history.append({
+        "ts": datetime.now().strftime("%H:%M:%S"),
+        "cpu": cpu_pct,
+        "mem": mem.percent,
+        "net_up": round(_net_speed["up"] / 1024, 1),
+        "net_down": round(_net_speed["down"] / 1024, 1),
+    })
+
+
+def _monitor_loop():
+    psutil.cpu_percent(interval=None)
+    while True:
+        try:
+            _sample()
+        except Exception:
+            pass
+        _time.sleep(5)
+
+
+_monitor_thread = threading.Thread(target=_monitor_loop, daemon=True)
+_monitor_thread.start()
+
+
+def _get_system_info():
+    import platform
+    boot = psutil.boot_time()
+    uptime = _time.time() - boot
+    hostname = platform.node()
+    kernel = platform.release()
+    arch = platform.machine()
+    try:
+        with open("/etc/os-release") as f:
+            lines = f.readlines()
+        distro = dict(l.strip().split("=", 1) for l in lines if "=" in l)
+        os_name = distro.get("PRETTY_NAME", "").strip('"')
+    except Exception:
+        os_name = f"{platform.system()} {platform.version()}"
+    return {
+        "hostname": hostname,
+        "os": os_name,
+        "kernel": kernel,
+        "arch": arch,
+        "uptime": _seconds_fmt(uptime),
+        "uptime_seconds": int(uptime),
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def _get_cpu_info():
+    freq = psutil.cpu_freq()
+    try:
+        load = os.getloadavg()
+        load_1, load_5, load_15 = round(load[0], 2), round(load[1], 2), round(load[2], 2)
+    except (AttributeError, OSError):
+        load_1 = load_5 = load_15 = 0.0
+    temps = {}
+    try:
+        t = psutil.sensors_temperatures()
+        if t:
+            for name, entries in t.items():
+                for e in entries:
+                    if e.current > 0:
+                        temps[e.label or name] = round(e.current, 1)
+    except (AttributeError, Exception):
+        pass
+    return {
+        "percent": psutil.cpu_percent(interval=None),
+        "per_cpu": psutil.cpu_percent(interval=None, percpu=True),
+        "cores_physical": psutil.cpu_count(logical=False),
+        "cores_logical": psutil.cpu_count(logical=True),
+        "freq_current": round(freq.current, 0) if freq else None,
+        "freq_max": round(freq.max, 0) if freq and freq.max else None,
+        "load_1": load_1,
+        "load_5": load_5,
+        "load_15": load_15,
+        "temps": temps,
+    }
+
+
+def _get_memory_info():
+    vm = psutil.virtual_memory()
+    sw = psutil.swap_memory()
+    return {
+        "total": vm.total,
+        "used": vm.used,
+        "available": vm.available,
+        "percent": vm.percent,
+        "total_fmt": _bytes_fmt(vm.total),
+        "used_fmt": _bytes_fmt(vm.used),
+        "available_fmt": _bytes_fmt(vm.available),
+        "swap_total": sw.total,
+        "swap_used": sw.used,
+        "swap_percent": sw.percent,
+        "swap_total_fmt": _bytes_fmt(sw.total),
+        "swap_used_fmt": _bytes_fmt(sw.used),
+    }
+
+
+def _get_disk_info():
+    partitions = []
+    for p in psutil.disk_partitions(all=False):
+        try:
+            u = psutil.disk_usage(p.mountpoint)
+            partitions.append({
+                "device": p.device,
+                "mountpoint": p.mountpoint,
+                "fstype": p.fstype,
+                "total": u.total,
+                "used": u.used,
+                "free": u.free,
+                "percent": u.percent,
+                "total_fmt": _bytes_fmt(u.total),
+                "used_fmt": _bytes_fmt(u.used),
+                "free_fmt": _bytes_fmt(u.free),
+            })
+        except Exception:
+            pass
+    return {
+        "partitions": partitions,
+        "io_read_speed": round(_disk_speed["read"] / 1024 / 1024, 2),
+        "io_write_speed": round(_disk_speed["write"] / 1024 / 1024, 2),
+    }
+
+
+def _get_network_info():
+    net = psutil.net_io_counters()
+    return {
+        "bytes_sent": net.bytes_sent,
+        "bytes_recv": net.bytes_recv,
+        "bytes_sent_fmt": _bytes_fmt(net.bytes_sent),
+        "bytes_recv_fmt": _bytes_fmt(net.bytes_recv),
+        "speed_up": round(_net_speed["up"] / 1024, 1),
+        "speed_down": round(_net_speed["down"] / 1024, 1),
+        "speed_up_fmt": _bytes_fmt(_net_speed["up"]) + "/s",
+        "speed_down_fmt": _bytes_fmt(_net_speed["down"]) + "/s",
+    }
+
+
+def _get_top_processes(n=10):
+    procs = []
+    for p in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent", "username"]):
+        try:
+            info = p.info
+            procs.append({
+                "pid": info["pid"],
+                "name": info["name"],
+                "cpu": round(info["cpu_percent"] or 0, 1),
+                "mem": round(info["memory_percent"] or 0, 1),
+                "user": info["username"] or "",
+            })
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    procs.sort(key=lambda x: x["cpu"], reverse=True)
+    return procs[:n]
+
+
+def _get_services_status():
+    targets = ["nginx", "uvicorn", "python"]
+    result = {}
+    all_names = set()
+    for p in psutil.process_iter(["name", "cmdline"]):
+        try:
+            all_names.add(p.info["name"].lower())
+            cmdline = " ".join(p.info["cmdline"] or []).lower()
+            for svc in targets:
+                if svc in p.info["name"].lower() or svc in cmdline:
+                    result[svc] = True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    for svc in targets:
+        if svc not in result:
+            result[svc] = False
+    return result
+
+
+@app.get("/api/monitor/realtime")
+def monitor_realtime():
+    return {
+        "system": _get_system_info(),
+        "cpu": _get_cpu_info(),
+        "memory": _get_memory_info(),
+        "disk": _get_disk_info(),
+        "network": _get_network_info(),
+        "processes": _get_top_processes(),
+        "services": _get_services_status(),
+    }
+
+
+@app.get("/api/monitor/history")
+def monitor_history():
+    return list(_monitor_history)

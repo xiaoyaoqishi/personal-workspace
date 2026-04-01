@@ -24,6 +24,7 @@ export default function DiaryView({ initialNoteId, notebooks }) {
   const [calendarDates, setCalendarDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const saveTimer = useRef(null);
+  const creatingToday = useRef(false);
 
   const loadTree = useCallback(async () => {
     try {
@@ -60,6 +61,8 @@ export default function DiaryView({ initialNoteId, notebooks }) {
   }, [initialNoteId]);
 
   const handleWriteToday = async () => {
+    if (creatingToday.current) return;
+    creatingToday.current = true;
     const todayStr = dayjs().format('YYYY-MM-DD');
     try {
       const res = await noteApi.list({ note_type: 'diary', note_date: todayStr });
@@ -67,7 +70,7 @@ export default function DiaryView({ initialNoteId, notebooks }) {
         setActiveNote(res.data[0]);
       } else {
         const nb = notebooks[0];
-        if (!nb) { message.warning('请先创建笔记本'); return; }
+        if (!nb) { message.warning('请先创建笔记本'); creatingToday.current = false; return; }
         const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
         const now = dayjs();
         let weatherIcon = '';
@@ -88,6 +91,7 @@ export default function DiaryView({ initialNoteId, notebooks }) {
         loadCalendar(selectedDate);
       }
     } catch { message.error('创建日记失败'); }
+    finally { creatingToday.current = false; }
   };
 
   const handleSelectDate = async (date) => {
@@ -111,10 +115,15 @@ export default function DiaryView({ initialNoteId, notebooks }) {
   };
 
   const handleUpdateNote = useCallback(async (id, updates) => {
+    const { _flush, ...data } = updates;
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (_flush) {
+      try { await noteApi.update(id, data); } catch {}
+      return;
+    }
     saveTimer.current = setTimeout(async () => {
       try {
-        const res = await noteApi.update(id, updates);
+        const res = await noteApi.update(id, data);
         setActiveNote(res.data);
       } catch {}
     }, 800);

@@ -1,6 +1,6 @@
 # 骁遥骑士 · 个人工作台
 
-部署于阿里云 ECS 的个人工作平台，包含交易记录复盘系统和知识笔记模块。
+部署于阿里云 ECS 的个人工作平台，包含交易记录复盘系统、知识笔记和服务器监控模块。
 
 ---
 
@@ -11,18 +11,20 @@
                         ├── /             → 首页门户 (静态 HTML，山水风格)
                         ├── /trading/*    → 交易前端 (React SPA)
                         ├── /notes/*      → 笔记前端 (React SPA，eDiary 风格)
+                        ├── /monitor/*    → 监控前端 (React SPA，实时仪表盘)
                         ├── /api/uploads/ → 图片文件 (静态资源)
                         └── /api/*        → FastAPI 后端 (127.0.0.1:8000)
                                                │
                                                ▼
-                                          SQLite 数据库
+                                          SQLite 数据库 + psutil 系统采集
 ```
 
 | 层级 | 技术栈 | 说明 |
 |------|--------|------|
 | 前端 - 交易 | React 19 + Vite 8 + Ant Design 6 + Recharts 3 | 交易记录与复盘分析 |
 | 前端 - 笔记 | React 19 + Vite 8 + Ant Design 6 + TipTap + lunar-javascript | eDiary 风格日记与文档管理 |
-| 后端 | Python + FastAPI + SQLAlchemy | RESTful API + 图片上传存储 |
+| 前端 - 监控 | React 18 + Vite 6 + Ant Design 5 + Recharts 2 | 服务器实时监控仪表盘 |
+| 后端 | Python + FastAPI + SQLAlchemy + psutil | RESTful API + 图片上传 + 系统监控采集 |
 | 数据库 | SQLite | 数据文件：`backend/data/trading.db` |
 | 门户 | 纯 HTML/CSS/JS | 山水风格首页 + 自定义登录页 |
 | 部署 | Nginx + systemd | 反向代理、静态托管、进程管理 |
@@ -33,7 +35,7 @@
 
 ### 首页门户
 
-山水画风格首页，实时时钟，应用入口卡片（交易记录、知识笔记），右上角退出登录按钮。
+山水画风格首页，实时时钟，应用入口卡片（交易记录、服务器监控、知识笔记），右上角退出登录按钮。
 
 ### 登录认证
 
@@ -86,8 +88,8 @@
 **富文本编辑器（TipTap）**：
 - **字体选择**：宋体、黑体、楷体、仿宋、华文楷体、Arial、Georgia、Courier
 - **字号选择**：12px ~ 32px
-- **文字颜色**：9 种预设色板
-- **背景颜色**：8 种高亮背景色 + 清除
+- **文字颜色**：30 种预设色板（含黑灰白、标准色、深色系）
+- **背景颜色**：41 种高亮背景色（浅/中/亮/标准/深五档）+ 清除
 - **格式**：加粗、斜体、下划线、删除线、上标、下标
 - **标题**：H1 / H2 / H3
 - **列表**：无序列表、有序列表、任务列表（☑）
@@ -97,11 +99,27 @@
 - **图片**：点击上传、拖拽上传、粘贴截图（存储在服务器 `backend/data/uploads/`）
 - **表情**：40 个常用 Emoji 快速插入
 - **链接 / 分割线**
-- **三种编辑模式**：📖 阅读（只读预览）、✏️ 编辑（富文本 WYSIWYG）、`</>` Markdown（源码编辑，切换时自动转换为富文本）
-- 当天日记/文档默认编辑模式，非当天默认只读模式
+- **两种编辑模式**：📖 阅读（只读预览，图片可点击放大）、✏️ 编辑（富文本 WYSIWYG）
+- **图片可调整大小**：编辑模式下拖拽图片边缘调节宽度，尺寸持久化保存
+- 切换页面后默认阅读模式
 - 粘贴 Markdown 文本自动转换为富文本
 - **设置功能**：可自定义默认字体和字号（localStorage 持久化）
-- 自动保存（800ms 防抖）
+- 自动保存（800ms 防抖 + 离开页面即时保存）
+- **内容存储格式**：TipTap JSON（无损往返，解决混合内容代码块编辑问题），向下兼容旧 HTML 格式
+
+### 服务器监控（/monitor/）
+
+单页实时仪表盘，监控本机 Ubuntu 服务器系统状态。
+
+- **CPU**：总使用率仪表盘、每核使用率、负载均值（1/5/15 min）、温度传感器
+- **内存**：总量/已用/可用/使用率仪表盘、Swap 使用情况
+- **磁盘**：各分区容量/已用/使用率进度条、磁盘 IO 读写速率
+- **网络**：上行/下行实时速率、累计流量统计
+- **系统信息**：主机名、系统版本、内核版本、CPU 架构、运行时间
+- **历史趋势**：最近 1 小时 CPU/内存/网络折线图（后台线程每 5 秒采样，内存缓存 720 个点）
+- **进程 Top10**：按 CPU 使用率排序（PID、名称、用户、CPU%、内存%）
+- **服务状态**：nginx、uvicorn、python 运行状态指示灯
+- 前端每 3 秒轮询自动刷新
 
 ---
 
@@ -128,12 +146,12 @@ program/
 │   └── login.html                   # 登录页（密码显隐切换）
 │
 ├── backend/                         # FastAPI 后端
-│   ├── requirements.txt             # fastapi, uvicorn, sqlalchemy, pydantic, python-multipart
+│   ├── requirements.txt             # fastapi, uvicorn, sqlalchemy, pydantic, python-multipart, psutil
 │   ├── database.py                  # 数据库连接与会话
 │   ├── models.py                    # ORM 模型 (Trade, Review, Notebook, Note)
 │   ├── schemas.py                   # Pydantic 请求/响应模型
 │   ├── auth.py                      # HMAC 签名会话认证
-│   ├── main.py                      # 应用入口、中间件、全部 API 路由
+│   ├── main.py                      # 应用入口、中间件、全部 API 路由 + 监控采集线程
 │   └── data/                        # 数据目录（自动生成，已 gitignore）
 │       ├── trading.db               # SQLite 数据库
 │       ├── auth.json                # 认证凭据（用户名 + 密码哈希）
@@ -164,7 +182,17 @@ program/
 │           ├── DiaryView.jsx        # 日记（迷你日历 + 标签 + 日期树 + 编辑器）
 │           ├── DocView.jsx          # 文档（嵌套文件夹树 + 编辑器）
 │           ├── MiniCalendar.jsx     # 自定义迷你日历组件（中文）
-│           └── NoteEditor.jsx       # TipTap 富文本编辑器（字体/字号/颜色/表格/图片上传...）
+│           ├── NoteEditor.jsx       # TipTap 富文本编辑器（字体/字号/颜色/表格/图片上传...）
+│           └── ResizableImage.jsx   # 可调大小图片扩展（TipTap NodeView）
+│
+├── frontend-monitor/                # 服务器监控前端 (/monitor/)
+│   ├── package.json                 # antd, recharts, axios
+│   ├── vite.config.js               # base: '/monitor/', 代理 /api → localhost:8000
+│   └── src/
+│       ├── main.jsx                 # 入口
+│       ├── App.jsx                  # 监控仪表盘（CPU/内存/磁盘/网络/进程/服务状态/趋势图）
+│       ├── App.css                  # 样式
+│       └── api.js                   # Axios 封装（/api/monitor/*）
 │
 └── deploy/                          # 部署配置
     ├── nginx.conf                   # Nginx 站点配置（Cookie 认证，无 auth_basic）
@@ -189,9 +217,10 @@ pip3 install -r requirements.txt
 # 2. 安装前端依赖（首次或依赖变更时）
 cd program/frontend && npm install
 cd program/frontend-notes && npm install
+cd program/frontend-monitor && npm install
 ```
 
-**启动本地服务**（开两到三个终端）：
+**启动本地服务**（开多个终端）：
 
 ```bash
 # 终端 1 — 后端（DEV_MODE=1 跳过认证，--reload 文件修改自动重载）
@@ -204,6 +233,10 @@ npm run dev
 
 # 终端 3 — 笔记前端 → http://localhost:5174/notes/
 cd program/frontend-notes
+npm run dev
+
+# 终端 4 — 监控前端 → http://localhost:5175/monitor/
+cd program/frontend-monitor
 npm run dev
 ```
 
@@ -223,7 +256,7 @@ cd program && git add -A && git commit -m "描述" && git push
 ssh -i ~/.ssh/xiaoyao.pem root@<服务器IP> "cd /opt/tradingRecords && bash deploy/update.sh"
 ```
 
-`update.sh` 自动完成：`git pull` → 安装依赖 → 构建两个前端 → 同步 Nginx/门户配置 → 重启服务。
+`update.sh` 自动完成：`git pull` → 安装依赖 → 构建三个前端 → 同步 Nginx/门户配置 → 重启服务。
 
 ### 首次部署额外步骤
 
@@ -300,6 +333,13 @@ curl -X POST http://127.0.0.1:8000/api/auth/setup \
 | GET | `/api/notes/calendar` | 日历数据（某月有日记的日期列表） |
 | GET | `/api/notes/diary-tree` | 日记日期树（年 > 月 > 日结构） |
 | GET | `/api/notes/history-today` | 历史上的今天（往年同日日记） |
+
+### 服务器监控
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/monitor/realtime` | 实时系统快照（CPU/内存/磁盘/网络/进程/服务状态） |
+| GET | `/api/monitor/history` | 最近 1 小时历史数据（每 5 秒采样，最多 720 个点） |
 
 ---
 

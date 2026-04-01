@@ -1,0 +1,215 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f0f2f5;
+  color: #333;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 18px;
+  color: #999;
+}
+
+.monitor-app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px 40px;
+}
+
+/* Header */
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 16px;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-left h1 { font-size: 20px; font-weight: 600; }
+.back-link {
+  font-size: 13px;
+  color: #1890ff;
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.back-link:hover { border-color: #1890ff; }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #52c41a;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* System info bar */
+.sys-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sys-tag {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #555;
+}
+
+/* Gauge row */
+.gauge-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.gauge-card {
+  text-align: center;
+}
+.gauge-card .ant-card-body {
+  padding: 16px 12px;
+}
+.gauge-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+.gauge-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+.gauge-sub {
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+}
+
+/* Disk */
+.disk-list {
+  text-align: left;
+  padding: 0 4px;
+}
+.disk-item { margin-bottom: 8px; }
+.disk-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
+}
+.disk-io {
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+}
+
+/* Network */
+.net-speeds {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+}
+.net-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.net-arrow {
+  font-size: 18px;
+  font-weight: 700;
+}
+.net-arrow.up { color: #faad14; }
+.net-arrow.down { color: #52c41a; }
+.net-val { font-weight: 600; }
+.net-total {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* Per-CPU */
+.per-cpu-section { margin-bottom: 16px; }
+.per-cpu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px;
+}
+.per-cpu-item { font-size: 12px; }
+
+/* Charts */
+.chart-section { margin-bottom: 16px; }
+
+/* Bottom row */
+.bottom-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+.proc-card .ant-table-tbody > tr > td { padding: 6px 8px; font-size: 13px; }
+.proc-card .ant-table-thead > tr > th { padding: 8px; font-size: 13px; }
+
+/* Services */
+.svc-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+.svc-item:last-child { border-bottom: none; }
+.svc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.svc-dot.on { background: #52c41a; box-shadow: 0 0 6px rgba(82, 196, 26, 0.5); }
+.svc-dot.off { background: #ff4d4f; }
+.svc-name {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+/* Temp & swap */
+.temp-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .gauge-row { grid-template-columns: repeat(2, 1fr); }
+  .bottom-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .gauge-row { grid-template-columns: 1fr; }
+  .sys-info-bar { flex-direction: column; }
+}

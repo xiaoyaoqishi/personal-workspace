@@ -19,6 +19,11 @@ cd ../frontend-notes
 npm install
 npm run build
 
+echo "=== 构建监控前端 ==="
+cd ../frontend-monitor
+npm install
+npm run build
+
 echo "=== 同步门户页面 ==="
 cp ../portal/*.html /opt/tradingRecords/portal/
 
