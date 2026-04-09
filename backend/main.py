@@ -16,6 +16,7 @@ import re
 import html
 import hashlib
 import xml.etree.ElementTree as ET
+import random
 from pathlib import Path
 from datetime import datetime, date
 from email.utils import parsedate_to_datetime
@@ -839,24 +840,38 @@ def _fetch_remote_poem() -> dict:
     )
 
 
-def _fallback_poem() -> dict:
-    idx = int(datetime.now().strftime("%j")) % len(POEM_FALLBACKS)
-    return _build_poem_payload(POEM_FALLBACKS[idx], "本地兜底")
+def _fallback_poem(refresh: bool = False, exclude_title: Optional[str] = None) -> dict:
+    candidates = POEM_FALLBACKS
+    if refresh and exclude_title:
+        filtered = [p for p in POEM_FALLBACKS if (p.get("title") or "").strip() != exclude_title]
+        if filtered:
+            candidates = filtered
+    if refresh:
+        pick = random.choice(candidates)
+    else:
+        idx = int(datetime.now().strftime("%j")) % len(candidates)
+        pick = candidates[idx]
+    return _build_poem_payload(pick, "本地兜底")
 
 
 @app.get("/api/poem/daily")
 def get_daily_poem(refresh: bool = Query(False)):
     now_ts = _time.time()
+    previous_title = None
     if not refresh:
         with _poem_lock:
             updated_at = _poem_cache["updated_at"]
             payload = _poem_cache["payload"]
             if payload and updated_at and (now_ts - updated_at) < POEM_CACHE_TTL:
                 return payload
+    else:
+        with _poem_lock:
+            old_payload = _poem_cache.get("payload") or {}
+            previous_title = (old_payload.get("title") or "").strip() or None
     try:
         payload = _fetch_remote_poem()
     except Exception:
-        payload = _fallback_poem()
+        payload = _fallback_poem(refresh=refresh, exclude_title=previous_title)
     with _poem_lock:
         _poem_cache["updated_at"] = now_ts
         _poem_cache["payload"] = payload
