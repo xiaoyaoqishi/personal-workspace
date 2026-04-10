@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from models import Review, ReviewTradeLink, Trade, TradeSourceMetadata
+from models import Review, ReviewTradeLink, Trade, TradeReview, TradeSourceMetadata
 from trading.source_service import resolve_trade_source_fields
 
 
@@ -54,11 +54,14 @@ def attach_review_link_fields(db: Session, rows: List[Review]) -> List[Review]:
     trade_ids = list({link.trade_id for link in link_rows if link.trade_id})
     trade_by_id: Dict[int, Trade] = {}
     metadata_by_trade_id: Dict[int, TradeSourceMetadata] = {}
+    review_by_trade_id: Dict[int, TradeReview] = {}
     if trade_ids:
         trade_rows = db.query(Trade).filter(Trade.id.in_(trade_ids)).all()
         trade_by_id = {t.id: t for t in trade_rows}
         metadata_rows = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id.in_(trade_ids)).all()
         metadata_by_trade_id = {m.trade_id: m for m in metadata_rows}
+        review_rows = db.query(TradeReview).filter(TradeReview.trade_id.in_(trade_ids)).all()
+        review_by_trade_id = {x.trade_id: x for x in review_rows}
     for row in rows:
         links = grouped.get(row.id, [])
         for link in links:
@@ -67,6 +70,7 @@ def attach_review_link_fields(db: Session, rows: List[Review]) -> List[Review]:
                 setattr(link, "trade_summary", None)
                 continue
             source_fields = resolve_trade_source_fields(trade, metadata_by_trade_id.get(trade.id))
+            trade_review = review_by_trade_id.get(trade.id)
             setattr(
                 link,
                 "trade_summary",
@@ -83,6 +87,8 @@ def attach_review_link_fields(db: Session, rows: List[Review]) -> List[Review]:
                     "status": trade.status,
                     "pnl": trade.pnl,
                     "source_display": source_fields.get("source_display"),
+                    "has_trade_review": bool(trade_review),
+                    "review_conclusion": trade_review.review_conclusion if trade_review else None,
                 },
             )
         setattr(row, "trade_links", links)

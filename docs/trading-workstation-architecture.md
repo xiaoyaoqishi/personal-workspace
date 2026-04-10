@@ -135,3 +135,22 @@ The system now better supports:
 - converting recurring conclusions into reusable knowledge items
 
 This shifts the product from “recording trades” toward “researching discretionary edge”.
+
+## 7) New in 2026-04 Bugfix Closure Sprint
+
+1. Review linked-trade remote search
+- Added `GET /api/trades/search-options` for review linking.
+- Review workspace now uses debounced remote search + `include_ids` backfill (no fixed-page preload).
+
+2. Read/Edit shell consistency
+- Shared read/edit actions pattern applied across:
+  - trade detail drawer
+  - review workspace
+  - information maintenance workspace
+
+3. Centralized display layer (frontend)
+- Added shared display helpers for:
+  - instrument Chinese name rendering
+  - review role label rendering
+  - tag normalization/dedup
+  - linked-trade option/card text composition

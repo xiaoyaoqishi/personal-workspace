@@ -63,10 +63,21 @@
   border-radius: 10px;
 }
 
+.review-read-card {
+  border-radius: 10px;
+  border: 1px solid #e5edf5;
+}
+
+.review-link-search-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 0.6fr 1.2fr;
+  gap: 8px;
+}
+
 .review-link-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 340px 140px 1fr;
+  grid-template-columns: 420px 140px 1fr;
   gap: 8px;
   align-items: center;
 }
@@ -94,6 +105,10 @@
 }
 
 @media (max-width: 768px) {
+  .review-link-search-grid {
+    grid-template-columns: 1fr;
+  }
+
   .review-link-row {
     grid-template-columns: 1fr;
   }

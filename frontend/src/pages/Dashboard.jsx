@@ -9,6 +9,7 @@ import DimensionPanel from '../features/trading/analytics/DimensionPanel';
 import StructuredReviewPanels from '../features/trading/analytics/StructuredReviewPanels';
 import BehaviorPanels from '../features/trading/analytics/BehaviorPanels';
 import CoverageAndPositions from '../features/trading/analytics/CoverageAndPositions';
+import { formatSymbolDimensionKey } from '../features/trading/display';
 
 export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
@@ -96,7 +97,12 @@ export default function Dashboard() {
 
       <Row gutter={[12, 12]}>
         <Col xs={24} xl={12}>
-          <DimensionPanel title="品种维度" rows={dimensions.by_symbol || []} keyLabel="品种" />
+          <DimensionPanel
+            title="品种维度"
+            rows={dimensions.by_symbol || []}
+            keyLabel="品种"
+            valueFormatter={formatSymbolDimensionKey}
+          />
         </Col>
         <Col xs={24} xl={12}>
           <DimensionPanel title="来源维度" rows={dimensions.by_source || []} keyLabel="来源" />

@@ -1,5 +1,5 @@
 import { Card, Col, Progress, Row, Statistic, Table, Tag } from 'antd';
-import { formatFuturesSymbol } from '../../../utils/futures';
+import { formatInstrumentDisplay } from '../display';
 
 export default function CoverageAndPositions({ coverage, positions }) {
   const positionColumns = [
@@ -7,7 +7,7 @@ export default function CoverageAndPositions({ coverage, positions }) {
       title: '品种',
       dataIndex: 'symbol',
       key: 'symbol',
-      render: (_, r) => formatFuturesSymbol(r.symbol, r.contract),
+      render: (_, r) => formatInstrumentDisplay(r.symbol, r.contract),
     },
     {
       title: '方向',

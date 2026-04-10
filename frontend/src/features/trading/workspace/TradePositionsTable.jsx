@@ -1,5 +1,5 @@
 import { Table, Tag } from 'antd';
-import { formatFuturesSymbol } from '../../../utils/futures';
+import { formatInstrumentDisplay } from '../display';
 
 export default function TradePositionsTable({ rows, loading }) {
   const columns = [
@@ -19,7 +19,7 @@ export default function TradePositionsTable({ rows, loading }) {
   const dataSource = rows.map((p, idx) => ({
     key: `${p.symbol}-${p.side}-${idx}`,
     ...p,
-    symbol_label: formatFuturesSymbol(p.symbol, p.contract),
+    symbol_label: formatInstrumentDisplay(p.symbol, p.contract),
   }));
 
   return (

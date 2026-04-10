@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Card,
@@ -18,62 +18,46 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { reviewApi, tradeApi } from '../api';
-import { formatFuturesSymbol } from '../utils/futures';
+import { FUTURES_SYMBOL_OPTIONS } from '../utils/futures';
 import {
-  REVIEW_LINK_ROLE_ZH,
+  buildTradeSearchOption,
+  formatInstrumentDisplay,
+  formatReviewConclusionLabel,
+  formatReviewRoleLabel,
+  normalizeTagList,
+} from '../features/trading/display';
+import {
   REVIEW_SCOPE_ZH,
   REVIEW_TYPE_ZH,
   dictToOptions,
   mapLabel,
 } from '../features/trading/localization';
+import ReadEditActions from '../features/trading/components/ReadEditActions';
 import './ReviewList.css';
 
 const { TextArea } = Input;
+const { RangePicker } = DatePicker;
 
 const REVIEW_TYPE_OPTIONS = dictToOptions(REVIEW_TYPE_ZH);
 const REVIEW_SCOPE_OPTIONS = dictToOptions(REVIEW_SCOPE_ZH);
-const REVIEW_ROLE_OPTIONS = dictToOptions(REVIEW_LINK_ROLE_ZH);
-
-function normalizeTags(raw) {
-  if (Array.isArray(raw)) return raw.map((x) => String(x || '').trim()).filter(Boolean);
-  return String(raw || '')
-    .split(/[,\n;|，、]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
-function buildTradeOption(trade) {
-  const d = trade.trade_date || (trade.open_time ? String(trade.open_time).slice(0, 10) : '-');
-  const symbolLabel = formatFuturesSymbol(trade.symbol, trade.contract);
-  const side = trade.direction || '-';
-  const qty = trade.quantity == null ? '-' : trade.quantity;
-  const pnl = trade.pnl == null ? '-' : Number(trade.pnl).toFixed(2);
-  return {
-    value: trade.id,
-    label: `#${trade.id} | ${d} | ${symbolLabel} | ${side} | 手数 ${qty} | PnL ${pnl}`,
-    summary: {
-      trade_id: trade.id,
-      trade_date: trade.trade_date,
-      symbol: trade.symbol,
-      contract: trade.contract,
-      direction: trade.direction,
-      quantity: trade.quantity,
-      open_price: trade.open_price,
-      close_price: trade.close_price,
-      status: trade.status,
-      pnl: trade.pnl,
-      source_display: trade.source_display,
-    },
-  };
-}
+const REVIEW_ROLE_OPTIONS = [
+  { value: 'linked_trade', label: formatReviewRoleLabel('linked_trade') },
+  { value: 'best_trade', label: formatReviewRoleLabel('best_trade') },
+  { value: 'worst_trade', label: formatReviewRoleLabel('worst_trade') },
+  { value: 'representative_trade', label: formatReviewRoleLabel('representative_trade') },
+];
+const TRADE_STATUS_OPTIONS = [
+  { value: 'open', label: '持仓' },
+  { value: 'closed', label: '已平' },
+];
 
 function normalizeReviewPayload(values) {
   return {
     ...values,
-    tags: normalizeTags(values.tags),
+    tags: normalizeTagList(values.tags),
     title: values.title?.trim() || null,
     review_scope: values.review_scope || 'periodic',
     focus_topic: values.focus_topic?.trim() || null,
@@ -100,22 +84,45 @@ function normalizeReviewPayload(values) {
   };
 }
 
+function summaryToOption(summary) {
+  if (!summary?.trade_id) return null;
+  return buildTradeSearchOption({
+    trade_id: summary.trade_id,
+    trade_date: summary.trade_date,
+    symbol: summary.symbol,
+    contract: summary.contract,
+    direction: summary.direction,
+    quantity: summary.quantity,
+    open_price: summary.open_price,
+    close_price: summary.close_price,
+    status: summary.status,
+    pnl: summary.pnl,
+    source_display: summary.source_display,
+    has_trade_review: summary.has_trade_review,
+    review_conclusion: summary.review_conclusion,
+  });
+}
+
 function LinkedTradeCard({ item }) {
   const s = item?.trade_summary || {};
-  const symbolLabel = formatFuturesSymbol(s.symbol, s.contract);
-  const roleLabel = mapLabel(REVIEW_LINK_ROLE_ZH, item.role);
+  const instrumentLabel = formatInstrumentDisplay(s.symbol, s.contract);
+  const roleLabel = formatReviewRoleLabel(item.role);
   return (
     <Card size="small" className="review-linked-card">
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+      <Space direction="vertical" size={6} style={{ width: '100%' }}>
         <Space wrap>
           <Tag color="blue">{roleLabel}</Tag>
-          <Tag>#{s.trade_id || item.trade_id}</Tag>
           {s.direction ? <Tag color={s.direction === '做多' ? 'red' : 'green'}>{s.direction}</Tag> : null}
           {s.status ? <Tag>{s.status === 'closed' ? '已平' : '持仓'}</Tag> : null}
+          {s.review_conclusion ? <Tag color="purple">{formatReviewConclusionLabel(s.review_conclusion)}</Tag> : null}
         </Space>
-        <div>{s.trade_date || '-'} · {symbolLabel || '-'}</div>
-        <div>手数 {s.quantity ?? '-'} · 开 {s.open_price ?? '-'} · 平 {s.close_price ?? '-'}</div>
-        <div>PnL {s.pnl ?? '-'} · 来源 {s.source_display || '-'}</div>
+        <Typography.Text strong>{s.trade_date || '-'} · {instrumentLabel}</Typography.Text>
+        <Typography.Text type="secondary">
+          合约 {s.contract || '-'} · 手数 {s.quantity ?? '-'} · 开/平 {s.open_price ?? '-'}/{s.close_price ?? '-'}
+        </Typography.Text>
+        <Typography.Text type="secondary">
+          PnL {s.pnl ?? '-'} · 来源 {s.source_display || '-'} · ID #{s.trade_id || item.trade_id}
+        </Typography.Text>
         {item.notes ? <Typography.Text type="secondary">备注：{item.notes}</Typography.Text> : null}
       </Space>
     </Card>
@@ -133,15 +140,18 @@ export default function ReviewList() {
   const [selectedReviewId, setSelectedReviewId] = useState(null);
   const [linkedTrades, setLinkedTrades] = useState([]);
   const [tradeOptions, setTradeOptions] = useState([]);
+  const [tradeOptionLoading, setTradeOptionLoading] = useState(false);
   const [quickTradeId, setQuickTradeId] = useState(undefined);
   const [quickRole, setQuickRole] = useState('linked_trade');
+  const [tradeSearch, setTradeSearch] = useState({
+    q: '',
+    symbol: undefined,
+    status: undefined,
+    dateRange: null,
+  });
   const [form] = Form.useForm();
-
-  const tradeOptionMap = useMemo(() => {
-    const out = {};
-    for (const item of tradeOptions) out[item.value] = item;
-    return out;
-  }, [tradeOptions]);
+  const tradeSearchTimerRef = useRef(null);
+  const tradeSearchReqRef = useRef(0);
 
   const selectedReview = useMemo(
     () => reviews.find((x) => x.id === selectedReviewId) || null,
@@ -150,9 +160,41 @@ export default function ReviewList() {
 
   const reviewTagOptions = useMemo(() => {
     const set = new Set();
-    reviews.forEach((r) => normalizeTags(r.tags).forEach((t) => set.add(t)));
+    reviews.forEach((r) => normalizeTagList(r.tags).forEach((t) => set.add(t)));
     return Array.from(set).map((x) => ({ value: x, label: x }));
   }, [reviews]);
+
+  const linkedTradeIds = useMemo(() => {
+    const set = new Set();
+    linkedTrades.forEach((x) => {
+      const id = Number(x.trade_id);
+      if (id > 0) set.add(id);
+    });
+    if (quickTradeId) set.add(Number(quickTradeId));
+    return Array.from(set);
+  }, [linkedTrades, quickTradeId]);
+
+  const tradeOptionsMerged = useMemo(() => {
+    const map = {};
+    tradeOptions.forEach((item) => {
+      map[item.value] = item;
+    });
+    linkedTrades.forEach((item) => {
+      const option = summaryToOption(item.trade_summary);
+      if (option && !map[option.value]) {
+        map[option.value] = option;
+      }
+    });
+    return Object.values(map);
+  }, [tradeOptions, linkedTrades]);
+
+  const tradeOptionMap = useMemo(() => {
+    const out = {};
+    tradeOptionsMerged.forEach((item) => {
+      out[item.value] = item;
+    });
+    return out;
+  }, [tradeOptionsMerged]);
 
   const resetFormFromReview = (review) => {
     if (!review) {
@@ -168,7 +210,7 @@ export default function ReviewList() {
     }
     form.setFieldsValue({
       ...review,
-      tags: normalizeTags(review.tags),
+      tags: normalizeTagList(review.tags),
       review_type: review.review_type || activeType,
       review_scope: review.review_scope || 'periodic',
       review_date: review.review_date ? dayjs(review.review_date) : dayjs(),
@@ -198,8 +240,7 @@ export default function ReviewList() {
       }
       if (targetId && rows.some((x) => x.id === targetId)) {
         setSelectedReviewId(targetId);
-        const next = rows.find((x) => x.id === targetId);
-        resetFormFromReview(next);
+        resetFormFromReview(rows.find((x) => x.id === targetId));
         return;
       }
       setSelectedReviewId(rows[0].id);
@@ -211,13 +252,48 @@ export default function ReviewList() {
     }
   };
 
-  const loadTradeOptions = async () => {
+  const searchTradeOptions = async ({ query, includeTradeIds = [], silent = false, searchState } = {}) => {
+    const reqId = tradeSearchReqRef.current + 1;
+    tradeSearchReqRef.current = reqId;
+    if (!silent) setTradeOptionLoading(true);
+
     try {
-      const res = await tradeApi.list({ page: 1, size: 300 });
-      setTradeOptions((res.data || []).map(buildTradeOption));
+      const activeSearch = searchState || tradeSearch;
+      const includeIds = Array.from(new Set([...linkedTradeIds, ...(includeTradeIds || [])]))
+        .filter((x) => Number(x) > 0)
+        .map((x) => Number(x));
+      const params = { limit: 50 };
+      const keyword = String(query ?? activeSearch.q ?? '').trim();
+      if (keyword) params.q = keyword;
+      if (activeSearch.symbol) params.symbol = activeSearch.symbol;
+      if (activeSearch.status) params.status = activeSearch.status;
+      if (activeSearch.dateRange?.[0] && activeSearch.dateRange?.[1]) {
+        params.date_from = activeSearch.dateRange[0].format('YYYY-MM-DD');
+        params.date_to = activeSearch.dateRange[1].format('YYYY-MM-DD');
+      }
+      if (includeIds.length > 0) params.include_ids = includeIds.join(',');
+
+      const res = await tradeApi.searchOptions(params);
+      if (reqId !== tradeSearchReqRef.current) return;
+      const options = (res.data?.items || []).map(buildTradeSearchOption);
+      setTradeOptions(options);
     } catch {
-      setTradeOptions([]);
+      if (reqId !== tradeSearchReqRef.current) return;
+      if (!silent) message.error('交易检索失败，请重试');
+    } finally {
+      if (reqId === tradeSearchReqRef.current && !silent) {
+        setTradeOptionLoading(false);
+      }
     }
+  };
+
+  const scheduleSearchTradeOptions = (query) => {
+    if (tradeSearchTimerRef.current) {
+      clearTimeout(tradeSearchTimerRef.current);
+    }
+    tradeSearchTimerRef.current = setTimeout(() => {
+      searchTradeOptions({ query });
+    }, 300);
   };
 
   useEffect(() => {
@@ -225,8 +301,17 @@ export default function ReviewList() {
   }, [activeType, activeScope, activeTag]);
 
   useEffect(() => {
-    loadTradeOptions();
+    return () => {
+      if (tradeSearchTimerRef.current) {
+        clearTimeout(tradeSearchTimerRef.current);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (!editing) return;
+    searchTradeOptions({ query: tradeSearch.q, includeTradeIds: linkedTradeIds, silent: true });
+  }, [editing, linkedTradeIds.join(',')]);
 
   const handleSelectReview = (review) => {
     setSelectedReviewId(review.id);
@@ -238,12 +323,14 @@ export default function ReviewList() {
     setSelectedReviewId(null);
     resetFormFromReview(null);
     setEditing(true);
+    searchTradeOptions({ query: '', includeTradeIds: [] });
   };
 
   const handleEditReview = () => {
     if (!selectedReview) return;
     resetFormFromReview(selectedReview);
     setEditing(true);
+    searchTradeOptions({ query: tradeSearch.q, includeTradeIds: linkedTradeIds });
   };
 
   const handleCancelEdit = () => {
@@ -258,11 +345,9 @@ export default function ReviewList() {
       const payload = normalizeReviewPayload(values);
       let saved;
       if (selectedReviewId) {
-        const updateRes = await reviewApi.update(selectedReviewId, payload);
-        saved = updateRes.data;
+        saved = (await reviewApi.update(selectedReviewId, payload)).data;
       } else {
-        const createRes = await reviewApi.create(payload);
-        saved = createRes.data;
+        saved = (await reviewApi.create(payload)).data;
       }
       await reviewApi.upsertTradeLinks(saved.id, {
         trade_links: linkedTrades
@@ -335,7 +420,7 @@ export default function ReviewList() {
   };
 
   const type = Form.useWatch('review_type', form) || activeType;
-  const tagsForRead = normalizeTags(selectedReview?.tags);
+  const tagsForRead = normalizeTagList(selectedReview?.tags);
 
   return (
     <div className="review-workspace">
@@ -343,21 +428,21 @@ export default function ReviewList() {
         <div className="review-toolbar-inner">
           <div>
             <Typography.Title level={4} style={{ margin: 0 }}>复盘研究工作台</Typography.Title>
-            <Typography.Text type="secondary">单笔复盘在交易详情完成，这里聚焦多笔/主题/周期复盘并沉淀结论。</Typography.Text>
+            <Typography.Text type="secondary">默认内容优先阅读，进入编辑模式后再处理结构化字段与关联样本。</Typography.Text>
           </div>
           <Space wrap>
             <Select value={activeType} options={REVIEW_TYPE_OPTIONS} onChange={setActiveType} style={{ width: 130 }} />
             <Select allowClear value={activeScope} options={REVIEW_SCOPE_OPTIONS} placeholder="范围" onChange={setActiveScope} style={{ width: 130 }} />
             <Select allowClear value={activeTag} options={reviewTagOptions} placeholder="标签筛选" onChange={setActiveTag} style={{ width: 140 }} />
             <Button onClick={handleNewReview} icon={<PlusOutlined />}>新建复盘</Button>
-            {editing ? (
-              <>
-                <Button type="primary" loading={saving} icon={<SaveOutlined />} onClick={handleSave}>保存</Button>
-                <Button onClick={handleCancelEdit}>取消</Button>
-              </>
-            ) : (
-              <Button icon={<EditOutlined />} onClick={handleEditReview} disabled={!selectedReviewId}>编辑</Button>
-            )}
+            <ReadEditActions
+              editing={editing}
+              saving={saving}
+              onEdit={handleEditReview}
+              onSave={handleSave}
+              onCancel={handleCancelEdit}
+              editDisabled={!selectedReviewId}
+            />
             <Popconfirm title="确认删除当前复盘？" onConfirm={handleDelete} disabled={!selectedReviewId}>
               <Button danger icon={<DeleteOutlined />} disabled={!selectedReviewId}>删除</Button>
             </Popconfirm>
@@ -447,16 +532,66 @@ export default function ReviewList() {
                   </Row>
                 </Form>
 
-                <Card size="small" title="关联交易（多笔/样本）" className="review-link-card">
-                  <Space wrap style={{ marginBottom: 10 }}>
+                <Card size="small" title="关联交易（检索 + 样本）" className="review-link-card">
+                  <div className="review-link-search-grid">
+                    <Input
+                      allowClear
+                      value={tradeSearch.q}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setTradeSearch((prev) => ({ ...prev, q: v }));
+                        scheduleSearchTradeOptions(v);
+                      }}
+                      placeholder="搜索：交易ID / 合约 / 品种 / 来源"
+                    />
+                    <Select
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      options={FUTURES_SYMBOL_OPTIONS}
+                      value={tradeSearch.symbol}
+                      placeholder="品种"
+                      onChange={(v) => {
+                        const nextSearch = { ...tradeSearch, symbol: v };
+                        setTradeSearch(nextSearch);
+                        searchTradeOptions({ query: nextSearch.q, searchState: nextSearch });
+                      }}
+                    />
+                    <Select
+                      allowClear
+                      options={TRADE_STATUS_OPTIONS}
+                      value={tradeSearch.status}
+                      placeholder="状态"
+                      onChange={(v) => {
+                        const nextSearch = { ...tradeSearch, status: v };
+                        setTradeSearch(nextSearch);
+                        searchTradeOptions({ query: nextSearch.q, searchState: nextSearch });
+                      }}
+                    />
+                    <RangePicker
+                      value={tradeSearch.dateRange}
+                      onChange={(dates) => {
+                        const nextSearch = { ...tradeSearch, dateRange: dates };
+                        setTradeSearch(nextSearch);
+                        searchTradeOptions({ query: nextSearch.q, searchState: nextSearch });
+                      }}
+                    />
+                  </div>
+
+                  <Space wrap style={{ marginTop: 10, marginBottom: 10, width: '100%' }}>
                     <Select
                       showSearch
+                      filterOption={false}
                       value={quickTradeId}
                       onChange={setQuickTradeId}
-                      options={tradeOptions}
-                      placeholder="选择交易"
-                      style={{ width: 420 }}
+                      onSearch={scheduleSearchTradeOptions}
+                      onFocus={() => searchTradeOptions({ query: tradeSearch.q, includeTradeIds: linkedTradeIds })}
+                      options={tradeOptionsMerged}
+                      placeholder="输入关键词检索交易后选择"
+                      style={{ width: 520, maxWidth: '100%' }}
                       optionFilterProp="label"
+                      loading={tradeOptionLoading}
+                      notFoundContent={tradeOptionLoading ? '检索中...' : '暂无匹配交易，继续输入关键词'}
                     />
                     <Select value={quickRole} onChange={setQuickRole} options={REVIEW_ROLE_OPTIONS} style={{ width: 150 }} />
                     <Button onClick={addLinkedTrade}>添加关联</Button>
@@ -477,11 +612,16 @@ export default function ReviewList() {
                             <Select
                               size="small"
                               showSearch
+                              filterOption={false}
                               optionFilterProp="label"
                               value={item.trade_id}
+                              onSearch={scheduleSearchTradeOptions}
+                              onFocus={() => searchTradeOptions({ query: tradeSearch.q, includeTradeIds: linkedTradeIds })}
                               onChange={(v) => updateLinkedTrade(index, { trade_id: v })}
-                              options={tradeOptions}
-                              style={{ width: 340 }}
+                              options={tradeOptionsMerged}
+                              style={{ width: 420 }}
+                              loading={tradeOptionLoading}
+                              notFoundContent={tradeOptionLoading ? '检索中...' : '请输入关键词检索交易'}
                             />
                             <Select
                               size="small"
@@ -507,39 +647,37 @@ export default function ReviewList() {
               <Empty description="请选择左侧复盘或新建复盘" />
             ) : (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Descriptions size="small" column={2}>
-                  <Descriptions.Item label="标题">{selectedReview.title || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="日期">{selectedReview.review_date || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="类型">{mapLabel(REVIEW_TYPE_ZH, selectedReview.review_type)}</Descriptions.Item>
-                  <Descriptions.Item label="范围">{mapLabel(REVIEW_SCOPE_ZH, selectedReview.review_scope || 'periodic')}</Descriptions.Item>
-                  <Descriptions.Item label="聚焦主题">{selectedReview.focus_topic || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="市场环境">{selectedReview.market_regime || '-'}</Descriptions.Item>
-                </Descriptions>
-
-                {tagsForRead.length > 0 ? (
-                  <div>
-                    <Typography.Text type="secondary">标签</Typography.Text>
-                    <div style={{ marginTop: 4 }}>{tagsForRead.map((t) => <Tag key={t}>{t}</Tag>)}</div>
-                  </div>
-                ) : null}
+                <Card size="small" title="复盘概览" className="review-read-card">
+                  <Descriptions size="small" column={2}>
+                    <Descriptions.Item label="标题">{selectedReview.title || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="日期">{selectedReview.review_date || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="类型">{mapLabel(REVIEW_TYPE_ZH, selectedReview.review_type)}</Descriptions.Item>
+                    <Descriptions.Item label="范围">{mapLabel(REVIEW_SCOPE_ZH, selectedReview.review_scope || 'periodic')}</Descriptions.Item>
+                    <Descriptions.Item label="聚焦主题">{selectedReview.focus_topic || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="市场环境">{selectedReview.market_regime || '-'}</Descriptions.Item>
+                  </Descriptions>
+                  {tagsForRead.length > 0 ? (
+                    <div style={{ marginTop: 8 }}>
+                      <Typography.Text type="secondary">标签</Typography.Text>
+                      <div style={{ marginTop: 6 }}>{tagsForRead.map((t) => <Tag key={t}>{t}</Tag>)}</div>
+                    </div>
+                  ) : null}
+                </Card>
 
                 {selectedReview.summary ? (
-                  <div>
-                    <Typography.Text type="secondary">结论摘要</Typography.Text>
+                  <Card size="small" title="结论摘要" className="review-read-card">
                     <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedReview.summary}</Typography.Paragraph>
-                  </div>
+                  </Card>
                 ) : null}
                 {selectedReview.action_items ? (
-                  <div>
-                    <Typography.Text type="secondary">后续动作</Typography.Text>
+                  <Card size="small" title="后续动作" className="review-read-card">
                     <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedReview.action_items}</Typography.Paragraph>
-                  </div>
+                  </Card>
                 ) : null}
                 {selectedReview.content ? (
-                  <div>
-                    <Typography.Text type="secondary">详细复盘</Typography.Text>
+                  <Card size="small" title="详细复盘" className="review-read-card">
                     <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedReview.content}</Typography.Paragraph>
-                  </div>
+                  </Card>
                 ) : null}
 
                 <Card size="small" title="关联交易（内容卡片）" className="review-link-card">

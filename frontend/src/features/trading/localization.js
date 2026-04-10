@@ -97,6 +97,10 @@ export function taxonomyOptionsWithZh(field, values = []) {
   }));
 }
 
+export function taxonomyCanonicalValues(field) {
+  return Object.keys(TAXONOMY_ZH[field] || {});
+}
+
 export function mapLabel(dict, value, fallback = '-') {
   const key = String(value || '').trim();
   if (!key) return fallback;

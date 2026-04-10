@@ -15,9 +15,10 @@ import {
   Typography,
   Select,
 } from 'antd';
-import { EditOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
-import { formatFuturesSymbol } from '../../../utils/futures';
+import { ReloadOutlined } from '@ant-design/icons';
+import { formatInstrumentDisplay, normalizeTagList } from '../display';
 import { getTaxonomyLabel, taxonomyOptionsWithZh } from '../localization';
+import ReadEditActions from '../components/ReadEditActions';
 
 const { TextArea } = Input;
 
@@ -66,7 +67,7 @@ export default function TradeDetailDrawer({
   }, [tradeId, open]);
 
   const reviewTags = useMemo(
-    () => (Array.isArray(review?.tags) ? review.tags.filter(Boolean) : []),
+    () => normalizeTagList(review?.tags),
     [review?.tags]
   );
 
@@ -138,7 +139,7 @@ export default function TradeDetailDrawer({
           <Card size="small" title="成交流水信息">
             <Descriptions size="small" column={2}>
               <Descriptions.Item label="交易日期">{trade.trade_date || '-'}</Descriptions.Item>
-              <Descriptions.Item label="品种">{formatFuturesSymbol(trade.symbol, trade.contract)}</Descriptions.Item>
+              <Descriptions.Item label="品种">{formatInstrumentDisplay(trade.symbol, trade.contract)}</Descriptions.Item>
               <Descriptions.Item label="方向">
                 <Tag color={trade.direction === '做多' ? 'red' : 'green'}>{trade.direction || '-'}</Tag>
               </Descriptions.Item>
@@ -162,14 +163,13 @@ export default function TradeDetailDrawer({
             size="small"
             title="结构化复盘（主工作流）"
             extra={
-              reviewEditing ? (
-                <Space>
-                  <Button loading={savingReview} type="primary" icon={<SaveOutlined />} onClick={saveReview}>保存</Button>
-                  <Button onClick={() => cancelSectionEdit(setReviewEditing)}>取消</Button>
-                </Space>
-              ) : (
-                <Button icon={<EditOutlined />} onClick={() => setReviewEditing(true)}>编辑</Button>
-              )
+              <ReadEditActions
+                editing={reviewEditing}
+                saving={savingReview}
+                onEdit={() => setReviewEditing(true)}
+                onSave={saveReview}
+                onCancel={() => cancelSectionEdit(setReviewEditing)}
+              />
             }
           >
             {reviewEditing ? (
@@ -291,14 +291,13 @@ export default function TradeDetailDrawer({
             size="small"
             title="来源元数据（主工作流）"
             extra={
-              sourceEditing ? (
-                <Space>
-                  <Button loading={savingSource} type="primary" icon={<SaveOutlined />} onClick={saveSource}>保存</Button>
-                  <Button onClick={() => cancelSectionEdit(setSourceEditing)}>取消</Button>
-                </Space>
-              ) : (
-                <Button icon={<EditOutlined />} onClick={() => setSourceEditing(true)}>编辑</Button>
-              )
+              <ReadEditActions
+                editing={sourceEditing}
+                saving={savingSource}
+                onEdit={() => setSourceEditing(true)}
+                onSave={saveSource}
+                onCancel={() => cancelSectionEdit(setSourceEditing)}
+              />
             }
           >
             {sourceEditing ? (
@@ -342,14 +341,13 @@ export default function TradeDetailDrawer({
             size="small"
             title="兼容字段（次级）"
             extra={
-              legacyEditing ? (
-                <Space>
-                  <Button loading={savingLegacy} type="primary" icon={<SaveOutlined />} onClick={saveLegacy}>保存</Button>
-                  <Button onClick={() => cancelSectionEdit(setLegacyEditing)}>取消</Button>
-                </Space>
-              ) : (
-                <Button icon={<EditOutlined />} onClick={() => setLegacyEditing(true)}>编辑</Button>
-              )
+              <ReadEditActions
+                editing={legacyEditing}
+                saving={savingLegacy}
+                onEdit={() => setLegacyEditing(true)}
+                onSave={saveLegacy}
+                onCancel={() => cancelSectionEdit(setLegacyEditing)}
+              />
             }
           >
             {legacyEditing ? (

@@ -15,6 +15,7 @@ api.interceptors.response.use(
 export const tradeApi = {
   list: (params) => api.get('/trades', { params }),
   count: (params) => api.get('/trades/count', { params }),
+  searchOptions: (params) => api.get('/trades/search-options', { params }),
   get: (id) => api.get(`/trades/${id}`),
   create: (data) => api.post('/trades', data),
   update: (id, data) => api.put(`/trades/${id}`, data),

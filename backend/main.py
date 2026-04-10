@@ -39,6 +39,7 @@ from models import (
 from schemas import (
     TradeCreate, TradeUpdate, TradeResponse,
     TradePasteImportRequest, TradePasteImportResponse, TradePasteImportError, TradePositionResponse,
+    TradeSearchOptionItemResponse, TradeSearchOptionsResponse,
     TradeReviewUpsert, TradeReviewResponse, TradeReviewTaxonomyResponse,
     TradeSourceMetadataUpsert, TradeSourceMetadataResponse,
     TradeBrokerCreate, TradeBrokerUpdate, TradeBrokerResponse,
@@ -709,6 +710,109 @@ def list_trades(
     q = _apply_source_keyword_filter(q, source_keyword)
     rows = q.order_by(Trade.open_time.desc()).offset((page - 1) * size).limit(size).all()
     return _attach_trade_view_fields(db, rows)
+
+
+def _parse_include_ids(include_ids: Optional[str]) -> List[int]:
+    if not include_ids:
+        return []
+    out: List[int] = []
+    seen = set()
+    for part in str(include_ids).split(","):
+        raw = part.strip()
+        if not raw:
+            continue
+        if not raw.isdigit():
+            continue
+        val = int(raw)
+        if val <= 0 or val in seen:
+            continue
+        seen.add(val)
+        out.append(val)
+    return out
+
+
+@app.get("/api/trades/search-options", response_model=TradeSearchOptionsResponse)
+def list_trade_search_options(
+    q: Optional[str] = None,
+    symbol: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    status: Optional[str] = None,
+    include_ids: Optional[str] = None,
+    limit: int = Query(30, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    include_trade_ids = _parse_include_ids(include_ids)
+
+    query = db.query(Trade).outerjoin(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id)
+    if symbol:
+        query = query.filter(Trade.symbol == symbol)
+    if date_from:
+        query = query.filter(Trade.trade_date >= date_from)
+    if date_to:
+        query = query.filter(Trade.trade_date <= date_to)
+    if status:
+        query = query.filter(Trade.status == status)
+
+    keyword = (q or "").strip()
+    if keyword:
+        conds = [
+            Trade.symbol.contains(keyword.upper()),
+            Trade.contract.contains(keyword),
+            Trade.notes.contains(keyword),
+            TradeSourceMetadata.broker_name.contains(keyword),
+            TradeSourceMetadata.source_label.contains(keyword),
+        ]
+        if keyword.isdigit():
+            conds.append(Trade.id == int(keyword))
+        query = query.filter(or_(*conds))
+
+    rows = query.order_by(Trade.open_time.desc(), Trade.id.desc()).limit(limit).all()
+    ordered_rows = _attach_trade_view_fields(db, rows)
+    collected_ids = {x.id for x in ordered_rows if x.id}
+
+    missing_include_ids = [tid for tid in include_trade_ids if tid not in collected_ids]
+    if missing_include_ids:
+        include_rows = (
+            db.query(Trade)
+            .filter(Trade.id.in_(missing_include_ids))
+            .order_by(Trade.open_time.desc(), Trade.id.desc())
+            .all()
+        )
+        include_rows = _attach_trade_view_fields(db, include_rows)
+        include_map = {x.id: x for x in include_rows if x.id}
+        for trade_id in missing_include_ids:
+            row = include_map.get(trade_id)
+            if row:
+                ordered_rows.append(row)
+                collected_ids.add(row.id)
+
+    trade_ids = [x.id for x in ordered_rows if x.id]
+    review_conclusion_by_trade_id: Dict[int, Optional[str]] = {}
+    if trade_ids:
+        review_rows = db.query(TradeReview).filter(TradeReview.trade_id.in_(trade_ids)).all()
+        for row in review_rows:
+            review_conclusion_by_trade_id[row.trade_id] = row.review_conclusion
+
+    items = [
+        TradeSearchOptionItemResponse(
+            trade_id=row.id,
+            trade_date=row.trade_date,
+            symbol=row.symbol,
+            contract=row.contract,
+            direction=row.direction,
+            quantity=row.quantity,
+            open_price=row.open_price,
+            close_price=row.close_price,
+            status=row.status,
+            pnl=row.pnl,
+            source_display=getattr(row, "source_display", None),
+            has_trade_review=bool(getattr(row, "has_trade_review", False)),
+            review_conclusion=review_conclusion_by_trade_id.get(row.id),
+        )
+        for row in ordered_rows
+    ]
+    return TradeSearchOptionsResponse(items=items)
 
 
 @app.get("/api/trades/count")

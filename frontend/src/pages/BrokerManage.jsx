@@ -18,7 +18,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { brokerApi, knowledgeApi } from '../api';
 import {
@@ -28,7 +28,8 @@ import {
   dictToOptions,
   mapLabel,
 } from '../features/trading/localization';
-import { formatFuturesSymbol } from '../utils/futures';
+import { formatInstrumentDisplay, normalizeTagList } from '../features/trading/display';
+import ReadEditActions from '../features/trading/components/ReadEditActions';
 import './BrokerManage.css';
 
 const { TextArea, Search } = Input;
@@ -36,16 +37,8 @@ const { TextArea, Search } = Input;
 const KNOWLEDGE_STATUS_OPTIONS = dictToOptions(KNOWLEDGE_STATUS_ZH);
 const KNOWLEDGE_PRIORITY_OPTIONS = dictToOptions(KNOWLEDGE_PRIORITY_ZH);
 
-function normalizeTags(raw) {
-  if (Array.isArray(raw)) return raw.map((x) => String(x || '').trim()).filter(Boolean);
-  return String(raw || '')
-    .split(/[,\n;|，、]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
 function tagsToSummary(raw) {
-  const tags = normalizeTags(raw);
+  const tags = normalizeTagList(raw);
   return tags.length ? tags.join('、') : '';
 }
 
@@ -56,7 +49,7 @@ function normalizeKnowledgePayload(values) {
     title: values.title?.trim() || '',
     summary: values.summary?.trim() || null,
     content: values.content?.trim() || null,
-    tags: normalizeTags(values.tags),
+    tags: normalizeTagList(values.tags),
     related_symbol: values.related_symbol?.trim() || null,
     related_pattern: values.related_pattern?.trim() || null,
     related_regime: values.related_regime?.trim() || null,
@@ -117,7 +110,7 @@ export default function InfoMaintain() {
 
   const knowledgeTagOptions = useMemo(() => {
     const set = new Set();
-    knowledgeRows.forEach((item) => normalizeTags(item.tags || item.tags_text).forEach((tag) => set.add(tag)));
+    knowledgeRows.forEach((item) => normalizeTagList(item.tags || item.tags_text).forEach((tag) => set.add(tag)));
     return Array.from(set).map((x) => ({ value: x, label: x }));
   }, [knowledgeRows]);
 
@@ -204,7 +197,7 @@ export default function InfoMaintain() {
     }
     knowledgeForm.setFieldsValue({
       ...selectedKnowledge,
-      tags: normalizeTags(selectedKnowledge.tags || selectedKnowledge.tags_text),
+      tags: normalizeTagList(selectedKnowledge.tags || selectedKnowledge.tags_text),
       due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
     });
   }, [selectedKnowledge, knowledgeForm]);
@@ -336,7 +329,7 @@ export default function InfoMaintain() {
     if (!selectedKnowledge) return;
     knowledgeForm.setFieldsValue({
       ...selectedKnowledge,
-      tags: normalizeTags(selectedKnowledge.tags || selectedKnowledge.tags_text),
+      tags: normalizeTagList(selectedKnowledge.tags || selectedKnowledge.tags_text),
       due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
     });
     setKnowledgeEditing(true);
@@ -346,7 +339,7 @@ export default function InfoMaintain() {
     if (selectedKnowledge) {
       knowledgeForm.setFieldsValue({
         ...selectedKnowledge,
-        tags: normalizeTags(selectedKnowledge.tags || selectedKnowledge.tags_text),
+        tags: normalizeTagList(selectedKnowledge.tags || selectedKnowledge.tags_text),
         due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
       });
       setKnowledgeEditing(false);
@@ -395,9 +388,9 @@ export default function InfoMaintain() {
     setBrokerEditing(false);
   };
 
-  const selectedKnowledgeTags = normalizeTags(selectedKnowledge?.tags || selectedKnowledge?.tags_text);
+  const selectedKnowledgeTags = normalizeTagList(selectedKnowledge?.tags || selectedKnowledge?.tags_text);
   const selectedKnowledgeSymbolLabel = selectedKnowledge?.related_symbol
-    ? formatFuturesSymbol(selectedKnowledge.related_symbol, selectedKnowledge.related_symbol)
+    ? formatInstrumentDisplay(selectedKnowledge.related_symbol, selectedKnowledge.related_symbol)
     : '-';
 
   return (
@@ -454,14 +447,14 @@ export default function InfoMaintain() {
                 onSearch={(v) => setKnowledgeFilters((p) => ({ ...p, q: v }))}
               />
               <Button onClick={createKnowledge} icon={<PlusOutlined />}>新建知识</Button>
-              {knowledgeEditing ? (
-                <>
-                  <Button type="primary" loading={knowledgeSaving} icon={<SaveOutlined />} onClick={saveKnowledge}>保存</Button>
-                  <Button onClick={cancelKnowledgeEdit}>取消</Button>
-                </>
-              ) : (
-                <Button icon={<EditOutlined />} onClick={startEditKnowledge} disabled={!selectedKnowledgeId}>编辑</Button>
-              )}
+              <ReadEditActions
+                editing={knowledgeEditing}
+                saving={knowledgeSaving}
+                onEdit={startEditKnowledge}
+                onSave={saveKnowledge}
+                onCancel={cancelKnowledgeEdit}
+                editDisabled={!selectedKnowledgeId}
+              />
               <Popconfirm title="确认删除当前知识条目？" onConfirm={deleteKnowledge} disabled={!selectedKnowledgeId}>
                 <Button danger icon={<DeleteOutlined />} disabled={!selectedKnowledgeId}>删除</Button>
               </Popconfirm>
@@ -605,14 +598,14 @@ export default function InfoMaintain() {
               className="maintain-editor-card"
               extra={(
                 <Space>
-                  {brokerEditing ? (
-                    <>
-                      <Button type="primary" icon={<SaveOutlined />} loading={brokerSaving} onClick={saveBroker}>保存</Button>
-                      <Button onClick={cancelBrokerEdit}>取消</Button>
-                    </>
-                  ) : (
-                    <Button icon={<EditOutlined />} onClick={startEditBroker} disabled={!selectedBrokerId}>编辑</Button>
-                  )}
+                  <ReadEditActions
+                    editing={brokerEditing}
+                    saving={brokerSaving}
+                    onEdit={startEditBroker}
+                    onSave={saveBroker}
+                    onCancel={cancelBrokerEdit}
+                    editDisabled={!selectedBrokerId}
+                  />
                   <Popconfirm title="确认删除当前券商？" onConfirm={deleteBroker} disabled={!selectedBrokerId}>
                     <Button danger icon={<DeleteOutlined />} disabled={!selectedBrokerId}>删除</Button>
                   </Popconfirm>

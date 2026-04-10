@@ -6,7 +6,8 @@ import {
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
-import { taxonomyOptionsWithZh } from '../features/trading/localization';
+import { taxonomyCanonicalValues, taxonomyOptionsWithZh } from '../features/trading/localization';
+import { normalizeTagList } from '../features/trading/display';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -74,7 +75,13 @@ export default function TradeForm() {
       })
       .catch(() => {
         if (alive) {
-          setReviewTaxonomy(EMPTY_REVIEW_TAXONOMY);
+          setReviewTaxonomy({
+            ...EMPTY_REVIEW_TAXONOMY,
+            opportunity_structure: taxonomyCanonicalValues('opportunity_structure'),
+            edge_source: taxonomyCanonicalValues('edge_source'),
+            failure_type: taxonomyCanonicalValues('failure_type'),
+            review_conclusion: taxonomyCanonicalValues('review_conclusion'),
+          });
         }
       });
     return () => {
@@ -172,7 +179,11 @@ export default function TradeForm() {
 
       const normalizedReview = {};
       Object.entries(reviewData).forEach(([k, v]) => {
-        normalizedReview[k] = typeof v === 'string' ? v.trim() : v;
+        if (k === 'tags') {
+          normalizedReview[k] = normalizeTagList(v);
+        } else {
+          normalizedReview[k] = typeof v === 'string' ? v.trim() : v;
+        }
       });
       const hasReviewData = Object.values(normalizedReview).some((v) => {
         if (Array.isArray(v)) return v.length > 0;

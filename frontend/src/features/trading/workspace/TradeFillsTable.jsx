@@ -1,7 +1,7 @@
 import { Button, Popconfirm, Space, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { formatFuturesSymbol } from '../../../utils/futures';
+import { formatInstrumentDisplay } from '../display';
 
 function renderSourceCell(row) {
   return row.source_display || '-';
@@ -34,7 +34,7 @@ export default function TradeFillsTable({
       title: '品种',
       dataIndex: 'symbol',
       width: 150,
-      render: (_, r) => formatFuturesSymbol(r.symbol, r.contract),
+      render: (_, r) => formatInstrumentDisplay(r.symbol, r.contract),
     },
     { title: '合约', dataIndex: 'contract', width: 90 },
     {

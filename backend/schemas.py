@@ -175,6 +175,26 @@ class TradePositionResponse(BaseModel):
     last_trade_date: Optional[date] = None
 
 
+class TradeSearchOptionItemResponse(BaseModel):
+    trade_id: int
+    trade_date: Optional[date] = None
+    symbol: Optional[str] = None
+    contract: Optional[str] = None
+    direction: Optional[str] = None
+    quantity: Optional[float] = None
+    open_price: Optional[float] = None
+    close_price: Optional[float] = None
+    status: Optional[str] = None
+    pnl: Optional[float] = None
+    source_display: Optional[str] = None
+    has_trade_review: Optional[bool] = None
+    review_conclusion: Optional[str] = None
+
+
+class TradeSearchOptionsResponse(BaseModel):
+    items: List[TradeSearchOptionItemResponse] = []
+
+
 class TradeReviewUpsert(BaseModel):
     opportunity_structure: Optional[OpportunityStructure] = None
     edge_source: Optional[EdgeSource] = None
@@ -337,6 +357,8 @@ class TradeSummaryResponse(BaseModel):
     status: Optional[str] = None
     pnl: Optional[float] = None
     source_display: Optional[str] = None
+    has_trade_review: Optional[bool] = None
+    review_conclusion: Optional[str] = None
 
 
 class ReviewTradeLinkResponse(ReviewTradeLinkUpsert):

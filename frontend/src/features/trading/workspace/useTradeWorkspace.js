@@ -8,6 +8,8 @@ import {
   REVIEW_FIELD_KEYS,
   normalizeText,
 } from './constants';
+import { taxonomyCanonicalValues } from '../localization';
+import { normalizeTagList } from '../display';
 
 export function useTradeWorkspace() {
   const [trades, setTrades] = useState([]);
@@ -71,7 +73,13 @@ export function useTradeWorkspace() {
         review_conclusion: res.data?.review_conclusion || [],
       });
     } catch {
-      setReviewTaxonomy(EMPTY_REVIEW_TAXONOMY);
+      setReviewTaxonomy({
+        ...EMPTY_REVIEW_TAXONOMY,
+        opportunity_structure: taxonomyCanonicalValues('opportunity_structure'),
+        edge_source: taxonomyCanonicalValues('edge_source'),
+        failure_type: taxonomyCanonicalValues('failure_type'),
+        review_conclusion: taxonomyCanonicalValues('review_conclusion'),
+      });
     }
   };
 
@@ -149,11 +157,8 @@ export function useTradeWorkspace() {
         normalizedReview[k] = reviewData?.[k] || '';
       });
       normalizedReview.tags = Array.isArray(reviewData?.tags)
-        ? reviewData.tags
-        : String(reviewData?.review_tags || '')
-            .split(/[,\n;|，、]+/)
-            .map((x) => x.trim())
-            .filter(Boolean);
+        ? normalizeTagList(reviewData.tags)
+        : normalizeTagList(String(reviewData?.review_tags || ''));
       setDetailReview(normalizedReview);
       setDetailReviewExists(!!reviewRes.data);
 
@@ -198,7 +203,7 @@ export function useTradeWorkspace() {
         payload[k] = normalizeText(detailReview[k]);
       });
       payload.tags = Array.isArray(detailReview.tags)
-        ? detailReview.tags.map((x) => String(x || '').trim()).filter(Boolean)
+        ? normalizeTagList(detailReview.tags)
         : [];
       const hasReviewData = Object.entries(payload).some(([k, v]) => (k === 'tags' ? (v || []).length > 0 : v !== null));
       if (hasReviewData) {
