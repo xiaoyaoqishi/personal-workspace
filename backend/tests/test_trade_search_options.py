@@ -64,7 +64,7 @@ def test_trade_search_options_supports_keyword_and_review_fields(app_client):
     row = items[0]
     assert row["trade_id"] == trade_id
     assert row["symbol"] == "IF"
-    assert row["source_display"] == "宏源期货 / 日结单粘贴导入"
+    assert row["source_display"] == "宏源期货"
     assert row["has_trade_review"] is True
     assert row["review_conclusion"] == "valid_pattern_valid_trade"
 

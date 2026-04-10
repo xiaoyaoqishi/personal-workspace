@@ -26,14 +26,14 @@ export default function CoverageAndPositions({ coverage, positions }) {
     <Row gutter={[12, 12]}>
       <Col xs={24} xl={8}>
         <Card title="数据覆盖率">
-          <Statistic title="TradeReview 覆盖率" value={coverage?.trade_review_rate || 0} suffix="%" precision={2} />
+          <Statistic title="结构化复盘覆盖率" value={coverage?.trade_review_rate || 0} suffix="%" precision={2} />
           <Progress percent={coverage?.trade_review_rate || 0} showInfo={false} />
-          <Statistic style={{ marginTop: 12 }} title="SourceMetadata 覆盖率" value={coverage?.source_metadata_rate || 0} suffix="%" precision={2} />
+          <Statistic style={{ marginTop: 12 }} title="来源元数据覆盖率" value={coverage?.source_metadata_rate || 0} suffix="%" precision={2} />
           <Progress percent={coverage?.source_metadata_rate || 0} showInfo={false} />
           <div style={{ marginTop: 12, color: '#666' }}>
             <div>结构化复盘记录: {coverage?.trade_review_count || 0}</div>
             <div>显式来源记录: {coverage?.source_metadata_count || 0}</div>
-            <div>Legacy来源仅回退: {coverage?.legacy_source_only_count || 0}</div>
+            <div>仅旧备注回退来源: {coverage?.legacy_source_only_count || 0}</div>
             <div>来源缺失: {coverage?.source_missing_count || 0}</div>
           </div>
         </Card>

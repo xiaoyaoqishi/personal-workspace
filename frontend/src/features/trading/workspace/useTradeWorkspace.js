@@ -10,6 +10,7 @@ import {
 } from './constants';
 import { taxonomyCanonicalValues } from '../localization';
 import { normalizeTagList } from '../display';
+import { normalizeSourceLabelForDisplay } from '../sourceDisplay';
 
 export function useTradeWorkspace() {
   const [trades, setTrades] = useState([]);
@@ -167,7 +168,7 @@ export function useTradeWorkspace() {
         ...EMPTY_SOURCE,
         ...sourceData,
         broker_name: sourceData?.broker_name || '',
-        source_label: sourceData?.source_label || '',
+        source_label: normalizeSourceLabelForDisplay(sourceData?.source_label),
         import_channel: sourceData?.import_channel || '',
         parser_version: sourceData?.parser_version || '',
         source_note_snapshot: sourceData?.source_note_snapshot || '',

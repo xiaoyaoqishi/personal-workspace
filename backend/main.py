@@ -481,7 +481,7 @@ def _upsert_trade_source_metadata_for_import(
     db: Session,
     trade: Trade,
     broker: Optional[str],
-    source_label: Optional[str] = "日结单粘贴导入",
+    source_label: Optional[str] = None,
 ):
     _source_upsert_trade_source_metadata_for_import(
         db,

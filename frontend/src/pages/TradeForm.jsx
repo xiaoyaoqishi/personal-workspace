@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
 import { taxonomyCanonicalValues, taxonomyOptionsWithZh } from '../features/trading/localization';
 import { normalizeTagList } from '../features/trading/display';
+import { normalizeSourceLabelForDisplay } from '../features/trading/sourceDisplay';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -131,7 +132,11 @@ export default function TradeForm() {
         try {
           const sourceRes = await tradeSourceApi.get(id);
           if (!alive) return;
-          form.setFieldsValue(sourceRes.data || {});
+          const sourceData = sourceRes.data || {};
+          form.setFieldsValue({
+            ...sourceData,
+            source_label: normalizeSourceLabelForDisplay(sourceData.source_label),
+          });
           setSourceExists(!!sourceRes.data?.exists_in_db);
           setSourceDerivedFromNotes(!!sourceRes.data?.derived_from_notes);
         } catch {
@@ -415,7 +420,7 @@ export default function TradeForm() {
           <Col span={24}><Form.Item label="研究记录" name="research_notes"><TextArea rows={3} /></Form.Item></Col>
           <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
           <Col span={12}><Form.Item label="券商" name="broker_name"><Input placeholder="例如：宏源期货" /></Form.Item></Col>
-          <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：日结单粘贴导入" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：手工补录" /></Form.Item></Col>
           <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
           <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
           <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>

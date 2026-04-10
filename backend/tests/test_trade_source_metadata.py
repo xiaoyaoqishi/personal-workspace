@@ -164,6 +164,7 @@ def test_paste_import_source_compatibility_stays_unchanged(app_client):
     imported_trade = list_broker.json()[0]
     assert "来源券商: PasteBroker" in (imported_trade.get("notes") or "")
     assert "来源: 日结单粘贴导入" in (imported_trade.get("notes") or "")
+    assert imported_trade["source_display"] == "PasteBroker"
 
     list_source = app_client.get("/api/trades", params={"source_keyword": "日结单粘贴导入", "size": 200})
     count_source = app_client.get("/api/trades/count", params={"source_keyword": "日结单粘贴导入"})
@@ -175,7 +176,7 @@ def test_paste_import_source_compatibility_stays_unchanged(app_client):
     metadata = metadata_resp.json()
     assert metadata["exists_in_db"] is True
     assert metadata["broker_name"] == "PasteBroker"
-    assert metadata["source_label"] == "日结单粘贴导入"
+    assert metadata["source_label"] is None
     assert metadata["import_channel"] == "paste_import"
     assert metadata["parser_version"] == "paste_v1"
 
@@ -183,7 +184,7 @@ def test_paste_import_source_compatibility_stays_unchanged(app_client):
     assert sources_resp.status_code == 200, sources_resp.text
     items = sources_resp.json()["items"]
     assert "PasteBroker" in items
-    assert "日结单粘贴导入" in items
+    assert "日结单粘贴导入" not in items
 
 
 def test_paste_import_close_match_backfills_metadata_for_legacy_open_row(app_client):
@@ -208,7 +209,7 @@ def test_paste_import_close_match_backfills_metadata_for_legacy_open_row(app_cli
     body = after.json()
     assert body["exists_in_db"] is True
     assert body["broker_name"] == "LegacyPasteBroker"
-    assert body["source_label"] == "日结单粘贴导入"
+    assert body["source_label"] is None
     assert body["import_channel"] == "paste_import"
     assert body["parser_version"] == "paste_v1"
 

@@ -1,10 +1,34 @@
 import json
+import math
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 from models import Trade, TradeReview
+
+
+def _sample_std(values: List[float]) -> float:
+    n = len(values)
+    if n <= 1:
+        return 0.0
+    mean = sum(values) / n
+    variance = sum((x - mean) ** 2 for x in values) / (n - 1)
+    return math.sqrt(variance)
+
+
+def _max_drawdown_from_pnl_series(values: List[float]) -> float:
+    peak = 0.0
+    cumulative = 0.0
+    max_drawdown = 0.0
+    for pnl in values:
+        cumulative += pnl
+        if cumulative > peak:
+            peak = cumulative
+        drawdown = peak - cumulative
+        if drawdown > max_drawdown:
+            max_drawdown = drawdown
+    return max_drawdown
 
 
 def _aggregate_time_series(rows: List[Trade], bucket_fn: Callable[[Any], str]) -> List[Dict[str, Any]]:
@@ -128,9 +152,30 @@ def build_trade_analytics(
     losses = [p for p in closed_pnls if p < 0]
     gross_profit = sum(wins)
     gross_loss = sum(losses)
+    gross_loss_abs = abs(gross_loss)
+    total_commission = sum(float(t.commission or 0.0) for t in closed_trades)
+    net_profit = sum(closed_pnls)
     closed_count = len(closed_trades)
     win_rate = (len(wins) / closed_count * 100.0) if closed_count else 0.0
-    profit_factor = (gross_profit / abs(gross_loss)) if abs(gross_loss) > 1e-9 else 0.0
+    profit_factor = (gross_profit / gross_loss_abs) if gross_loss_abs > 1e-9 else 0.0
+    avg_win = (sum(wins) / len(wins)) if wins else 0.0
+    avg_loss = (sum(losses) / len(losses)) if losses else 0.0
+    avg_win_loss_ratio = (avg_win / abs(avg_loss)) if avg_loss < -1e-9 else 0.0
+    profit_share_denominator = gross_profit + gross_loss_abs
+    profit_share_rate = (gross_profit / profit_share_denominator * 100.0) if profit_share_denominator > 1e-9 else 0.0
+    commission_to_net_profit_ratio = (total_commission / net_profit) if net_profit > 1e-9 else None
+    pnl_std_dev = _sample_std(closed_pnls)
+    max_drawdown = _max_drawdown_from_pnl_series(closed_pnls)
+
+    daily_pnl_map: Dict[str, float] = {}
+    for t in closed_trades:
+        key = t.trade_date.strftime("%Y-%m-%d")
+        daily_pnl_map[key] = daily_pnl_map.get(key, 0.0) + float(t.pnl or 0.0)
+    daily_pnls = [daily_pnl_map[k] for k in sorted(daily_pnl_map.keys())]
+    sharpe_ratio = 0.0
+    daily_std = _sample_std(daily_pnls)
+    if len(daily_pnls) > 1 and daily_std > 1e-9:
+        sharpe_ratio = (sum(daily_pnls) / len(daily_pnls)) / daily_std * math.sqrt(252.0)
 
     time_daily = _aggregate_time_series(closed_trades, lambda d: d.strftime("%Y-%m-%d"))
     time_weekly = _aggregate_time_series(closed_trades, lambda d: f"{d.isocalendar().year}-W{d.isocalendar().week:02d}")
@@ -266,11 +311,22 @@ def build_trade_analytics(
             "win_count": len(wins),
             "loss_count": len(losses),
             "win_rate": round(win_rate, 2),
-            "total_pnl": round(sum(closed_pnls), 2),
-            "avg_pnl_per_closed_trade": round((sum(closed_pnls) / closed_count), 2) if closed_count else 0.0,
-            "avg_win": round((sum(wins) / len(wins)), 2) if wins else 0.0,
-            "avg_loss": round((sum(losses) / len(losses)), 2) if losses else 0.0,
+            "total_pnl": round(net_profit, 2),
+            "avg_pnl_per_closed_trade": round((net_profit / closed_count), 2) if closed_count else 0.0,
+            "expectancy_per_trade": round((net_profit / closed_count), 2) if closed_count else 0.0,
+            "avg_win": round(avg_win, 2),
+            "avg_loss": round(avg_loss, 2),
+            "avg_win_loss_ratio": round(avg_win_loss_ratio, 4),
             "profit_factor": round(profit_factor, 4),
+            "sharpe_ratio": round(sharpe_ratio, 4),
+            "commission_to_net_profit_ratio": round(commission_to_net_profit_ratio, 4) if commission_to_net_profit_ratio is not None else None,
+            "profit_share_rate": round(profit_share_rate, 2),
+            "total_commission": round(total_commission, 2),
+            "gross_profit": round(gross_profit, 2),
+            "gross_loss": round(gross_loss, 2),
+            "gross_loss_abs": round(gross_loss_abs, 2),
+            "pnl_std_dev": round(pnl_std_dev, 4),
+            "max_drawdown": round(max_drawdown, 2),
             "open_position_count": len(open_position_rows),
         },
         "time_series": {

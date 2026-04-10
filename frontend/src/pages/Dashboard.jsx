@@ -117,8 +117,8 @@ export default function Dashboard() {
 
       <Card size="small" title="口径说明">
         <div className="analytics-note-list">
-          <div>1. Taxonomy canonical 值保持英文，前端统一显示中文标签。</div>
-          <div>2. 来源展示优先 TradeSourceMetadata，legacy notes 仅作兼容回退。</div>
+          <div>1. 结构化复盘分类字段的标准键保持英文，界面统一显示中文标签。</div>
+          <div>2. 来源展示优先使用来源元数据，旧备注仅作兼容回退。</div>
           <div>3. 本页不改变粘贴导入、平仓匹配、统计/持仓业务语义。</div>
         </div>
       </Card>

@@ -79,10 +79,14 @@
 | 标签与复盘层 | 如何改进 | 13 种错误标签、复盘一句话 |
 
 - 左侧导航顺序：记录 → 仪表盘 → 信息维护 → 复盘（隐藏侧栏“新建”入口）
-- 可视化仪表盘：胜率、盈亏曲线、品种分布、策略统计、错误标签排行
-- 仪表盘支持按品种、券商/来源筛选
+- 可视化仪表盘（交易分析工作台）：
+  - 时间维度采用双轴设计：左轴净盈亏、右轴胜率（0-100%）+ 交易频次柱图
+  - KPI 全中文：胜率、净利润、单笔期望、盈亏因子、夏普比率、手续费/净利润、盈利占比、总手续费、毛利润、毛亏损、最大回撤等
+  - 多维分析：品种维度、来源维度、结构化复盘维度、行为质量维度、覆盖率与持仓视角
+- 仪表盘支持按品种、券商/来源筛选（保留日/周/月切换）
 - 交易列表：分页、筛选、排序、行内操作、批量勾选删除/修改
 - 交易列表显示“券商/来源”列，支持按券商/来源筛选
+- 来源展示规则：metadata 优先，legacy notes 兼容回退；`日结单粘贴导入` 作为内部导入标记，不在 active UI 作为来源标签展示
 - 粘贴导入支持自定义券商名称（不再固定选项）
 - 当前持仓视图支持按品种、来源筛选
 - 信息维护子模块：券商信息维护（名称、账号、密码、其他信息、备注）
@@ -91,6 +95,13 @@
 - 复盘关联交易与只读展示使用内容卡片（日期、中文品种、方向、手数、开平、PnL、来源、角色）
 - 交易详情/复盘/信息维护均采用默认读态 + 显式编辑 + 保存/取消
 - 多品种支持：期货、加密货币、股票、外汇
+
+**交易分析指标口径（关键新增）**：
+- 夏普比率：基于日度已平仓 pnl 序列近似计算 `mean(daily_pnl) / std(daily_pnl) * sqrt(252)`（样本不足或标准差为 0 返回 0）
+- 手续费/净利润：`total_commission / total_pnl`，当净利润 `<= 0` 返回 `null`（避免不可解释负比值）
+- 盈利占比：`gross_profit / (gross_profit + abs(gross_loss))`
+- 最大回撤：基于已平仓 pnl 累计曲线的峰谷回撤金额
+- 兼容性约束：不改变粘贴导入、同批次平先开后、部分平拆分、券商隔离匹配等既有业务语义
 
 ### 知识笔记系统（/notes/）
 
@@ -383,14 +394,22 @@ curl -X POST http://127.0.0.1:8000/api/auth/setup \
 |------|------|------|
 | GET | `/api/trades` | 交易列表（分页、多字段筛选，支持 `source_keyword`） |
 | GET | `/api/trades/count` | 交易总数（与列表同筛选条件） |
+| GET | `/api/trades/search-options` | 复盘关联交易远程检索候选（关键词/日期/状态/品种） |
 | POST | `/api/trades` | 创建交易 |
 | GET | `/api/trades/{id}` | 获取单笔 |
 | PUT | `/api/trades/{id}` | 更新交易 |
 | DELETE | `/api/trades/{id}` | 删除交易 |
 | GET | `/api/trades/statistics` | 统计分析（支持 `symbol`、`source_keyword`） |
+| GET | `/api/trades/analytics` | 交易分析工作台数据（overview/time_series/dimensions/behavior/coverage/positions） |
 | POST | `/api/trades/import-paste` | 粘贴导入期货日结单 |
 | GET | `/api/trades/positions` | 当前持仓（支持 `symbol`、`source_keyword`） |
-| GET | `/api/trades/sources` | 获取动态来源列表（券商/历史导入来源） |
+| GET | `/api/trades/sources` | 获取动态来源列表（券商/历史导入来源，过滤噪声导入标签） |
+| GET | `/api/trades/{id}/source-metadata` | 获取单笔来源元数据（metadata 或 notes 回退） |
+| PUT | `/api/trades/{id}/source-metadata` | 更新单笔来源元数据 |
+| GET | `/api/trades/{id}/review` | 获取单笔结构化复盘 |
+| PUT | `/api/trades/{id}/review` | 更新单笔结构化复盘 |
+| DELETE | `/api/trades/{id}/review` | 删除单笔结构化复盘 |
+| GET | `/api/trade-review-taxonomy` | 获取结构化复盘 taxonomy canonical 值 |
 
 ### 信息维护（交易）
 

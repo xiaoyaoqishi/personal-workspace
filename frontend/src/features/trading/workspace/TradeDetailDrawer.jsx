@@ -18,6 +18,7 @@ import {
 import { ReloadOutlined } from '@ant-design/icons';
 import { formatInstrumentDisplay, normalizeTagList } from '../display';
 import { getTaxonomyLabel, taxonomyOptionsWithZh } from '../localization';
+import { normalizeSourceLabelForDisplay } from '../sourceDisplay';
 import ReadEditActions from '../components/ReadEditActions';
 
 const { TextArea } = Input;
@@ -69,6 +70,10 @@ export default function TradeDetailDrawer({
   const reviewTags = useMemo(
     () => normalizeTagList(review?.tags),
     [review?.tags]
+  );
+  const sourceLabelDisplay = useMemo(
+    () => normalizeSourceLabelForDisplay(source?.source_label),
+    [source?.source_label],
   );
 
   const hasReviewContent = useMemo(() => {
@@ -308,7 +313,7 @@ export default function TradeDetailDrawer({
                 </Col>
                 <Col span={12}>
                   <Typography.Text type="secondary">来源标签</Typography.Text>
-                  <Input value={source.source_label} onChange={(e) => onChangeSource('source_label', e.target.value)} placeholder="例如：日结单粘贴导入" />
+                  <Input value={source.source_label} onChange={(e) => onChangeSource('source_label', e.target.value)} placeholder="例如：手工补录" />
                 </Col>
                 <Col span={12}>
                   <Typography.Text type="secondary">导入通道</Typography.Text>
@@ -326,7 +331,7 @@ export default function TradeDetailDrawer({
             ) : (
               <Descriptions size="small" column={2}>
                 <Descriptions.Item label="券商">{source.broker_name || '-'}</Descriptions.Item>
-                <Descriptions.Item label="来源标签">{source.source_label || '-'}</Descriptions.Item>
+                <Descriptions.Item label="来源标签">{sourceLabelDisplay || '-'}</Descriptions.Item>
                 <Descriptions.Item label="导入通道">{source.import_channel || '-'}</Descriptions.Item>
                 <Descriptions.Item label="解析版本">{source.parser_version || '-'}</Descriptions.Item>
                 <Descriptions.Item label="元数据状态" span={2}>

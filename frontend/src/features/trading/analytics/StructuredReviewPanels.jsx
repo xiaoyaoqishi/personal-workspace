@@ -6,7 +6,7 @@ const FIELDS = ['opportunity_structure', 'edge_source', 'failure_type', 'review_
 
 export default function StructuredReviewPanels({ byReviewField }) {
   return (
-    <Card title="结构化复盘维度（TradeReview）">
+    <Card title="结构化复盘维度">
       <Row gutter={[12, 12]}>
         {FIELDS.map((field) => {
           const rows = (byReviewField?.[field] || []).map((r) => ({

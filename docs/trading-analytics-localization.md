@@ -34,6 +34,11 @@ Mapping module:
 - avg pnl per closed trade
 - avg win/avg loss
 - profit factor
+- sharpe ratio (daily pnl approximation)
+- commission/net-profit ratio
+- profit share rate
+- total commission / gross profit / gross loss
+- avg win-loss ratio / pnl standard deviation / max drawdown
 - open position count
 
 2. `time_series`
@@ -65,9 +70,34 @@ Mapping module:
 - Main analytics page now reads `tradeApi.analytics(...)`.
 - Source filter options still come from `/api/trades/sources`.
 - Structured review dimensions use canonical keys from backend and render Chinese labels in UI.
+- 时间维度主图采用双 Y 轴：
+  - 左轴：净盈亏（`total_pnl`）
+  - 右轴：胜率（`win_rate`, 0-100%）
+  - 目的是避免在大额 pnl 场景下胜率曲线被压扁。
+
+## Metric Formula Definitions (this sprint)
+
+- `夏普比率 (sharpe_ratio)`  
+  - 基于日度已平仓 pnl 序列近似计算：`mean(daily_pnl) / std(daily_pnl) * sqrt(252)`  
+  - 使用样本标准差（n-1）；当样本不足或标准差为 0 时返回 0。
+- `手续费/净利润 (commission_to_net_profit_ratio)`  
+  - `total_commission / total_pnl`  
+  - 当 `total_pnl <= 0` 时返回 `null`（避免不可解释或误导性的负比值）。
+- `盈利占比 (profit_share_rate)`  
+  - `gross_profit / (gross_profit + abs(gross_loss)) * 100%`  
+  - 无盈亏样本时返回 0。
+- `盈亏因子 (profit_factor)`  
+  - `gross_profit / abs(gross_loss)`，当无亏损样本时保持返回 0（兼容既有语义）。
+- `平均盈亏比 (avg_win_loss_ratio)`  
+  - `avg_win / abs(avg_loss)`，当无亏损样本时返回 0。
+- `盈亏波动度 (pnl_std_dev)`  
+  - 已平仓单笔 pnl 的样本标准差。
+- `最大回撤 (max_drawdown)`  
+  - 按已平仓 pnl 累计曲线计算峰值到谷值的最大回撤金额。
 
 ## Compatibility Notes
 
 - Paste import workflow and matching logic remain unchanged.
 - Broker-scoped matching, same-batch close-before-open, partial close split semantics remain unchanged.
 - Legacy `notes` and `review_note` remain available as secondary compatibility fields in workspace forms/panels.
+- Existing analytics field meanings are unchanged;新增指标为 additive 字段。

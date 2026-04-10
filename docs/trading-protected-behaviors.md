@@ -117,6 +117,7 @@ Expect:
 
 Expect:
 - `/api/trades/sources` still returns broker list and discovered historical source brokers
+- internal import marker labels (e.g. `日结单粘贴导入`) should not be surfaced as active filter options
 
 ## PB-14 Detail edit compatibility preserved
 

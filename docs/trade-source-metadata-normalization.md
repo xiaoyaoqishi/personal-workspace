@@ -10,6 +10,7 @@ Backend:
 - `/api/trades/import-paste` 仍按旧行为写入 notes 标记：
   - `来源券商: ...`
   - `来源: 日结单粘贴导入`
+- `日结单粘贴导入` 视为内部导入通道标记，不再作为 active UI 来源标签展示。
 - `source_keyword` 在以下接口保持兼容过滤语义：
   - `/api/trades`
   - `/api/trades/count`
@@ -19,6 +20,7 @@ Backend:
   - `trade_brokers`
   - `trade_source_metadata`
   - legacy notes 解析（`来源券商:` / `来源:`）
+  - 但会过滤掉噪声标签 `日结单粘贴导入`
 
 Frontend:
 - 粘贴导入入口与交互保持不变。
@@ -62,6 +64,17 @@ Backend (`backend/main.py`):
 Read path:
 - 读取 source 时保持“metadata + notes fallback”并行兼容。
 - metadata 存在时可优先提供显式值；缺失时回退解析 notes。
+- `source_display` 的展示规则：
+  - 优先展示券商名
+  - 仅在来源标签有业务含义时追加 `券商 / 来源标签`
+  - `日结单粘贴导入` 不进入 active UI 展示
+
+## Source display rules (this sprint)
+
+1. `import_channel=paste_import` 与 `parser_version=paste_v1` 继续作为技术追踪字段保留。  
+2. 粘贴导入路径不会再把 `日结单粘贴导入` 写成 metadata `source_label`。  
+3. `/api/trades/sources`、交易列表 `source_display`、dashboard 来源维度都不会主动展示该噪声标签。  
+4. `source_keyword` 过滤兼容不变：历史 notes/metadata 中存在该字符串时，检索仍可命中。  
 
 ## Review / Knowledge linkage in current architecture
 

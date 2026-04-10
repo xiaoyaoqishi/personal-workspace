@@ -1,4 +1,5 @@
 import json
+import pytest
 
 
 def _create_trade(client, payload):
@@ -116,6 +117,15 @@ def test_trade_analytics_endpoint_dimensions_and_coverage(app_client):
     assert overview["loss_count"] == 1
     assert overview["total_pnl"] == 20
     assert overview["open_position_count"] == 1
+    assert overview["profit_factor"] == pytest.approx(3.0)
+    assert overview["sharpe_ratio"] == pytest.approx(5.6125, rel=1e-3)
+    assert overview["commission_to_net_profit_ratio"] == pytest.approx(0.1)
+    assert overview["profit_share_rate"] == pytest.approx(75.0)
+    assert overview["total_commission"] == pytest.approx(2.0)
+    assert overview["gross_profit"] == pytest.approx(30.0)
+    assert overview["gross_loss"] == pytest.approx(-10.0)
+    assert overview["avg_win_loss_ratio"] == pytest.approx(3.0)
+    assert overview["max_drawdown"] == pytest.approx(10.0)
 
     coverage = body["coverage"]
     assert coverage["trade_review_count"] == 2
@@ -135,3 +145,30 @@ def test_trade_analytics_endpoint_dimensions_and_coverage(app_client):
     conclusion_keys = {x["key"] for x in by_review_conclusion}
     assert "valid_pattern_valid_trade" in conclusion_keys
     assert "valid_pattern_invalid_trade" in conclusion_keys
+
+
+def test_trade_analytics_fee_to_net_profit_ratio_is_null_when_net_profit_non_positive(app_client):
+    _create_trade(
+        app_client,
+        {
+            "trade_date": "2026-04-01",
+            "instrument_type": "期货",
+            "symbol": "IF",
+            "contract": "IF2506",
+            "direction": "做多",
+            "open_time": "2026-04-01T09:00:00",
+            "close_time": "2026-04-01T15:00:00",
+            "open_price": 3500,
+            "close_price": 3490,
+            "quantity": 1,
+            "status": "closed",
+            "pnl": -10,
+            "commission": 2,
+        },
+    )
+
+    analytics_resp = app_client.get("/api/trades/analytics")
+    assert analytics_resp.status_code == 200, analytics_resp.text
+    overview = analytics_resp.json()["overview"]
+    assert overview["total_pnl"] == -10
+    assert overview["commission_to_net_profit_ratio"] is None
