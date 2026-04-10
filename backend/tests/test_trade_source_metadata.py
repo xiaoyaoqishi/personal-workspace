@@ -257,3 +257,52 @@ def test_positions_and_statistics_support_metadata_source_filter(app_client):
     stats = stats_resp.json()
     assert stats["total"] == 1
     assert stats["total_pnl"] == 10
+
+
+def test_trade_list_source_fields_are_metadata_first_with_notes_fallback(app_client):
+    trade_id = _create_trade(
+        app_client,
+        notes="来源券商: LegacyBrokerForDisplay | 来源: LegacySourceForDisplay",
+    )
+    rows_resp = app_client.get("/api/trades", params={"size": 200})
+    assert rows_resp.status_code == 200, rows_resp.text
+    row = next((x for x in rows_resp.json() if x["id"] == trade_id), None)
+    assert row is not None
+    assert row["source_broker_name"] == "LegacyBrokerForDisplay"
+    assert row["source_label"] == "LegacySourceForDisplay"
+    assert row["source_display"] == "LegacyBrokerForDisplay / LegacySourceForDisplay"
+    assert row["source_is_metadata"] is False
+
+    put_resp = app_client.put(
+        f"/api/trades/{trade_id}/source-metadata",
+        json={"broker_name": "MetaBrokerForDisplay", "source_label": "MetaSourceForDisplay"},
+    )
+    assert put_resp.status_code == 200, put_resp.text
+
+    rows_resp2 = app_client.get("/api/trades", params={"size": 200})
+    assert rows_resp2.status_code == 200, rows_resp2.text
+    row2 = next((x for x in rows_resp2.json() if x["id"] == trade_id), None)
+    assert row2 is not None
+    assert row2["source_broker_name"] == "MetaBrokerForDisplay"
+    assert row2["source_label"] == "MetaSourceForDisplay"
+    assert row2["source_display"] == "MetaBrokerForDisplay / MetaSourceForDisplay"
+    assert row2["source_is_metadata"] is True
+
+
+def test_trade_list_exposes_trade_review_presence(app_client):
+    trade_id = _create_trade(app_client, notes="review-presence")
+    rows_before = app_client.get("/api/trades", params={"size": 200}).json()
+    row_before = next((x for x in rows_before if x["id"] == trade_id), None)
+    assert row_before is not None
+    assert row_before["has_trade_review"] is False
+
+    upsert_resp = app_client.put(
+        f"/api/trades/{trade_id}/review",
+        json={"review_conclusion": "need_more_evidence"},
+    )
+    assert upsert_resp.status_code == 200, upsert_resp.text
+
+    rows_after = app_client.get("/api/trades", params={"size": 200}).json()
+    row_after = next((x for x in rows_after if x["id"] == trade_id), None)
+    assert row_after is not None
+    assert row_after["has_trade_review"] is True

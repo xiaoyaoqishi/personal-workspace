@@ -431,6 +431,46 @@ def _extract_source_from_notes(note: Optional[str]) -> Dict[str, Optional[str]]:
     return {"broker_name": broker, "source_label": source}
 
 
+def _format_source_display(broker_name: Optional[str], source_label: Optional[str]) -> str:
+    broker = (broker_name or "").strip()
+    source = (source_label or "").strip()
+    if broker and source:
+        return f"{broker} / {source}"
+    return broker or source or "-"
+
+
+def _resolve_trade_source_fields(trade: Trade, metadata: Optional[TradeSourceMetadata]) -> Dict[str, Any]:
+    parsed = _extract_source_from_notes(trade.notes)
+    has_metadata = bool(metadata and ((metadata.broker_name and metadata.broker_name.strip()) or (metadata.source_label and metadata.source_label.strip())))
+    broker_name = ((metadata.broker_name if metadata else None) or parsed["broker_name"] or "").strip() or None
+    source_label = ((metadata.source_label if metadata else None) or parsed["source_label"] or "").strip() or None
+    return {
+        "source_broker_name": broker_name,
+        "source_label": source_label,
+        "source_display": _format_source_display(broker_name, source_label),
+        "source_is_metadata": has_metadata,
+    }
+
+
+def _attach_trade_view_fields(db: Session, rows: List[Trade]) -> List[Trade]:
+    if not rows:
+        return rows
+    trade_ids = [t.id for t in rows if t.id]
+    if not trade_ids:
+        return rows
+    metadata_rows = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id.in_(trade_ids)).all()
+    metadata_by_trade_id = {row.trade_id: row for row in metadata_rows}
+    review_trade_ids = {
+        trade_id for (trade_id,) in db.query(TradeReview.trade_id).filter(TradeReview.trade_id.in_(trade_ids)).all()
+    }
+    for trade in rows:
+        source_fields = _resolve_trade_source_fields(trade, metadata_by_trade_id.get(trade.id))
+        for key, value in source_fields.items():
+            setattr(trade, key, value)
+        setattr(trade, "has_trade_review", trade.id in review_trade_ids)
+    return rows
+
+
 def _apply_source_keyword_filter(q, source_keyword: Optional[str]):
     kw = (source_keyword or "").strip()
     if not kw:
@@ -792,7 +832,8 @@ def list_trades(
     if strategy_type:
         q = q.filter(Trade.strategy_type == strategy_type)
     q = _apply_source_keyword_filter(q, source_keyword)
-    return q.order_by(Trade.open_time.desc()).offset((page - 1) * size).limit(size).all()
+    rows = q.order_by(Trade.open_time.desc()).offset((page - 1) * size).limit(size).all()
+    return _attach_trade_view_fields(db, rows)
 
 
 @app.get("/api/trades/count")
@@ -939,7 +980,7 @@ def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
     db.add(obj)
     db.commit()
     db.refresh(obj)
-    return obj
+    return _attach_trade_view_fields(db, [obj])[0]
 
 
 @app.get("/api/trades/{trade_id:int}", response_model=TradeResponse)
@@ -947,7 +988,7 @@ def get_trade(trade_id: int, db: Session = Depends(get_db)):
     t = db.query(Trade).filter(Trade.id == trade_id).first()
     if not t:
         raise HTTPException(404, "Trade not found")
-    return t
+    return _attach_trade_view_fields(db, [t])[0]
 
 
 @app.put("/api/trades/{trade_id:int}", response_model=TradeResponse)
@@ -959,7 +1000,7 @@ def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)
         setattr(t, k, v)
     db.commit()
     db.refresh(t)
-    return t
+    return _attach_trade_view_fields(db, [t])[0]
 
 
 @app.delete("/api/trades/{trade_id:int}")

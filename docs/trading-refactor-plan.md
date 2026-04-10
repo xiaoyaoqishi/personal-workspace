@@ -10,6 +10,33 @@
 - Per-trade structured review must use a distinct concept/entity (e.g., `TradeReview` or `TradeAnalysis`), not the existing periodic `Review` table.
 - Existing periodic day/week/month `Review` stays separate unless a later explicit migration plan is approved.
 
+## Sprint Update (Aggressive Structural Mode)
+
+Current execution mode changed from conservative compatibility-first to aggressive structural cleanup for trading subsystem only.
+
+Canonical active model:
+1. `Trade`: execution/ledger semantics
+2. `TradeReview`: structured per-trade review semantics (primary review workflow)
+3. `TradeSourceMetadata`: source/broker/import semantics (primary source workflow)
+
+Active-path policy:
+- UI source display/edit: metadata-first, notes fallback only for compatibility.
+- UI review workflow: TradeReview-first, `review_note`/`notes` as secondary legacy fields.
+- Keep paste import entry and matching semantics unchanged.
+- Keep positions/statistics business meaning unchanged.
+
+Frontend architecture target:
+- Split trading workspace into focused components:
+  - workspace header
+  - sticky filter bar
+  - fills table
+  - positions table
+  - detail drawer
+  - review section
+  - source metadata section
+  - import modal
+  - batch edit modal
+
 ## Phase 1 (Current): Audit
 
 Completed in `docs/trading-system-audit.md` and `docs/trading-protected-behaviors.md`.

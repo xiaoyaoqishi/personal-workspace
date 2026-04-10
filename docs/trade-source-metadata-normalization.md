@@ -34,6 +34,23 @@ Frontend:
   - `parser_version`
   - `derived_from_notes`
 
+## Canonical Source Of Truth
+
+- source/broker 在 active code path 的 canonical 字段为 `TradeSourceMetadata`：
+  - `broker_name`
+  - `source_label`
+  - `import_channel`
+  - `parser_version`
+- `Trade.notes` 中的 `来源券商/来源` 仅作为兼容回退，不再作为主模型。
+
+Compatibility-only fields (阶段性保留):
+- `Trade.notes` 中来源标记
+- `Trade.review_note`
+
+Future removal candidates（需后续明确迁移窗口）:
+1. UI 中直接从 notes 解析来源并作为主展示
+2. 把 review 语义继续写在 `review_note` 的主工作流
+
 ## Dual-write logic added in this sprint
 
 Backend (`backend/main.py`):

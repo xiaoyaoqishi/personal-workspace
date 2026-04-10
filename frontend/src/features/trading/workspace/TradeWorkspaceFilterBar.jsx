@@ -1,0 +1,95 @@
+import { Button, Card, Col, DatePicker, Popconfirm, Row, Segmented, Select, Space } from 'antd';
+import { FUTURES_SYMBOL_OPTIONS } from '../../../utils/futures';
+
+const { RangePicker } = DatePicker;
+
+export default function TradeWorkspaceFilterBar({
+  viewMode,
+  setViewMode,
+  selectedRowKeys,
+  sourceOptions,
+  onOpenBatchEdit,
+  onBatchDelete,
+  onSetDateRange,
+  onUpdateFilter,
+}) {
+  return (
+    <Card className="trade-filter-card">
+      <Row justify="space-between" align="middle" gutter={[12, 12]}>
+        <Col>
+          <Segmented
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { label: '成交流水', value: 'fills' },
+              { label: '当前持仓', value: 'positions' },
+            ]}
+          />
+        </Col>
+        {viewMode === 'fills' && (
+          <Col>
+            <Space>
+              <Button onClick={onOpenBatchEdit}>批量修改</Button>
+              <Popconfirm title={`确认删除已勾选的 ${selectedRowKeys.length} 条记录？`} onConfirm={onBatchDelete}>
+                <Button danger>批量删除</Button>
+              </Popconfirm>
+              <span style={{ color: '#888', fontSize: 12 }}>已勾选 {selectedRowKeys.length} 条</span>
+            </Space>
+          </Col>
+        )}
+        {viewMode === 'fills' && (
+          <Col flex="auto">
+            <Space wrap className="trade-filter-controls">
+              <RangePicker onChange={onSetDateRange} />
+              <Select
+                placeholder="交易类型"
+                allowClear
+                style={{ width: 120 }}
+                options={['期货', '加密货币', '股票', '外汇'].map((v) => ({ label: v, value: v }))}
+                onChange={(v) => onUpdateFilter('instrument_type', v)}
+              />
+              <Select
+                placeholder="品种"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                style={{ width: 170 }}
+                options={FUTURES_SYMBOL_OPTIONS}
+                onChange={(v) => onUpdateFilter('symbol', v)}
+              />
+              <Select
+                placeholder="券商/来源"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                style={{ width: 190 }}
+                options={sourceOptions}
+                onChange={(v) => onUpdateFilter('source_keyword', v)}
+              />
+              <Select
+                placeholder="方向"
+                allowClear
+                style={{ width: 100 }}
+                options={[
+                  { label: '做多', value: '做多' },
+                  { label: '做空', value: '做空' },
+                ]}
+                onChange={(v) => onUpdateFilter('direction', v)}
+              />
+              <Select
+                placeholder="状态"
+                allowClear
+                style={{ width: 100 }}
+                options={[
+                  { label: '持仓', value: 'open' },
+                  { label: '已平', value: 'closed' },
+                ]}
+                onChange={(v) => onUpdateFilter('status', v)}
+              />
+            </Space>
+          </Col>
+        )}
+      </Row>
+    </Card>
+  );
+}

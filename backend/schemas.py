@@ -138,6 +138,11 @@ class TradeResponse(TradeCreate):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    source_broker_name: Optional[str] = None
+    source_label: Optional[str] = None
+    source_display: Optional[str] = None
+    source_is_metadata: Optional[bool] = None
+    has_trade_review: Optional[bool] = None
 
     class Config:
         from_attributes = True

@@ -349,26 +349,6 @@ export default function TradeForm() {
       key: '5', label: '标签与复盘',
       children: (
         <Row gutter={16}>
-          <Col span={24}>
-            <Form.Item label="错误标签" name="error_tags">
-              <Select mode="multiple" allowClear options={opt(ERROR_TAGS)} />
-            </Form.Item>
-          </Col>
-          <Col span={24}><Form.Item label="复盘一句话" name="review_note"><TextArea rows={3} /></Form.Item></Col>
-          <Col span={24}><Form.Item label="备注" name="notes"><TextArea rows={3} /></Form.Item></Col>
-          <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
-          <Col span={12}><Form.Item label="券商" name="broker_name"><Input placeholder="例如：宏源期货" /></Form.Item></Col>
-          <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：日结单粘贴导入" /></Form.Item></Col>
-          <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
-          <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
-          <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
-          <Col span={24}>
-            <div style={{ color: '#888', fontSize: 12 }}>
-              {isEdit
-                ? (sourceExists ? '当前已存在显式 source metadata' : (sourceDerivedFromNotes ? '当前展示为 notes 回退结果，保存后将写入显式 metadata' : '当前尚无 source metadata'))
-                : '新建交易时可直接填写 source metadata（可选）'}
-            </div>
-          </Col>
           <Col span={24}><Divider>结构化复盘（TradeReview）</Divider></Col>
           <Col span={12}>
             <Form.Item label="机会结构" name="opportunity_structure">
@@ -414,6 +394,27 @@ export default function TradeForm() {
           <Col span={24}><Form.Item label="离场原因" name="exit_reason"><TextArea rows={2} /></Form.Item></Col>
           <Col span={24}><Form.Item label="复盘标签" name="review_tags"><Input /></Form.Item></Col>
           <Col span={24}><Form.Item label="研究记录" name="research_notes"><TextArea rows={3} /></Form.Item></Col>
+          <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
+          <Col span={12}><Form.Item label="券商" name="broker_name"><Input placeholder="例如：宏源期货" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：日结单粘贴导入" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
+          <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
+          <Col span={24}>
+            <div style={{ color: '#888', fontSize: 12 }}>
+              {isEdit
+                ? (sourceExists ? '当前已存在显式 source metadata' : (sourceDerivedFromNotes ? '当前展示为 notes 回退结果，保存后将写入显式 metadata' : '当前尚无 source metadata'))
+                : '新建交易时可直接填写 source metadata（可选）'}
+            </div>
+          </Col>
+          <Col span={24}><Divider>兼容字段（Legacy 次级）</Divider></Col>
+          <Col span={24}>
+            <Form.Item label="错误标签" name="error_tags">
+              <Select mode="multiple" allowClear options={opt(ERROR_TAGS)} />
+            </Form.Item>
+          </Col>
+          <Col span={24}><Form.Item label="复盘一句话" name="review_note"><TextArea rows={3} /></Form.Item></Col>
+          <Col span={24}><Form.Item label="备注" name="notes"><TextArea rows={3} /></Form.Item></Col>
         </Row>
       ),
     },
