@@ -1,0 +1,62 @@
+.trade-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trade-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e8edf3;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #ffffff 0%, #f7fafc 100%);
+}
+
+.trade-filter-card {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border-radius: 10px;
+}
+
+.trade-filter-card .ant-card-body {
+  padding: 12px 14px;
+}
+
+.trade-filter-controls {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.trade-table-card {
+  border-radius: 10px;
+}
+
+.trade-table-card .ant-table-wrapper {
+  border-radius: 10px;
+}
+
+.trade-drawer-loading {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trade-drawer-actions {
+  margin-top: 12px;
+}
+
+@media (max-width: 1024px) {
+  .trade-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .trade-filter-controls {
+    justify-content: flex-start;
+  }
+}

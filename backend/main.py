@@ -390,8 +390,7 @@ def _apply_fill_to_state(state: Dict[str, Dict[str, Any]], fill: Trade):
 def _build_position_state_from_db(db: Session, source_keyword: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     state: Dict[str, Dict[str, Any]] = {}
     q = db.query(Trade).filter(Trade.instrument_type == "期货", Trade.status == "open")
-    if source_keyword:
-        q = q.filter(Trade.notes.contains(source_keyword))
+    q = _apply_source_keyword_filter(q, source_keyword)
     rows = q.order_by(Trade.open_time.asc(), Trade.id.asc()).all()
     for t in rows:
         symbol = _normalize_contract_symbol(t.contract or t.symbol or "")
@@ -430,6 +429,48 @@ def _extract_source_from_notes(note: Optional[str]) -> Dict[str, Optional[str]]:
     if m_source and m_source.group(1).strip():
         source = m_source.group(1).strip()
     return {"broker_name": broker, "source_label": source}
+
+
+def _apply_source_keyword_filter(q, source_keyword: Optional[str]):
+    kw = (source_keyword or "").strip()
+    if not kw:
+        return q
+    q = q.outerjoin(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id)
+    return q.filter(
+        or_(
+            Trade.notes.contains(kw),
+            TradeSourceMetadata.broker_name.contains(kw),
+            TradeSourceMetadata.source_label.contains(kw),
+        )
+    )
+
+
+def _upsert_trade_source_metadata_for_import(
+    db: Session,
+    trade: Trade,
+    broker: Optional[str],
+    source_label: Optional[str] = "日结单粘贴导入",
+):
+    if not trade.id:
+        return
+    row = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id == trade.id).first()
+    if not row:
+        row = TradeSourceMetadata(trade_id=trade.id)
+        db.add(row)
+    parsed = _extract_source_from_notes(trade.notes)
+    broker_name = (broker or parsed.get("broker_name") or "").strip() or None
+    source_name = (source_label or parsed.get("source_label") or "").strip() or None
+    if not row.broker_name and broker_name:
+        row.broker_name = broker_name
+    if not row.source_label and source_name:
+        row.source_label = source_name
+    if not row.import_channel:
+        row.import_channel = "paste_import"
+    if not row.parser_version:
+        row.parser_version = "paste_v1"
+    row.source_note_snapshot = trade.notes
+    if row.derived_from_notes in {None, True}:
+        row.derived_from_notes = False
 
 
 def _copy_trade_for_closed_part(src: Trade, close_qty: float, close_price: float, close_time: datetime, close_commission: float, close_pnl: float) -> Trade:
@@ -527,6 +568,7 @@ def _apply_close_fill_to_db(db: Session, fill: Trade, broker: Optional[str] = No
     close_commission_total = float(fill.commission or 0)
     close_pnl_total = float(fill.pnl or 0)
     close_qty_total = float(fill.quantity or 1)
+    affected_rows: List[Trade] = []
 
     for row in open_rows:
         if remaining <= 1e-9:
@@ -546,6 +588,7 @@ def _apply_close_fill_to_db(db: Session, fill: Trade, broker: Optional[str] = No
             row.pnl = round(close_pnl_part, 6)
             row.commission = round(float(row.commission or 0) + close_commission_part, 6)
             row.notes = _append_note(row.notes, "来源: 自动平仓匹配")
+            affected_rows.append(row)
         else:
             remaining_qty = row_qty - take
             closed_row = _copy_trade_for_closed_part(
@@ -557,11 +600,14 @@ def _apply_close_fill_to_db(db: Session, fill: Trade, broker: Optional[str] = No
                 close_pnl=close_pnl_part,
             )
             db.add(closed_row)
+            affected_rows.append(closed_row)
             open_commission_total = float(row.commission or 0)
             row.quantity = round(remaining_qty, 6)
             row.commission = round(open_commission_total * (remaining_qty / row_qty), 6)
             row.notes = _append_note(row.notes, "部分平仓后自动拆分")
+            affected_rows.append(row)
         remaining -= take
+    return affected_rows
 
 
 @app.post("/api/trades/import-paste", response_model=TradePasteImportResponse)
@@ -670,10 +716,15 @@ def import_trades_from_paste(payload: TradePasteImportRequest, db: Session = Dep
         db.add(item["trade"])
         inserted += 1
     db.flush()
+    for item in open_rows:
+        _upsert_trade_source_metadata_for_import(db, item["trade"], broker=payload.broker)
 
     for item in close_rows:
         try:
-            _apply_close_fill_to_db(db, item["trade"], broker=payload.broker)
+            affected_close_rows = _apply_close_fill_to_db(db, item["trade"], broker=payload.broker)
+            db.flush()
+            for row in affected_close_rows:
+                _upsert_trade_source_metadata_for_import(db, row, broker=payload.broker)
             inserted += 1
         except Exception as exc:
             errors.append(TradePasteImportError(row=item["row"], reason=str(exc), raw=item["raw"][:300]))
@@ -740,8 +791,7 @@ def list_trades(
         q = q.filter(Trade.status == status)
     if strategy_type:
         q = q.filter(Trade.strategy_type == strategy_type)
-    if source_keyword:
-        q = q.filter(Trade.notes.contains(source_keyword))
+    q = _apply_source_keyword_filter(q, source_keyword)
     return q.order_by(Trade.open_time.desc()).offset((page - 1) * size).limit(size).all()
 
 
@@ -772,8 +822,7 @@ def count_trades(
         q = q.filter(Trade.status == status)
     if strategy_type:
         q = q.filter(Trade.strategy_type == strategy_type)
-    if source_keyword:
-        q = q.filter(Trade.notes.contains(source_keyword))
+    q = _apply_source_keyword_filter(q, source_keyword)
     return {"total": q.count()}
 
 
@@ -795,8 +844,7 @@ def get_statistics(
         q = q.filter(Trade.instrument_type == instrument_type)
     if symbol:
         q = q.filter(Trade.symbol == symbol)
-    if source_keyword:
-        q = q.filter(Trade.notes.contains(source_keyword))
+    q = _apply_source_keyword_filter(q, source_keyword)
 
     trades = q.all()
     empty = {
@@ -942,6 +990,8 @@ def list_trade_sources(db: Session = Depends(get_db)):
         parsed = _extract_source_from_notes(note)
         if parsed["broker_name"]:
             values.add(parsed["broker_name"])
+        if parsed["source_label"]:
+            values.add(parsed["source_label"])
     return {"items": sorted(values)}
 
 

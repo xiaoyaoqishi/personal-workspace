@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { tradeApi, tradeReviewApi } from '../api';
+import { tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -31,6 +31,14 @@ const TRADE_REVIEW_FIELDS = [
   'research_notes',
 ];
 
+const TRADE_SOURCE_FIELDS = [
+  'broker_name',
+  'source_label',
+  'import_channel',
+  'parser_version',
+  'source_note_snapshot',
+];
+
 const EMPTY_REVIEW_TAXONOMY = {
   opportunity_structure: [],
   edge_source: [],
@@ -44,6 +52,8 @@ export default function TradeForm() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [reviewExists, setReviewExists] = useState(false);
+  const [sourceExists, setSourceExists] = useState(false);
+  const [sourceDerivedFromNotes, setSourceDerivedFromNotes] = useState(true);
   const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
   const navigate = useNavigate();
   const { id } = useParams();
@@ -74,11 +84,14 @@ export default function TradeForm() {
   useEffect(() => {
     let alive = true;
     const reviewInitFields = Object.fromEntries(TRADE_REVIEW_FIELDS.map((f) => [f, undefined]));
+    const sourceInitFields = Object.fromEntries(TRADE_SOURCE_FIELDS.map((f) => [f, undefined]));
 
     const loadData = async () => {
       if (!isEdit) {
         setReviewExists(false);
-        form.setFieldsValue(reviewInitFields);
+        setSourceExists(false);
+        setSourceDerivedFromNotes(true);
+        form.setFieldsValue({ ...reviewInitFields, ...sourceInitFields });
         return;
       }
       try {
@@ -107,6 +120,17 @@ export default function TradeForm() {
             message.error('结构化复盘加载失败');
           }
         }
+        try {
+          const sourceRes = await tradeSourceApi.get(id);
+          if (!alive) return;
+          form.setFieldsValue(sourceRes.data || {});
+          setSourceExists(!!sourceRes.data?.exists_in_db);
+          setSourceDerivedFromNotes(!!sourceRes.data?.derived_from_notes);
+        } catch {
+          if (!alive) return;
+          setSourceExists(false);
+          setSourceDerivedFromNotes(true);
+        }
       } catch {
         if (alive) message.error('加载失败');
       }
@@ -124,6 +148,11 @@ export default function TradeForm() {
       const reviewData = {};
       TRADE_REVIEW_FIELDS.forEach((field) => {
         reviewData[field] = data[field];
+        delete data[field];
+      });
+      const sourceData = {};
+      TRADE_SOURCE_FIELDS.forEach((field) => {
+        sourceData[field] = data[field];
         delete data[field];
       });
 
@@ -152,6 +181,26 @@ export default function TradeForm() {
       } else if (tradeId && isEdit && reviewExists) {
         await tradeReviewApi.delete(tradeId);
         setReviewExists(false);
+      }
+
+      const normalizedSource = {};
+      Object.entries(sourceData).forEach(([k, v]) => {
+        if (typeof v === 'string') {
+          const trimmed = v.trim();
+          normalizedSource[k] = trimmed || null;
+        } else {
+          normalizedSource[k] = v ?? null;
+        }
+      });
+      const hasSourceData = Object.values(normalizedSource).some((v) => v !== null && v !== undefined && v !== '');
+      if (tradeId && (hasSourceData || (isEdit && sourceExists))) {
+        await tradeSourceApi.upsert(tradeId, {
+          ...normalizedSource,
+          source_note_snapshot: normalizedSource.source_note_snapshot || (typeof data.notes === 'string' ? data.notes.trim() || null : null),
+          derived_from_notes: false,
+        });
+        setSourceExists(true);
+        setSourceDerivedFromNotes(false);
       }
 
       message.success(isEdit ? '更新成功' : '创建成功');
@@ -307,6 +356,19 @@ export default function TradeForm() {
           </Col>
           <Col span={24}><Form.Item label="复盘一句话" name="review_note"><TextArea rows={3} /></Form.Item></Col>
           <Col span={24}><Form.Item label="备注" name="notes"><TextArea rows={3} /></Form.Item></Col>
+          <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
+          <Col span={12}><Form.Item label="券商" name="broker_name"><Input placeholder="例如：宏源期货" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：日结单粘贴导入" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
+          <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
+          <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
+          <Col span={24}>
+            <div style={{ color: '#888', fontSize: 12 }}>
+              {isEdit
+                ? (sourceExists ? '当前已存在显式 source metadata' : (sourceDerivedFromNotes ? '当前展示为 notes 回退结果，保存后将写入显式 metadata' : '当前尚无 source metadata'))
+                : '新建交易时可直接填写 source metadata（可选）'}
+            </div>
+          </Col>
           <Col span={24}><Divider>结构化复盘（TradeReview）</Divider></Col>
           <Col span={12}>
             <Form.Item label="机会结构" name="opportunity_structure">

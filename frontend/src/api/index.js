@@ -47,4 +47,9 @@ export const tradeReviewApi = {
   delete: (tradeId) => api.delete(`/trades/${tradeId}/review`),
 };
 
+export const tradeSourceApi = {
+  get: (tradeId) => api.get(`/trades/${tradeId}/source-metadata`),
+  upsert: (tradeId, data) => api.put(`/trades/${tradeId}/source-metadata`, data),
+};
+
 export default api;

@@ -1,12 +1,78 @@
-import { useState, useEffect } from 'react';
-import { Table, Button, Space, Tag, Popconfirm, message, DatePicker, Select, Row, Col, Modal, Input, Alert, Segmented, Card, AutoComplete } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ImportOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  AutoComplete,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Descriptions,
+  Divider,
+  Drawer,
+  Input,
+  Modal,
+  Popconfirm,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  ImportOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { tradeApi } from '../api';
-import { formatFuturesSymbol, FUTURES_SYMBOL_OPTIONS } from '../utils/futures';
 import dayjs from 'dayjs';
+import { tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
+import { formatFuturesSymbol, FUTURES_SYMBOL_OPTIONS } from '../utils/futures';
+import './TradeList.css';
 
 const { RangePicker } = DatePicker;
+const { TextArea } = Input;
+
+const EMPTY_REVIEW_TAXONOMY = {
+  opportunity_structure: [],
+  edge_source: [],
+  failure_type: [],
+  review_conclusion: [],
+};
+
+const EMPTY_REVIEW = {
+  opportunity_structure: '',
+  edge_source: '',
+  failure_type: '',
+  review_conclusion: '',
+  entry_thesis: '',
+  invalidation_valid_evidence: '',
+  invalidation_trigger_evidence: '',
+  invalidation_boundary: '',
+  management_actions: '',
+  exit_reason: '',
+  review_tags: '',
+  research_notes: '',
+};
+
+const EMPTY_SOURCE = {
+  broker_name: '',
+  source_label: '',
+  import_channel: '',
+  parser_version: '',
+  source_note_snapshot: '',
+  exists_in_db: false,
+  derived_from_notes: true,
+};
+
+const REVIEW_FIELD_KEYS = Object.keys(EMPTY_REVIEW);
 
 function parseSourceFromNotes(notes = '') {
   const text = String(notes || '');
@@ -17,6 +83,14 @@ function parseSourceFromNotes(notes = '') {
   if (broker && source) return `${broker} / ${source}`;
   return broker || source || '-';
 }
+
+function normalizeText(val) {
+  if (val === undefined || val === null) return null;
+  const trimmed = String(val).trim();
+  return trimmed || null;
+}
+
+const taxonomyOptions = (arr = []) => arr.map((v) => ({ label: v, value: v }));
 
 export default function TradeList() {
   const [trades, setTrades] = useState([]);
@@ -39,6 +113,20 @@ export default function TradeList() {
     is_planned: '',
     notes: '',
   });
+
+  const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [activeTradeId, setActiveTradeId] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailSavingReview, setDetailSavingReview] = useState(false);
+  const [detailSavingSource, setDetailSavingSource] = useState(false);
+  const [detailSavingLegacy, setDetailSavingLegacy] = useState(false);
+  const [detailTrade, setDetailTrade] = useState(null);
+  const [detailReview, setDetailReview] = useState(EMPTY_REVIEW);
+  const [detailReviewExists, setDetailReviewExists] = useState(false);
+  const [detailSource, setDetailSource] = useState(EMPTY_SOURCE);
+  const [detailLegacy, setDetailLegacy] = useState({ review_note: '', notes: '' });
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -51,7 +139,22 @@ export default function TradeList() {
 
   useEffect(() => {
     loadSources();
+    loadReviewTaxonomy();
   }, []);
+
+  const loadReviewTaxonomy = async () => {
+    try {
+      const res = await tradeReviewApi.taxonomy();
+      setReviewTaxonomy({
+        opportunity_structure: res.data?.opportunity_structure || [],
+        edge_source: res.data?.edge_source || [],
+        failure_type: res.data?.failure_type || [],
+        review_conclusion: res.data?.review_conclusion || [],
+      });
+    } catch {
+      setReviewTaxonomy(EMPTY_REVIEW_TAXONOMY);
+    }
+  };
 
   const loadSources = async () => {
     try {
@@ -75,7 +178,9 @@ export default function TradeList() {
       setTrades(list);
       setPagination((p) => ({ ...p, current, total }));
       setSelectedRowKeys((prev) => prev.filter((id) => list.some((x) => x.id === id)));
-    } catch { message.error('加载失败'); }
+    } catch {
+      message.error('加载失败');
+    }
     setLoading(false);
   };
 
@@ -90,16 +195,69 @@ export default function TradeList() {
     setLoading(false);
   };
 
+  const loadTradeDetail = async (tradeId) => {
+    setDetailLoading(true);
+    try {
+      const [tradeRes, reviewRes, sourceRes] = await Promise.all([
+        tradeApi.get(tradeId),
+        tradeReviewApi.get(tradeId).catch((e) => {
+          if (e.response?.status === 404) return { data: null };
+          throw e;
+        }),
+        tradeSourceApi.get(tradeId),
+      ]);
+
+      const tradeData = tradeRes.data || null;
+      setDetailTrade(tradeData);
+      setDetailLegacy({
+        review_note: tradeData?.review_note || '',
+        notes: tradeData?.notes || '',
+      });
+
+      const reviewData = reviewRes.data || {};
+      const normalizedReview = { ...EMPTY_REVIEW };
+      REVIEW_FIELD_KEYS.forEach((k) => {
+        normalizedReview[k] = reviewData?.[k] || '';
+      });
+      setDetailReview(normalizedReview);
+      setDetailReviewExists(!!reviewRes.data);
+
+      const sourceData = sourceRes.data || {};
+      setDetailSource({
+        ...EMPTY_SOURCE,
+        ...sourceData,
+        broker_name: sourceData?.broker_name || '',
+        source_label: sourceData?.source_label || '',
+        import_channel: sourceData?.import_channel || '',
+        parser_version: sourceData?.parser_version || '',
+        source_note_snapshot: sourceData?.source_note_snapshot || '',
+      });
+    } catch {
+      message.error('详情加载失败');
+    }
+    setDetailLoading(false);
+  };
+
+  const openTradeDetail = async (tradeId) => {
+    setActiveTradeId(tradeId);
+    setDetailOpen(true);
+    await loadTradeDetail(tradeId);
+  };
+
   const handleDelete = async (id) => {
     await tradeApi.delete(id);
     message.success('已删除');
+    if (activeTradeId === id) {
+      setDetailOpen(false);
+      setActiveTradeId(null);
+    }
     loadTrades();
   };
 
   const updateFilter = (key, val) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       if (val === undefined || val === null) {
-        const { [key]: _, ...rest } = prev;
+        const { [key]: _omit, ...rest } = prev;
         setPagination((p) => ({ ...p, current: 1 }));
         return rest;
       }
@@ -108,29 +266,109 @@ export default function TradeList() {
     });
   };
 
+  const handleSaveDetailReview = async () => {
+    if (!activeTradeId) return;
+    setDetailSavingReview(true);
+    try {
+      const payload = {};
+      REVIEW_FIELD_KEYS.forEach((k) => {
+        payload[k] = normalizeText(detailReview[k]);
+      });
+      const hasReviewData = Object.values(payload).some((v) => v !== null);
+      if (hasReviewData) {
+        await tradeReviewApi.upsert(activeTradeId, payload);
+        setDetailReviewExists(true);
+        message.success('结构化复盘已保存');
+      } else if (detailReviewExists) {
+        await tradeReviewApi.delete(activeTradeId);
+        setDetailReviewExists(false);
+        message.success('结构化复盘已清空');
+      } else {
+        message.info('未检测到可保存的结构化复盘内容');
+      }
+      await loadTradeDetail(activeTradeId);
+    } catch (e) {
+      message.error(e.response?.data?.detail || '结构化复盘保存失败');
+    }
+    setDetailSavingReview(false);
+  };
+
+  const handleSaveDetailSource = async () => {
+    if (!activeTradeId) return;
+    setDetailSavingSource(true);
+    try {
+      const payload = {
+        broker_name: normalizeText(detailSource.broker_name),
+        source_label: normalizeText(detailSource.source_label),
+        import_channel: normalizeText(detailSource.import_channel),
+        parser_version: normalizeText(detailSource.parser_version),
+        source_note_snapshot: normalizeText(detailSource.source_note_snapshot) || normalizeText(detailLegacy.notes),
+        derived_from_notes: false,
+      };
+      const hasSourceData = Object.values(payload).some((v) => v !== null && v !== false);
+      if (!hasSourceData && !detailSource.exists_in_db) {
+        message.info('来源元数据为空，无需保存');
+        return;
+      }
+      await tradeSourceApi.upsert(activeTradeId, payload);
+      message.success('来源元数据已保存');
+      await Promise.all([loadTradeDetail(activeTradeId), loadSources()]);
+    } catch (e) {
+      message.error(e.response?.data?.detail || '来源元数据保存失败');
+    }
+    setDetailSavingSource(false);
+  };
+
+  const handleSaveDetailLegacy = async () => {
+    if (!activeTradeId) return;
+    setDetailSavingLegacy(true);
+    try {
+      await tradeApi.update(activeTradeId, {
+        review_note: normalizeText(detailLegacy.review_note),
+        notes: normalizeText(detailLegacy.notes),
+      });
+      message.success('兼容字段已保存');
+      if (viewMode === 'fills') {
+        await loadTrades();
+      }
+      await loadTradeDetail(activeTradeId);
+    } catch (e) {
+      message.error(e.response?.data?.detail || '兼容字段保存失败');
+    }
+    setDetailSavingLegacy(false);
+  };
+
   const columns = [
     {
-      title: '开仓时间', dataIndex: 'open_time', width: 170,
+      title: '开仓时间',
+      dataIndex: 'open_time',
+      width: 170,
       render: (v, r) => {
         const d = v || r.trade_date;
         return d ? dayjs(d).format('YYYY-MM-DD') : '-';
       },
-      sorter: (a, b) => (new Date(a.open_time || 0).getTime() - new Date(b.open_time || 0).getTime()),
+      sorter: (a, b) => new Date(a.open_time || 0).getTime() - new Date(b.open_time || 0).getTime(),
     },
     { title: '类型', dataIndex: 'instrument_type', width: 90 },
     {
-      title: '品种', dataIndex: 'symbol', width: 160,
+      title: '品种',
+      dataIndex: 'symbol',
+      width: 160,
       render: (_, r) => formatFuturesSymbol(r.symbol, r.contract),
     },
     { title: '合约', dataIndex: 'contract', width: 100 },
     {
-      title: '方向', dataIndex: 'direction', width: 70,
-      render: v => <Tag color={v === '做多' ? 'red' : 'green'}>{v}</Tag>,
+      title: '方向',
+      dataIndex: 'direction',
+      width: 70,
+      render: (v) => <Tag color={v === '做多' ? 'red' : 'green'}>{v}</Tag>,
     },
     { title: '开仓价', dataIndex: 'open_price', width: 100 },
     { title: '平仓价', dataIndex: 'close_price', width: 100 },
     {
-      title: '平仓时间', dataIndex: 'close_time', width: 120,
+      title: '平仓时间',
+      dataIndex: 'close_time',
+      width: 120,
       render: (v, r) => {
         if (v) return dayjs(v).format('YYYY-MM-DD');
         if (r.status === 'closed' && r.trade_date) return dayjs(r.trade_date).format('YYYY-MM-DD');
@@ -139,29 +377,45 @@ export default function TradeList() {
     },
     { title: '手数', dataIndex: 'quantity', width: 70 },
     {
-      title: '盈亏', dataIndex: 'pnl', width: 100,
-      render: v => v != null
-        ? <span style={{ color: v >= 0 ? '#cf1322' : '#3f8600', fontWeight: 'bold' }}>{v.toFixed(2)}</span>
-        : '-',
+      title: '盈亏',
+      dataIndex: 'pnl',
+      width: 100,
+      render: (v) =>
+        v != null ? (
+          <span style={{ color: v >= 0 ? '#cf1322' : '#3f8600', fontWeight: 'bold' }}>{v.toFixed(2)}</span>
+        ) : (
+          '-'
+        ),
       sorter: (a, b) => (a.pnl || 0) - (b.pnl || 0),
     },
     {
-      title: '状态', dataIndex: 'status', width: 70,
-      render: v => <Tag color={v === 'closed' ? 'default' : 'processing'}>{v === 'closed' ? '已平' : '持仓'}</Tag>,
+      title: '状态',
+      dataIndex: 'status',
+      width: 70,
+      render: (v) => <Tag color={v === 'closed' ? 'default' : 'processing'}>{v === 'closed' ? '已平' : '持仓'}</Tag>,
     },
     {
-      title: '券商/来源', dataIndex: 'notes', width: 170,
+      title: '券商/来源',
+      dataIndex: 'notes',
+      width: 190,
       render: (v) => parseSourceFromNotes(v),
       ellipsis: true,
     },
     {
-      title: '计划内', dataIndex: 'is_planned', width: 70,
-      render: v => v === true ? <Tag color="green">是</Tag> : v === false ? <Tag color="red">否</Tag> : '-',
+      title: '计划内',
+      dataIndex: 'is_planned',
+      width: 70,
+      render: (v) => (v === true ? <Tag color="green">是</Tag> : v === false ? <Tag color="red">否</Tag> : '-'),
     },
     {
-      title: '操作', width: 100, fixed: 'right',
+      title: '操作',
+      width: 180,
+      fixed: 'right',
       render: (_, r) => (
-        <Space>
+        <Space size={4}>
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openTradeDetail(r.id)}>
+            详情
+          </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => navigate(`/trades/${r.id}/edit`)} />
           <Popconfirm title="确定删除？" onConfirm={() => handleDelete(r.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
@@ -174,7 +428,9 @@ export default function TradeList() {
   const positionColumns = [
     { title: '品种', dataIndex: 'symbol_label', width: 220 },
     {
-      title: '方向', dataIndex: 'side', width: 90,
+      title: '方向',
+      dataIndex: 'side',
+      width: 90,
       render: (v) => <Tag color={v === '做多' ? 'red' : 'green'}>{v}</Tag>,
     },
     { title: '净手数', dataIndex: 'net_quantity', width: 100 },
@@ -199,6 +455,7 @@ export default function TradeList() {
       setImportResult(res.data || null);
       message.success(`导入完成：新增 ${res.data?.inserted || 0}，跳过 ${res.data?.skipped || 0}`);
       loadTrades();
+      loadSources();
     } catch (e) {
       message.error(e.response?.data?.detail || '导入失败');
     } finally {
@@ -263,18 +520,27 @@ export default function TradeList() {
   };
 
   return (
-    <div>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col><h2 style={{ margin: 0 }}>交易记录</h2></Col>
-        <Col>
-          <Space>
-            <Button icon={<ImportOutlined />} onClick={openImportModal}>粘贴导入</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/trades/new')}>新建交易</Button>
-          </Space>
-        </Col>
-      </Row>
+    <div className="trade-workspace">
+      <div className="trade-page-header">
+        <div>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            交易工作台
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            粘贴导入、筛选浏览、结构化复盘与来源元数据在同一工作流中完成。
+          </Typography.Text>
+        </div>
+        <Space>
+          <Button icon={<ImportOutlined />} onClick={openImportModal}>
+            粘贴导入
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/trades/new')}>
+            新建交易
+          </Button>
+        </Space>
+      </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card className="trade-filter-card">
         <Row justify="space-between" align="middle" gutter={[12, 12]}>
           <Col>
             <Segmented
@@ -298,18 +564,31 @@ export default function TradeList() {
             </Col>
           )}
           {viewMode === 'fills' && (
-            <Col>
-              <Space wrap>
-                <RangePicker onChange={(dates) => {
-                  if (dates) {
-                    setFilters(f => ({ ...f, date_from: dates[0].format('YYYY-MM-DD'), date_to: dates[1].format('YYYY-MM-DD') }));
-                  } else {
-                    setFilters(f => { const { date_from, date_to, ...rest } = f; return rest; });
-                  }
-                }} />
-                <Select placeholder="交易类型" allowClear style={{ width: 120 }}
-                  options={['期货', '加密货币', '股票', '外汇'].map(v => ({ label: v, value: v }))}
-                  onChange={v => updateFilter('instrument_type', v)} />
+            <Col flex="auto">
+              <Space wrap className="trade-filter-controls">
+                <RangePicker
+                  onChange={(dates) => {
+                    if (dates) {
+                      setFilters((f) => ({
+                        ...f,
+                        date_from: dates[0].format('YYYY-MM-DD'),
+                        date_to: dates[1].format('YYYY-MM-DD'),
+                      }));
+                    } else {
+                      setFilters((f) => {
+                        const { date_from, date_to, ...rest } = f;
+                        return rest;
+                      });
+                    }
+                  }}
+                />
+                <Select
+                  placeholder="交易类型"
+                  allowClear
+                  style={{ width: 120 }}
+                  options={['期货', '加密货币', '股票', '外汇'].map((v) => ({ label: v, value: v }))}
+                  onChange={(v) => updateFilter('instrument_type', v)}
+                />
                 <Select
                   placeholder="品种"
                   allowClear
@@ -317,7 +596,7 @@ export default function TradeList() {
                   optionFilterProp="label"
                   style={{ width: 170 }}
                   options={FUTURES_SYMBOL_OPTIONS}
-                  onChange={v => updateFilter('symbol', v)}
+                  onChange={(v) => updateFilter('symbol', v)}
                 />
                 <Select
                   placeholder="券商/来源"
@@ -326,51 +605,338 @@ export default function TradeList() {
                   optionFilterProp="label"
                   style={{ width: 170 }}
                   options={sourceOptions}
-                  onChange={v => updateFilter('source_keyword', v)}
+                  onChange={(v) => updateFilter('source_keyword', v)}
                 />
-                <Select placeholder="方向" allowClear style={{ width: 100 }}
-                  options={[{ label: '做多', value: '做多' }, { label: '做空', value: '做空' }]}
-                  onChange={v => updateFilter('direction', v)} />
-                <Select placeholder="状态" allowClear style={{ width: 100 }}
-                  options={[{ label: '持仓', value: 'open' }, { label: '已平', value: 'closed' }]}
-                  onChange={v => updateFilter('status', v)} />
+                <Select
+                  placeholder="方向"
+                  allowClear
+                  style={{ width: 100 }}
+                  options={[
+                    { label: '做多', value: '做多' },
+                    { label: '做空', value: '做空' },
+                  ]}
+                  onChange={(v) => updateFilter('direction', v)}
+                />
+                <Select
+                  placeholder="状态"
+                  allowClear
+                  style={{ width: 100 }}
+                  options={[
+                    { label: '持仓', value: 'open' },
+                    { label: '已平', value: 'closed' },
+                  ]}
+                  onChange={(v) => updateFilter('status', v)}
+                />
               </Space>
             </Col>
           )}
         </Row>
       </Card>
 
-      {viewMode === 'fills' ? (
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={trades}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
-          }}
-          loading={loading}
-          scroll={{ x: 1200 }}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            onChange: (page, pageSize) => setPagination((p) => ({ ...p, current: page, pageSize })),
-            showTotal: (t) => `共 ${t} 条`,
-          }}
-          size="middle"
-        />
-      ) : (
-        <Table
-          rowKey="key"
-          columns={positionColumns}
-          dataSource={positionData}
-          loading={loading}
-          pagination={false}
-          size="middle"
-          locale={{ emptyText: '当前无持仓' }}
-        />
-      )}
+      <Card className="trade-table-card" bodyStyle={{ padding: 0 }}>
+        {viewMode === 'fills' ? (
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={trades}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: setSelectedRowKeys,
+            }}
+            loading={loading}
+            scroll={{ x: 1320 }}
+            pagination={{
+              ...pagination,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              onChange: (page, pageSize) => setPagination((p) => ({ ...p, current: page, pageSize })),
+              showTotal: (t) => `共 ${t} 条`,
+            }}
+            size="middle"
+          />
+        ) : (
+          <Table
+            rowKey="key"
+            columns={positionColumns}
+            dataSource={positionData}
+            loading={loading}
+            pagination={false}
+            size="middle"
+            locale={{ emptyText: '当前无持仓' }}
+          />
+        )}
+      </Card>
+
+      <Drawer
+        title={activeTradeId ? `交易详情 #${activeTradeId}` : '交易详情'}
+        width={680}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        destroyOnClose={false}
+        extra={
+          <Space>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => activeTradeId && loadTradeDetail(activeTradeId)}
+              disabled={!activeTradeId}
+            >
+              刷新
+            </Button>
+            {activeTradeId ? (
+              <Button type="primary" onClick={() => navigate(`/trades/${activeTradeId}/edit`)}>
+                打开完整编辑
+              </Button>
+            ) : null}
+          </Space>
+        }
+      >
+        {detailLoading ? (
+          <div className="trade-drawer-loading">
+            <Spin />
+          </div>
+        ) : !detailTrade ? (
+          <Typography.Text type="secondary">未找到交易详情</Typography.Text>
+        ) : (
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Card size="small" title="成交信息">
+              <Descriptions size="small" column={2}>
+                <Descriptions.Item label="交易日期">{detailTrade.trade_date || '-'}</Descriptions.Item>
+                <Descriptions.Item label="品种">{formatFuturesSymbol(detailTrade.symbol, detailTrade.contract)}</Descriptions.Item>
+                <Descriptions.Item label="方向">
+                  <Tag color={detailTrade.direction === '做多' ? 'red' : 'green'}>{detailTrade.direction || '-'}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Tag color={detailTrade.status === 'closed' ? 'default' : 'processing'}>
+                    {detailTrade.status === 'closed' ? '已平' : '持仓'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="开仓价">{detailTrade.open_price ?? '-'}</Descriptions.Item>
+                <Descriptions.Item label="平仓价">{detailTrade.close_price ?? '-'}</Descriptions.Item>
+                <Descriptions.Item label="手数">{detailTrade.quantity ?? '-'}</Descriptions.Item>
+                <Descriptions.Item label="盈亏">{detailTrade.pnl ?? '-'}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            <Card size="small" title="来源元数据（TradeSourceMetadata）">
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Typography.Text type="secondary">券商</Typography.Text>
+                  <Input
+                    value={detailSource.broker_name}
+                    onChange={(e) => setDetailSource((p) => ({ ...p, broker_name: e.target.value }))}
+                    placeholder="例如：宏源期货"
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">来源标签</Typography.Text>
+                  <Input
+                    value={detailSource.source_label}
+                    onChange={(e) => setDetailSource((p) => ({ ...p, source_label: e.target.value }))}
+                    placeholder="例如：日结单粘贴导入"
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">导入通道</Typography.Text>
+                  <Input
+                    value={detailSource.import_channel}
+                    onChange={(e) => setDetailSource((p) => ({ ...p, import_channel: e.target.value }))}
+                    placeholder="例如：paste_import"
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">解析版本</Typography.Text>
+                  <Input
+                    value={detailSource.parser_version}
+                    onChange={(e) => setDetailSource((p) => ({ ...p, parser_version: e.target.value }))}
+                    placeholder="例如：paste_v1"
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">来源快照</Typography.Text>
+                  <TextArea
+                    value={detailSource.source_note_snapshot}
+                    onChange={(e) => setDetailSource((p) => ({ ...p, source_note_snapshot: e.target.value }))}
+                    rows={2}
+                    placeholder="可选：保存来源相关快照"
+                  />
+                </Col>
+              </Row>
+              <div className="trade-drawer-actions">
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    loading={detailSavingSource}
+                    onClick={handleSaveDetailSource}
+                  >
+                    保存来源元数据
+                  </Button>
+                  <Typography.Text type="secondary">
+                    {detailSource.exists_in_db
+                      ? '当前读取显式 metadata'
+                      : '当前为 notes 回退结果，保存后将写入显式 metadata'}
+                  </Typography.Text>
+                </Space>
+              </div>
+            </Card>
+
+            <Card size="small" title="结构化复盘（TradeReview）">
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Typography.Text type="secondary">机会结构</Typography.Text>
+                  <Select
+                    value={detailReview.opportunity_structure || undefined}
+                    allowClear
+                    options={taxonomyOptions(reviewTaxonomy.opportunity_structure)}
+                    onChange={(v) => setDetailReview((p) => ({ ...p, opportunity_structure: v || '' }))}
+                    placeholder="选择机会结构"
+                    style={{ width: '100%' }}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">优势来源</Typography.Text>
+                  <Select
+                    value={detailReview.edge_source || undefined}
+                    allowClear
+                    options={taxonomyOptions(reviewTaxonomy.edge_source)}
+                    onChange={(v) => setDetailReview((p) => ({ ...p, edge_source: v || '' }))}
+                    placeholder="选择优势来源"
+                    style={{ width: '100%' }}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">失败类型</Typography.Text>
+                  <Select
+                    value={detailReview.failure_type || undefined}
+                    allowClear
+                    options={taxonomyOptions(reviewTaxonomy.failure_type)}
+                    onChange={(v) => setDetailReview((p) => ({ ...p, failure_type: v || '' }))}
+                    placeholder="选择失败类型"
+                    style={{ width: '100%' }}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">复盘结论</Typography.Text>
+                  <Select
+                    value={detailReview.review_conclusion || undefined}
+                    allowClear
+                    options={taxonomyOptions(reviewTaxonomy.review_conclusion)}
+                    onChange={(v) => setDetailReview((p) => ({ ...p, review_conclusion: v || '' }))}
+                    placeholder="选择复盘结论"
+                    style={{ width: '100%' }}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">入场论点</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    value={detailReview.entry_thesis}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, entry_thesis: e.target.value }))}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">有效证据</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    value={detailReview.invalidation_valid_evidence}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, invalidation_valid_evidence: e.target.value }))}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Typography.Text type="secondary">失效证据</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    value={detailReview.invalidation_trigger_evidence}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, invalidation_trigger_evidence: e.target.value }))}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">相似但不同边界</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    value={detailReview.invalidation_boundary}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, invalidation_boundary: e.target.value }))}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">管理动作</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    value={detailReview.management_actions}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, management_actions: e.target.value }))}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">离场原因</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    value={detailReview.exit_reason}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, exit_reason: e.target.value }))}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">复盘标签</Typography.Text>
+                  <Input
+                    value={detailReview.review_tags}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, review_tags: e.target.value }))}
+                  />
+                </Col>
+                <Col span={24}>
+                  <Typography.Text type="secondary">研究记录</Typography.Text>
+                  <TextArea
+                    rows={3}
+                    value={detailReview.research_notes}
+                    onChange={(e) => setDetailReview((p) => ({ ...p, research_notes: e.target.value }))}
+                  />
+                </Col>
+              </Row>
+              <div className="trade-drawer-actions">
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    loading={detailSavingReview}
+                    onClick={handleSaveDetailReview}
+                  >
+                    保存结构化复盘
+                  </Button>
+                  <Typography.Text type="secondary">
+                    {detailReviewExists ? '当前已存在 TradeReview 记录' : '当前无 TradeReview 记录'}
+                  </Typography.Text>
+                </Space>
+              </div>
+            </Card>
+
+            <Card size="small" title="兼容字段（Legacy）">
+              <Typography.Text type="secondary">复盘一句话</Typography.Text>
+              <TextArea
+                rows={2}
+                value={detailLegacy.review_note}
+                onChange={(e) => setDetailLegacy((p) => ({ ...p, review_note: e.target.value }))}
+                placeholder="保持 legacy review_note 行为不变"
+              />
+              <Divider style={{ margin: '12px 0' }} />
+              <Typography.Text type="secondary">备注（notes）</Typography.Text>
+              <TextArea
+                rows={3}
+                value={detailLegacy.notes}
+                onChange={(e) => setDetailLegacy((p) => ({ ...p, notes: e.target.value }))}
+                placeholder="保持 notes 兼容，不自动改写来源标记"
+              />
+              <div className="trade-drawer-actions">
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  loading={detailSavingLegacy}
+                  onClick={handleSaveDetailLegacy}
+                >
+                  保存兼容字段
+                </Button>
+              </div>
+            </Card>
+          </Space>
+        )}
+      </Drawer>
 
       <Modal
         title="粘贴导入期货交易"
@@ -404,11 +970,25 @@ export default function TradeList() {
           />
           {importResult && (
             <div style={{ fontSize: 13 }}>
-              <div>新增：{importResult.inserted}，跳过重复：{importResult.skipped}，错误：{importResult.errors?.length || 0}</div>
+              <div>
+                新增：{importResult.inserted}，跳过重复：{importResult.skipped}，错误：
+                {importResult.errors?.length || 0}
+              </div>
               {(importResult.errors?.length || 0) > 0 && (
-                <div style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', background: '#fafafa', border: '1px solid #eee', padding: 8 }}>
+                <div
+                  style={{
+                    marginTop: 8,
+                    maxHeight: 180,
+                    overflowY: 'auto',
+                    background: '#fafafa',
+                    border: '1px solid #eee',
+                    padding: 8,
+                  }}
+                >
                   {importResult.errors.slice(0, 30).map((er, i) => (
-                    <div key={i}>第{er.row}行：{er.reason}</div>
+                    <div key={i}>
+                      第{er.row}行：{er.reason}
+                    </div>
                   ))}
                 </div>
               )}
