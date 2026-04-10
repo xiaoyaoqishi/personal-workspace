@@ -21,7 +21,7 @@ from pathlib import Path
 from datetime import datetime, date, timedelta
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
-from collections import deque, Counter
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import httpx
@@ -47,6 +47,13 @@ from schemas import (
 )
 from auth import load_credentials, save_credentials, check_login, create_token, verify_token
 from trade_review_taxonomy import trade_review_taxonomy
+from trading.source_service import (
+    extract_source_from_notes as _source_extract_source_from_notes,
+    apply_source_keyword_filter as _source_apply_source_keyword_filter,
+    attach_trade_view_fields as _source_attach_trade_view_fields,
+)
+from trading.analytics_service import build_trade_analytics
+from trading.import_service import import_paste_trades_staged
 
 Base.metadata.create_all(bind=engine)
 
@@ -419,108 +426,15 @@ def _append_note(base: Optional[str], extra: str) -> str:
 
 
 def _extract_source_from_notes(note: Optional[str]) -> Dict[str, Optional[str]]:
-    text = str(note or "")
-    broker = None
-    source = None
-    m_broker = re.search(r"来源券商:\s*([^|]+)", text)
-    if m_broker and m_broker.group(1).strip():
-        broker = m_broker.group(1).strip()
-    m_source = re.search(r"来源:\s*([^|]+)", text)
-    if m_source and m_source.group(1).strip():
-        source = m_source.group(1).strip()
-    return {"broker_name": broker, "source_label": source}
-
-
-def _format_source_display(broker_name: Optional[str], source_label: Optional[str]) -> str:
-    broker = (broker_name or "").strip()
-    source = (source_label or "").strip()
-    if broker and source:
-        return f"{broker} / {source}"
-    return broker or source or "-"
-
-
-def _resolve_trade_source_fields(trade: Trade, metadata: Optional[TradeSourceMetadata]) -> Dict[str, Any]:
-    parsed = _extract_source_from_notes(trade.notes)
-    has_metadata = bool(metadata and ((metadata.broker_name and metadata.broker_name.strip()) or (metadata.source_label and metadata.source_label.strip())))
-    broker_name = ((metadata.broker_name if metadata else None) or parsed["broker_name"] or "").strip() or None
-    source_label = ((metadata.source_label if metadata else None) or parsed["source_label"] or "").strip() or None
-    return {
-        "source_broker_name": broker_name,
-        "source_label": source_label,
-        "source_display": _format_source_display(broker_name, source_label),
-        "source_is_metadata": has_metadata,
-    }
+    return _source_extract_source_from_notes(note)
 
 
 def _attach_trade_view_fields(db: Session, rows: List[Trade]) -> List[Trade]:
-    if not rows:
-        return rows
-    trade_ids = [t.id for t in rows if t.id]
-    if not trade_ids:
-        return rows
-    metadata_rows = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id.in_(trade_ids)).all()
-    metadata_by_trade_id = {row.trade_id: row for row in metadata_rows}
-    review_trade_ids = {
-        trade_id for (trade_id,) in db.query(TradeReview.trade_id).filter(TradeReview.trade_id.in_(trade_ids)).all()
-    }
-    for trade in rows:
-        source_fields = _resolve_trade_source_fields(trade, metadata_by_trade_id.get(trade.id))
-        for key, value in source_fields.items():
-            setattr(trade, key, value)
-        setattr(trade, "has_trade_review", trade.id in review_trade_ids)
-    return rows
-
-
-def _aggregate_time_series(rows: List[Trade], bucket_fn) -> List[Dict[str, Any]]:
-    grouped: Dict[str, Dict[str, Any]] = {}
-    for t in rows:
-        if t.status != "closed":
-            continue
-        bucket = bucket_fn(t.trade_date)
-        if bucket not in grouped:
-            grouped[bucket] = {
-                "bucket": bucket,
-                "trade_count": 0,
-                "win_count": 0,
-                "loss_count": 0,
-                "total_pnl": 0.0,
-            }
-        g = grouped[bucket]
-        g["trade_count"] += 1
-        pnl = float(t.pnl or 0.0)
-        g["total_pnl"] += pnl
-        if pnl > 0:
-            g["win_count"] += 1
-        elif pnl < 0:
-            g["loss_count"] += 1
-    items = []
-    for bucket in sorted(grouped.keys()):
-        g = grouped[bucket]
-        trade_count = g["trade_count"]
-        win_rate = (g["win_count"] / trade_count * 100.0) if trade_count else 0.0
-        items.append({
-            "bucket": bucket,
-            "trade_count": trade_count,
-            "win_count": g["win_count"],
-            "loss_count": g["loss_count"],
-            "win_rate": round(win_rate, 2),
-            "total_pnl": round(g["total_pnl"], 2),
-        })
-    return items
+    return _source_attach_trade_view_fields(db, rows)
 
 
 def _apply_source_keyword_filter(q, source_keyword: Optional[str]):
-    kw = (source_keyword or "").strip()
-    if not kw:
-        return q
-    q = q.outerjoin(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id)
-    return q.filter(
-        or_(
-            Trade.notes.contains(kw),
-            TradeSourceMetadata.broker_name.contains(kw),
-            TradeSourceMetadata.source_label.contains(kw),
-        )
-    )
+    return _source_apply_source_keyword_filter(q, source_keyword)
 
 
 def _upsert_trade_source_metadata_for_import(
@@ -690,125 +604,23 @@ def _apply_close_fill_to_db(db: Session, fill: Trade, broker: Optional[str] = No
 
 @app.post("/api/trades/import-paste", response_model=TradePasteImportResponse)
 def import_trades_from_paste(payload: TradePasteImportRequest, db: Session = Depends(get_db)):
-    text = (payload.raw_text or "").strip()
-    if not text:
-        raise HTTPException(400, "请粘贴交易数据")
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    if not lines:
-        raise HTTPException(400, "粘贴内容为空")
-
-    inserted = 0
-    skipped = 0
-    errors: List[TradePasteImportError] = []
-    start_idx = 0
-
-    first_cells = [c.strip() for c in lines[0].split("\t")]
-    if all(h in first_cells for h in PASTE_TRADE_HEADERS):
-        start_idx = 1
-
-    # 1) 先解析并去重
-    parsed_rows: List[Dict[str, Any]] = []
-    for idx, raw in enumerate(lines[start_idx:], start=start_idx + 1):
-        try:
-            cells = [c.replace("\xa0", " ").strip() for c in raw.split("\t")]
-            trade_obj = _parse_paste_row(cells, payload.broker)
-            # 开仓行做去重；平仓行必须参与冲销，不能因历史“独立平仓记录”被跳过
-            if trade_obj.status == "open":
-                q_exist = db.query(Trade).filter(
-                    Trade.trade_date == trade_obj.trade_date,
-                    Trade.contract == trade_obj.contract,
-                    Trade.direction == trade_obj.direction,
-                    Trade.open_price == trade_obj.open_price,
-                    Trade.quantity == trade_obj.quantity,
-                    Trade.status == trade_obj.status,
-                    Trade.commission == trade_obj.commission,
-                    Trade.pnl == trade_obj.pnl,
-                )
-                if payload.broker:
-                    q_exist = q_exist.filter(Trade.notes.contains(f"来源券商: {payload.broker}"))
-                existed = q_exist.first()
-                if existed:
-                    skipped += 1
-                    continue
-            parsed_rows.append({"row": idx, "raw": raw, "trade": trade_obj})
-        except Exception as exc:
-            errors.append(TradePasteImportError(row=idx, reason=str(exc), raw=raw[:300]))
-
-    # 2) 顺序无关校验：平仓先匹配历史持仓，再匹配本次粘贴开仓
-    hist_pool: Dict[str, float] = {}
-    q_hist = db.query(Trade).filter(Trade.instrument_type == "期货", Trade.status == "open")
-    if payload.broker:
-        q_hist = q_hist.filter(Trade.notes.contains(f"来源券商: {payload.broker}"))
-    for t in q_hist.all():
-        k = _state_key_contract(t.symbol, t.contract, t.direction)
-        hist_pool[k] = hist_pool.get(k, 0.0) + float(t.quantity or 0)
-
-    batch_open_pool: Dict[str, float] = {}
-    for item in parsed_rows:
-        t: Trade = item["trade"]
-        if t.status != "open":
-            continue
-        k = _state_key_contract(t.symbol, t.contract, t.direction)
-        batch_open_pool[k] = batch_open_pool.get(k, 0.0) + float(t.quantity or 0)
-
-    valid_rows: List[Dict[str, Any]] = []
-    for item in parsed_rows:
-        t: Trade = item["trade"]
-        if t.status == "open":
-            valid_rows.append(item)
-            continue
-        symbol = _normalize_contract_symbol(t.contract or t.symbol or "")
-        side = _position_side(t.direction, "closed")
-        k = _state_key_contract(symbol, t.contract, side)
-        need = float(t.quantity or 0)
-        if need <= 0:
-            errors.append(TradePasteImportError(row=item["row"], reason="平仓手数必须大于0", raw=item["raw"][:300]))
-            continue
-        hist_avail = hist_pool.get(k, 0.0)
-        use_hist = min(hist_avail, need)
-        hist_pool[k] = hist_avail - use_hist
-        remain = need - use_hist
-        if remain > 1e-9:
-            batch_avail = batch_open_pool.get(k, 0.0)
-            use_batch = min(batch_avail, remain)
-            batch_open_pool[k] = batch_avail - use_batch
-            remain -= use_batch
-        if remain > 1e-9:
-            errors.append(
-                TradePasteImportError(
-                    row=item["row"],
-                    reason=f"{symbol} {side} 平仓失败：历史与本次粘贴均无足够对应开仓",
-                    raw=item["raw"][:300],
-                )
-            )
-            continue
-        valid_rows.append(item)
-
-    # 3) 入库：先开仓，后平仓（确保平仓可匹配到本次导入开仓）
-    open_rows = [x for x in valid_rows if x["trade"].status == "open"]
-    close_rows = [x for x in valid_rows if x["trade"].status == "closed"]
-    open_rows.sort(key=lambda x: (x["trade"].trade_date, x["row"]))
-    close_rows.sort(key=lambda x: (x["trade"].trade_date, x["row"]))
-
-    for item in open_rows:
-        db.add(item["trade"])
-        inserted += 1
-    db.flush()
-    for item in open_rows:
-        _upsert_trade_source_metadata_for_import(db, item["trade"], broker=payload.broker)
-
-    for item in close_rows:
-        try:
-            affected_close_rows = _apply_close_fill_to_db(db, item["trade"], broker=payload.broker)
-            db.flush()
-            for row in affected_close_rows:
-                _upsert_trade_source_metadata_for_import(db, row, broker=payload.broker)
-            inserted += 1
-        except Exception as exc:
-            errors.append(TradePasteImportError(row=item["row"], reason=str(exc), raw=item["raw"][:300]))
-
-    db.commit()
-    return TradePasteImportResponse(inserted=inserted, skipped=skipped, errors=errors[:100])
+    try:
+        return import_paste_trades_staged(
+            db,
+            raw_text=payload.raw_text,
+            broker=payload.broker,
+            paste_headers=PASTE_TRADE_HEADERS,
+            parse_paste_row=_parse_paste_row,
+            normalize_contract_symbol=_normalize_contract_symbol,
+            position_side=_position_side,
+            state_key_contract=_state_key_contract,
+            apply_close_fill_to_db=_apply_close_fill_to_db,
+            upsert_trade_source_metadata_for_import=_upsert_trade_source_metadata_for_import,
+            error_cls=TradePasteImportError,
+            response_cls=TradePasteImportResponse,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 @app.get("/api/trades/positions", response_model=List[TradePositionResponse])
@@ -1021,242 +833,18 @@ def get_trade_analytics(
     source_keyword: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = db.query(Trade)
-    if date_from:
-        q = q.filter(Trade.trade_date >= date_from)
-    if date_to:
-        q = q.filter(Trade.trade_date <= date_to)
-    if instrument_type:
-        q = q.filter(Trade.instrument_type == instrument_type)
-    if symbol:
-        q = q.filter(Trade.symbol == symbol)
-    q = _apply_source_keyword_filter(q, source_keyword)
-
-    trades = _attach_trade_view_fields(db, q.order_by(Trade.trade_date.asc(), Trade.id.asc()).all())
-    total = len(trades)
-    closed_trades = [t for t in trades if t.status == "closed"]
-    open_trades = [t for t in trades if t.status == "open"]
-
-    closed_pnls = [float(t.pnl or 0.0) for t in closed_trades]
-    wins = [p for p in closed_pnls if p > 0]
-    losses = [p for p in closed_pnls if p < 0]
-    gross_profit = sum(wins)
-    gross_loss = sum(losses)
-    closed_count = len(closed_trades)
-    win_rate = (len(wins) / closed_count * 100.0) if closed_count else 0.0
-    profit_factor = (gross_profit / abs(gross_loss)) if abs(gross_loss) > 1e-9 else 0.0
-
-    time_daily = _aggregate_time_series(closed_trades, lambda d: d.strftime("%Y-%m-%d"))
-    time_weekly = _aggregate_time_series(closed_trades, lambda d: f"{d.isocalendar().year}-W{d.isocalendar().week:02d}")
-    time_monthly = _aggregate_time_series(closed_trades, lambda d: d.strftime("%Y-%m"))
-
-    def _group_trade_metrics(rows: List[Trade], key_fn):
-        groups: Dict[str, Dict[str, Any]] = {}
-        for t in rows:
-            key = str(key_fn(t) or "").strip() or "未分类"
-            if key not in groups:
-                groups[key] = {
-                    "key": key,
-                    "trade_count": 0,
-                    "closed_trade_count": 0,
-                    "win_count": 0,
-                    "loss_count": 0,
-                    "total_pnl": 0.0,
-                }
-            g = groups[key]
-            g["trade_count"] += 1
-            if t.status == "closed":
-                g["closed_trade_count"] += 1
-                pnl = float(t.pnl or 0.0)
-                g["total_pnl"] += pnl
-                if pnl > 0:
-                    g["win_count"] += 1
-                elif pnl < 0:
-                    g["loss_count"] += 1
-        out = []
-        for key, g in groups.items():
-            closed_n = g["closed_trade_count"]
-            out.append({
-                "key": key,
-                "trade_count": g["trade_count"],
-                "closed_trade_count": closed_n,
-                "win_count": g["win_count"],
-                "loss_count": g["loss_count"],
-                "win_rate": round((g["win_count"] / closed_n * 100.0), 2) if closed_n else 0.0,
-                "total_pnl": round(g["total_pnl"], 2),
-            })
-        out.sort(key=lambda x: (x["trade_count"], x["total_pnl"]), reverse=True)
-        return out
-
-    by_symbol = _group_trade_metrics(trades, lambda t: t.symbol)
-    by_source = _group_trade_metrics(trades, lambda t: getattr(t, "source_display", None) or "未知来源")
-
-    trade_ids = [t.id for t in trades if t.id]
-    review_by_trade_id: Dict[int, TradeReview] = {}
-    if trade_ids:
-        review_rows = db.query(TradeReview).filter(TradeReview.trade_id.in_(trade_ids)).all()
-        review_by_trade_id = {r.trade_id: r for r in review_rows}
-
-    taxonomy_fields = ["opportunity_structure", "edge_source", "failure_type", "review_conclusion"]
-    review_dimensions: Dict[str, List[Dict[str, Any]]] = {}
-    for field in taxonomy_fields:
-        grouped: Dict[str, Dict[str, Any]] = {}
-        for t in trades:
-            review = review_by_trade_id.get(t.id)
-            key = str(getattr(review, field, "") or "").strip()
-            if not key:
-                continue
-            if key not in grouped:
-                grouped[key] = {
-                    "key": key,
-                    "trade_count": 0,
-                    "closed_trade_count": 0,
-                    "win_count": 0,
-                    "loss_count": 0,
-                    "total_pnl": 0.0,
-                }
-            g = grouped[key]
-            g["trade_count"] += 1
-            if t.status == "closed":
-                g["closed_trade_count"] += 1
-                pnl = float(t.pnl or 0.0)
-                g["total_pnl"] += pnl
-                if pnl > 0:
-                    g["win_count"] += 1
-                elif pnl < 0:
-                    g["loss_count"] += 1
-        rows = []
-        for key, g in grouped.items():
-            closed_n = g["closed_trade_count"]
-            rows.append({
-                "key": key,
-                "trade_count": g["trade_count"],
-                "closed_trade_count": closed_n,
-                "win_count": g["win_count"],
-                "loss_count": g["loss_count"],
-                "win_rate": round((g["win_count"] / closed_n * 100.0), 2) if closed_n else 0.0,
-                "total_pnl": round(g["total_pnl"], 2),
-            })
-        rows.sort(key=lambda x: (x["trade_count"], x["total_pnl"]), reverse=True)
-        review_dimensions[field] = rows
-
-    error_tags_counter: Counter = Counter()
-    strategy_counter: Counter = Counter()
-    market_condition_counter: Counter = Counter()
-    timeframe_counter: Counter = Counter()
-    planned_counter: Counter = Counter()
-    overnight_counter: Counter = Counter()
-
-    for t in trades:
-        if t.error_tags:
-            try:
-                tags = json.loads(t.error_tags)
-                if isinstance(tags, list):
-                    for tag in tags:
-                        if str(tag or "").strip():
-                            error_tags_counter[str(tag).strip()] += 1
-            except Exception:
-                pass
-        if t.strategy_type and str(t.strategy_type).strip():
-            strategy_counter[str(t.strategy_type).strip()] += 1
-        if t.market_condition and str(t.market_condition).strip():
-            market_condition_counter[str(t.market_condition).strip()] += 1
-        if t.timeframe and str(t.timeframe).strip():
-            timeframe_counter[str(t.timeframe).strip()] += 1
-        if t.is_planned is True:
-            planned_counter["planned"] += 1
-        elif t.is_planned is False:
-            planned_counter["unplanned"] += 1
-        else:
-            planned_counter["unknown"] += 1
-        if t.is_overnight is True:
-            overnight_counter["overnight"] += 1
-        else:
-            overnight_counter["intraday_or_unknown"] += 1
-
-    def _counter_to_rows(counter: Counter, key_name: str = "key") -> List[Dict[str, Any]]:
-        rows = [{key_name: k, "count": int(v)} for k, v in counter.items()]
-        rows.sort(key=lambda x: x["count"], reverse=True)
-        return rows
-
-    position_state = _build_position_state_from_db(db, source_keyword=source_keyword)
-    open_position_rows = []
-    for _, st in position_state.items():
-        qty = float(st.get("quantity") or 0.0)
-        if qty < 1e-9:
-            continue
-        if symbol and st["symbol"] != symbol:
-            continue
-        open_position_rows.append({
-            "symbol": st["symbol"],
-            "contract": st.get("contract"),
-            "side": st.get("side") or "做多",
-            "net_quantity": round(qty, 6),
-            "avg_open_price": round(float(st.get("avg_open_price") or 0.0), 4),
-            "open_since": st.get("open_since"),
-            "last_trade_date": st.get("last_trade_date"),
-        })
-    open_position_rows.sort(key=lambda x: (x["symbol"], x["side"]))
-
-    source_metadata_count = sum(1 for t in trades if bool(getattr(t, "source_is_metadata", False)))
-    legacy_source_only_count = 0
-    source_missing_count = 0
-    for t in trades:
-        if bool(getattr(t, "source_is_metadata", False)):
-            continue
-        parsed = _extract_source_from_notes(t.notes)
-        if parsed["broker_name"] or parsed["source_label"]:
-            legacy_source_only_count += 1
-        else:
-            source_missing_count += 1
-    trade_review_count = len(review_by_trade_id)
-
-    return {
-        "overview": {
-            "total_trades": total,
-            "closed_trades": closed_count,
-            "open_trades": len(open_trades),
-            "win_count": len(wins),
-            "loss_count": len(losses),
-            "win_rate": round(win_rate, 2),
-            "total_pnl": round(sum(closed_pnls), 2),
-            "avg_pnl_per_closed_trade": round((sum(closed_pnls) / closed_count), 2) if closed_count else 0.0,
-            "avg_win": round((sum(wins) / len(wins)), 2) if wins else 0.0,
-            "avg_loss": round((sum(losses) / len(losses)), 2) if losses else 0.0,
-            "profit_factor": round(profit_factor, 4),
-            "open_position_count": len(open_position_rows),
-        },
-        "time_series": {
-            "daily": time_daily,
-            "weekly": time_weekly,
-            "monthly": time_monthly,
-        },
-        "dimensions": {
-            "by_symbol": by_symbol,
-            "by_source": by_source,
-            "by_review_field": review_dimensions,
-        },
-        "behavior": {
-            "error_tags": _counter_to_rows(error_tags_counter, "tag"),
-            "planned_vs_unplanned": _counter_to_rows(planned_counter, "key"),
-            "strategy_type": _counter_to_rows(strategy_counter, "key"),
-            "market_condition": _counter_to_rows(market_condition_counter, "key"),
-            "timeframe": _counter_to_rows(timeframe_counter, "key"),
-            "overnight_split": _counter_to_rows(overnight_counter, "key"),
-        },
-        "positions": {
-            "open_positions": open_position_rows,
-            "open_position_count": len(open_position_rows),
-        },
-        "coverage": {
-            "trade_review_count": trade_review_count,
-            "trade_review_rate": round((trade_review_count / total * 100.0), 2) if total else 0.0,
-            "source_metadata_count": source_metadata_count,
-            "source_metadata_rate": round((source_metadata_count / total * 100.0), 2) if total else 0.0,
-            "legacy_source_only_count": legacy_source_only_count,
-            "source_missing_count": source_missing_count,
-        },
-    }
+    return build_trade_analytics(
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        instrument_type=instrument_type,
+        symbol=symbol,
+        source_keyword=source_keyword,
+        apply_source_keyword_filter=_apply_source_keyword_filter,
+        attach_trade_view_fields=_attach_trade_view_fields,
+        build_position_state_from_db=_build_position_state_from_db,
+        extract_source_from_notes=_extract_source_from_notes,
+    )
 
 
 @app.post("/api/trades", response_model=TradeResponse)

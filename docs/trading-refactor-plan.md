@@ -37,6 +37,9 @@ Frontend architecture target:
   - import modal
   - batch edit modal
 
+Latest structural note:
+- `docs/trading-workstation-architecture.md` documents the current canonical active flow, compatibility-only paths, backend module split, and workspace orchestration split.
+
 ## Phase 1 (Current): Audit
 
 Completed in `docs/trading-system-audit.md` and `docs/trading-protected-behaviors.md`.
