@@ -1,516 +1,373 @@
-# 骁遥骑士 · 个人工作台
+# 骁遥骑士 · 个人多模块工作台
 
-部署于阿里云 ECS 的个人工作平台，包含交易记录复盘系统、知识笔记、新闻实事阅读与服务器监控模块。
+一个运行在 FastAPI + React 多前端架构上的个人系统仓库，核心方向是将交易记录从“台账录入”扩展为“记录-复盘-研究-改进”的持续工作流。
 
----
+当前仓库包含四个业务前端（交易、笔记、新闻、监控）与一个统一后端，生产环境通过 Nginx + systemd 部署，本地通过 `./dev.sh` 一键调试。
 
-## 系统架构
+## 项目概览
 
-```
-浏览器 ──► Nginx (80) ──┬── /login        → 登录页 (静态 HTML，山水风格)
-                        ├── /             → 首页门户 (静态 HTML，山水风格)
-                        ├── /trading/*    → 交易前端 (React SPA)
-                        ├── /notes/*      → 笔记前端 (React SPA，eDiary 风格)
-                        ├── /news/*       → 新闻前端 (React SPA，Economist 阅读)
-                        ├── /monitor/*    → 监控前端 (React SPA，实时仪表盘)
-                        ├── /api/uploads/ → 图片文件 (静态资源)
-                        └── /api/*        → FastAPI 后端 (127.0.0.1:8000)
-                                               │
-                                               ▼
-                                          SQLite 数据库 + psutil 系统采集
-```
+### 这个仓库是什么
 
-| 层级 | 技术栈 | 说明 |
-|------|--------|------|
-| 前端 - 交易 | React 19 + Vite 8 + Ant Design 6 + Recharts 3 | 交易记录与复盘分析 |
-| 前端 - 笔记 | React 19 + Vite 8 + Ant Design 6 + TipTap + lunar-javascript | eDiary 风格日记与文档管理 |
-| 前端 - 新闻 | React 19 + Vite 8 + Ant Design 6 | Economist 同步、翻译与阅读 |
-| 前端 - 监控 | React 18 + Vite 6 + Ant Design 5 + Recharts 2 | 服务器实时监控仪表盘 |
-| 后端 | Python + FastAPI + SQLAlchemy + psutil | RESTful API + 图片上传 + 系统监控采集 |
-| 数据库 | SQLite | 数据文件：`backend/data/trading.db` |
-| 门户 | 纯 HTML/CSS/JS | 山水风格首页 + 自定义登录页 |
-| 部署 | Nginx + systemd | 反向代理、静态托管、进程管理 |
+- 一个真实使用中的个人工作台系统，而非单页 demo。
+- 以交易记录子系统为主线，同时承载知识笔记、新闻阅读与服务器监控。
+- 后端使用单体 FastAPI 服务统一提供 API，前端按业务拆分为多个 Vite 应用。
 
----
+### 适用对象
 
-## 功能模块
+- 交易者：希望把成交记录、单笔复盘、周期复盘、样本关联与知识沉淀放在同一系统内。
+- 开发者/维护者：需要在一个仓库中持续演进多模块产品，并保持数据模型与流程一致性。
 
-### 首页门户
+### 当前范围
 
-山水画风格首页，实时时钟，应用入口卡片（交易记录、服务器监控、知识笔记），右上角退出登录按钮。
+- 覆盖交易记录、结构化复盘、来源元数据、周期复盘、知识条目维护、分析看板。
+- 覆盖日记/文档/待办/回收站、新闻同步与翻译、服务器指标监控。
+- 仍在持续演进，保留一部分兼容路径（如交易 legacy notes 字段）。
 
-### 登录认证
+## 核心模块
 
-- 自定义登录页面（山水风格，与首页视觉统一）
-- 密码输入支持 **显示/隐藏切换**（眼睛图标）
-- 基于 HMAC 签名 Cookie 会话认证，登录状态保持 7 天
-- 未登录时自动跳转登录页，支持 `?redirect=` 回跳
-- 本地开发模式（`DEV_MODE=1`）跳过认证
+### 交易记录与研究工作台（`/trading/`）
 
-### 新闻实事系统（/news/）
+交易子系统当前不是简单 CRUD 台账，已形成“记录 + 复盘 + 研究”组合：
 
-左侧为子模块侧栏，右侧为信息区。
+- 成交流水管理：交易录入、列表筛选、批量编辑、批量删除。
+- 粘贴导入：支持期货日结单粘贴导入与开平匹配。
+- 单笔结构化复盘：`TradeReview` 模型（机会结构、优势来源、失败类型、复盘结论、研究备注等）。
+- 来源元数据：`TradeSourceMetadata` 模型（券商、来源标签、导入通道、解析版本等），metadata-first 展示。
+- 周期/主题复盘：`Review` + `ReviewTradeLink` 支持多交易样本关联（best/worst/representative/linked）。
+- 信息维护：知识条目（`KnowledgeItem`）与券商来源维护并存。
+- 交易分析仪表盘：overview/time series/dimensions/behavior/coverage/positions 多维视角。
 
-**子模块 A：Economist**
-- 一键同步最新一期（自动从来源仓库 README 提取最新 EBOOK）
-- 自动下载 EPUB 并抽取正文文本
-- 下载与翻译结果按期存放在子模块数据目录（`backend/data/news_epub/`）
-- 分块并行翻译（DeepSeek/OpenAI 兼容接口）
-- 翻译过程进度条（done/total/percent）
-- 风控场景处理：出现 `Content Exists Risk` 时保留原文段落并继续后续分块
+### 知识笔记（`/notes/`）
 
-**子模块 B：今日新闻**
-- 聚合四类：经济、时政、AI、科技
-- 中文优先来源聚合（Google News 中文 RSS）
-- 左侧今日新闻文件夹逐条展示，默认选中第一条
-- 右侧展示新闻详情，顶部标注来源与发布时间
-- 支持服务端抓取原文正文（失败时回退摘要）
-- 支持左右面板拖动分割线
+- 日记与文档分区管理，支持嵌套文件夹。
+- 富文本编辑（TipTap）与图片上传。
+- 全文搜索、双向链接（wikilink/backlink）、日历与历史今日。
+- 待办与回收站为独立工作流。
 
-### 交易记录系统（/trading/）
+### 新闻实事（`/news/`）
 
-**四层记录体系**：
+- Economist 最新期同步、EPUB 抽取、分块翻译与进度追踪。
+- 今日新闻聚合（多分类 RSS）与正文抓取。
 
-| 层次 | 解决的问题 | 核心字段 |
-|------|-----------|---------|
-| 成交流水层 | 发生了什么 | 日期、品种、合约、方向、价格、数量、盈亏、手续费 |
-| 交易决策层 | 为什么做 | 入场/出场逻辑、策略类型、市场状态、止损/目标 |
-| 行为纪律层 | 亏损归因 | 是否计划内、追单、扛单、重仓、报复性交易 |
-| 标签与复盘层 | 如何改进 | 13 种错误标签、复盘一句话 |
+### 服务器监控（`/monitor/`）
 
-- 左侧导航顺序：记录 → 仪表盘 → 信息维护 → 复盘（隐藏侧栏“新建”入口）
-- 可视化仪表盘（交易分析工作台）：
-  - 时间维度采用双轴设计：左轴净盈亏、右轴胜率（0-100%）+ 交易频次柱图
-  - KPI 全中文：胜率、净利润、单笔期望、盈亏因子、夏普比率、手续费/净利润、盈利占比、总手续费、毛利润、毛亏损、最大回撤等
-  - 多维分析：品种维度、来源维度、结构化复盘维度、行为质量维度、覆盖率与持仓视角
-- 仪表盘支持按品种、券商/来源筛选（保留日/周/月切换）
-- 交易列表：分页、筛选、排序、行内操作、批量勾选删除/修改
-- 交易列表显示“券商/来源”列，支持按券商/来源筛选
-- 来源展示规则：metadata 优先，legacy notes 兼容回退；`日结单粘贴导入` 作为内部导入标记，不在 active UI 作为来源标签展示
-- 粘贴导入支持自定义券商名称（不再固定选项）
-- 当前持仓视图支持按品种、来源筛选
-- 信息维护子模块：券商信息维护（名称、账号、密码、其他信息、备注）
-- 三级复盘：日/周/月维度结构化复盘
-- 复盘关联交易支持远程检索（关键词/品种/日期/状态），不依赖首页预加载
-- 复盘关联交易与只读展示使用内容卡片（日期、中文品种、方向、手数、开平、PnL、来源、角色）
-- 交易详情/复盘/信息维护均采用默认读态 + 显式编辑 + 保存/取消
-- 多品种支持：期货、加密货币、股票、外汇
+- 实时系统指标：CPU、内存、磁盘、网络、进程、服务状态。
+- 历史趋势：后台每 5 秒采样，前端轮询展示。
 
-**交易分析指标口径（关键新增）**：
-- 夏普比率：基于日度已平仓 pnl 序列近似计算 `mean(daily_pnl) / std(daily_pnl) * sqrt(252)`（样本不足或标准差为 0 返回 0）
-- 手续费/净利润：`total_commission / total_pnl`，当净利润 `<= 0` 返回 `null`（避免不可解释负比值）
-- 盈利占比：`gross_profit / (gross_profit + abs(gross_loss))`
-- 最大回撤：基于已平仓 pnl 累计曲线的峰谷回撤金额
-- 兼容性约束：不改变粘贴导入、同批次平先开后、部分平拆分、券商隔离匹配等既有业务语义
+### 门户与登录（`/`、`/login`）
 
-### 知识笔记系统（/notes/）
+- 静态门户页面聚合业务入口。
+- 自定义会话认证，未登录访问 API 会返回 401。
 
-仿 eDiary 布局，左侧图标导航 + 内容区双栏设计。
+## 交易子系统模型与定位
 
-**首页 Tab**：
-- 公历 + 农历日期显示
-- 自动定位获取当前天气（Open-Meteo API）+ 未来两天预报
-- 服务器环境获取不到定位时，默认使用 **深圳市龙华区**
-- 三栏布局：
-  - 左栏：全局搜索（日记/文档/待办）、今日总览（今日日记字数/今日新文档/待办完成率）、快捷新建
-  - 中栏：知识笔记概览（连续记录、月记录率、热力格、统计卡、最近文档固定置顶）
-  - 右栏：稍后待办只读看板（仅显示未完成项，按截止时间分组）
-- 支持快捷模板创建今日日记（晨间计划/交易复盘/情绪记录）
+交易域当前核心模型（见 `backend/models.py`）：
 
-**日记 Tab**：
-- 自定义迷你日历（中文月份，有日记的日期橙色圆点标记）
-- 「写今天的日记」按钮，自动生成标题：`天气图标 + 日期 + 星期 + 时间`
-- 日期树形结构浏览（年 > 月 > 日）
-- 点击年/月可查看当年/当月“日记梗概列表”（每行：日期 + 梗概）
-- 点击左侧“日记”图标默认打开最近一次编辑的日记
-- 右侧富文本编辑器
+- `Trade`：成交与持仓语义（流水层）。
+- `TradeReview`：单笔结构化复盘语义（主复盘路径）。
+- `TradeSourceMetadata`：来源/券商/导入语义（主来源路径）。
+- `Review` + `ReviewTradeLink`：多笔交易的周期/主题复盘与样本关联。
+- `KnowledgeItem`：交易相关知识沉淀（形态、环境、执行、风控等）。
+- `TagTerm` + link tables：`TradeReview` / `Review` / `KnowledgeItem` 的统一标签关联。
 
-**文档 Tab**：
-- 支持 **多级嵌套文件夹**（文件夹下可建子文件夹）
-- 悬停显示操作按钮（新建文档、新建子文件夹、删除）
-- 文档可复制/移动到其他文件夹
-- 点击左侧“文档”图标默认打开最近一次编辑的文档
-- 文件夹树 + 右侧编辑器
+说明：
 
-**待办 Tab**：
-- 与日记/文档同级的独立子模块
-- 新增、编辑、删除、完成状态、优先级管理
-- 支持截止时间、提醒时间、来源段落回跳
-- 支持关键词搜索过滤
-- 支持批量勾选后批量完成/批量设为未完成
+- `notes`、`review_note`、旧标签文本列仍保留，用于兼容历史数据。
+- active 路径以显式模型为主，不再仅依赖自由文本解析。
 
-**回收站 Tab**：
-- 软删除后的日记/文档统一管理
-- 支持还原、还原并打开、彻底删除
-- 支持按筛选条件一键清空回收站
+## 关键工作流
 
-**富文本编辑器（TipTap）**：
-- **字体选择**：宋体、黑体、楷体、仿宋、华文楷体、Arial、Georgia、Courier
-- **字号选择**：12px ~ 32px
-- **文字颜色**：30 种预设色板（含黑灰白、标准色、深色系）
-- **背景颜色**：41 种高亮背景色（浅/中/亮/标准/深五档）+ 清除
-- **格式**：加粗、斜体、下划线、删除线、上标、下标
-- **标题**：H1 / H2 / H3
-- **列表**：无序列表、有序列表、任务列表（☑）
-- **引用 / 代码块**（支持 14 种语言语法高亮）
-- **表格**：插入、增删行列、删除表格
-- **对齐**：左/中/右
-- **图片**：点击上传、拖拽上传、粘贴截图（存储在服务器 `backend/data/uploads/`）
-- **表情**：40 个常用 Emoji 快速插入
-- **链接 / 分割线**
-- **两种编辑模式**：📖 阅读（只读预览，图片可点击放大）、✏️ 编辑（富文本 WYSIWYG）
-- **图片可调整大小**：编辑模式下拖拽图片边缘调节宽度，尺寸持久化保存
-- 切换页面后默认阅读模式
-- 粘贴 Markdown 文本自动转换为富文本
-- **设置功能**：可自定义默认字体和字号（localStorage 持久化）
-- 默认字体：华文楷体；默认字号：20px
-- 日记/文档编辑模式支持“选中文本 → 加入稍后待办”
-- 自动保存（800ms 防抖 + 离开页面即时保存）
-- **内容存储格式**：TipTap JSON（无损往返，解决混合内容代码块编辑问题），向下兼容旧 HTML 格式
+### 1. 导入交易记录（期货日结单）
 
-### 服务器监控（/monitor/）
+1. 在交易工作台打开“粘贴导入”。
+2. 粘贴 10 列制表符数据（支持含表头或无表头）。
+3. 后端执行分阶段处理：解析/去重 -> 平仓预检 -> 开平入库与匹配。
+4. 返回 `inserted/skipped/errors`，并同步写入来源元数据（`import_channel=paste_import`）。
 
-单页实时仪表盘，监控本机 Ubuntu 服务器系统状态。
+### 2. 检查与维护交易记录
 
-- **CPU**：总使用率仪表盘、每核使用率、负载均值（1/5/15 min）、温度传感器
-- **内存**：总量/已用/可用/使用率仪表盘、Swap 使用情况
-- **磁盘**：各分区容量/已用/使用率进度条、磁盘 IO 读写速率
-- **网络**：上行/下行实时速率、累计流量统计
-- **系统信息**：主机名、系统版本、内核版本、CPU 架构、运行时间
-- **历史趋势**：最近 1 小时 CPU/内存/网络折线图（后台线程每 5 秒采样，内存缓存 720 个点）
-- **进程 Top10**：按 CPU 使用率排序（PID、名称、用户、CPU%、内存%）
-- **服务状态**：nginx、uvicorn、python 运行状态指示灯
-- 前端每 3 秒轮询自动刷新
+1. 在记录页进行分页、筛选、批量操作。
+2. 在详情抽屉查看单笔交易、结构化复盘、来源信息。
+3. 默认读态，进入编辑后再保存（read/edit 双态）。
 
----
+### 3. 单笔复盘与来源维护
 
-## 服务器信息
+- 单笔复盘通过 `/api/trades/{id}/review` 维护，taxonomy 使用 canonical key。
+- 来源信息通过 `/api/trades/{id}/source-metadata` 维护。
+- 旧 `notes` 来源解析仅作为 fallback。
 
-| 项目 | 信息 |
-|------|------|
-| 云服务商 | 阿里云 ECS |
-| 系统 | Ubuntu 24.04 |
-| 开放端口 | 22 (SSH)、80 (HTTP)、443 (HTTPS)、ICMP |
-| SSH 登录 | `ssh -i ~/.ssh/xiaoyao.pem root@8.135.147.61` |
-| 访问域名 | `https://www.tradetrack.top` |
-| 项目路径 | `/opt/tradingRecords` |
-| 进程管理 | systemd (`trading.service`) |
+### 4. 周期复盘与样本关联
 
----
+1. 在复盘工作台创建日/周/月或自定义复盘。
+2. 通过远程检索接口 `/api/trades/search-options` 关联样本交易。
+3. 保存 `Review` 主体与 `ReviewTradeLink` 关系。
+4. 在只读态以内容卡片查看关联样本摘要。
 
-## 项目结构
+### 5. 分析与研究
 
-```
+- 仪表盘读取 `/api/trades/analytics`，展示：
+  - 收益与效率指标（含 Sharpe、最大回撤、手续费/净利润比等）
+  - 时间序列（日/周/月）
+  - 品种/来源/结构化复盘维度
+  - 行为分布与覆盖率
+  - 当前持仓视角
+
+### 6. 复盘结论沉淀为知识
+
+- 在“信息维护 -> 知识库”记录可复用经验（category/status/priority/tags/next action）。
+- 与周期复盘形成“结论 -> 条目 -> 后续执行”的闭环。
+
+## 技术栈
+
+### 后端
+
+- Python
+- FastAPI
+- SQLAlchemy
+- SQLite
+- `psutil`, `httpx`, `ebooklib`, `beautifulsoup4`
+
+### 前端
+
+- `frontend`（交易）：React 19 + Vite 8 + Ant Design 6 + Recharts 3
+- `frontend-notes`（笔记）：React 19 + Vite 8 + Ant Design 6 + TipTap
+- `frontend-news`（新闻）：React 19 + Vite 8 + Ant Design 6
+- `frontend-monitor`（监控）：React 18 + Vite 6 + Ant Design 5 + Recharts 2
+
+### 部署
+
+- Nginx（静态资源 + 反向代理）
+- systemd（`trading.service`）
+
+## 代码结构
+
+```text
 program/
-├── README.md
-├── portal/                          # 门户静态页面
-│   ├── index.html                   # 首页（山水风格 + 退出按钮）
-│   └── login.html                   # 登录页（密码显隐切换）
-│
-├── backend/                         # FastAPI 后端
-│   ├── requirements.txt             # fastapi, uvicorn, sqlalchemy, pydantic, python-multipart, psutil
-│   ├── database.py                  # 数据库连接与会话
-│   ├── models.py                    # ORM 模型 (Trade, Review, Notebook, Note, TodoItem, NewsIssue, TradeBroker)
-│   ├── schemas.py                   # Pydantic 请求/响应模型
-│   ├── auth.py                      # HMAC 签名会话认证
-│   ├── main.py                      # 应用入口、中间件、全部 API 路由 + 监控采集线程
-│   └── data/                        # 数据目录（自动生成，已 gitignore）
-│       ├── trading.db               # SQLite 数据库
-│       ├── auth.json                # 认证凭据（用户名 + 密码哈希）
-│       ├── .secret                  # 会话签名密钥
-│       ├── news_epub/               # 新闻期刊与翻译缓存
-│       │   ├── *.epub               # 下载的 Economist 期刊
-│       │   └── translation_cache/   # 分块翻译缓存
-│       └── uploads/                 # 上传的图片文件
-│
-├── frontend/                        # 交易记录前端 (/trading/)
-│   ├── package.json
-│   ├── vite.config.js               # base: '/trading/', 代理 /api → localhost:8000
-│   └── src/
-│       ├── App.jsx                  # 路由与布局（含返回首页按钮）
-│       ├── api/index.js             # Axios + 401 拦截跳转登录
-│       ├── utils/
-│       │   └── futures.js           # 期货品种代码/名称映射
-│       └── pages/                   # Dashboard, TradeList, TradeForm, ReviewList, BrokerManage(信息维护)
-│
-├── frontend-notes/                  # 知识笔记前端 (/notes/)
-│   ├── package.json                 # antd, tiptap, lunar-javascript, dayjs...
-│   ├── vite.config.js               # base: '/notes/', 代理 /api → localhost:8000
-│   └── src/
-│       ├── App.jsx                  # 主布局（图标侧栏 + Tab 切换）
-│       ├── App.css                  # 全局样式
-│       ├── api/index.js             # Axios + 401 拦截跳转登录
-│       ├── utils/
-│       │   └── weather.js           # 天气 API 封装（Open-Meteo + 地理定位）
-│       └── components/
-│           ├── IconSidebar.jsx      # 左侧图标导航栏（首页/日记/文档/待办/设置）
-│           ├── SettingsModal.jsx   # 编辑器设置弹窗（默认字体/字号）
-│           ├── HomePage.jsx         # 首页（三栏：快速入口/知识概览/待办看板）
-│           ├── DiaryView.jsx        # 日记（迷你日历 + 日期树 + 年月梗概 + 编辑器）
-│           ├── DocView.jsx          # 文档（嵌套文件夹树 + 复制/移动 + 编辑器）
-│           ├── TodoView.jsx         # 待办管理（增删改查 + 批量操作）
-│           ├── RecycleView.jsx      # 回收站（还原/彻底删除/一键清空）
-│           ├── MiniCalendar.jsx     # 自定义迷你日历组件（中文）
-│           ├── NoteEditor.jsx       # TipTap 富文本编辑器（字体/字号/颜色/表格/图片上传...）
-│           └── ResizableImage.jsx   # 可调大小图片扩展（TipTap NodeView）
-││
-├── frontend-news/                   # 新闻实事前端 (/news/)
-│   ├── package.json                 # antd, axios, dayjs
-│   ├── vite.config.js               # base: '/news/', 代理 /api → localhost:8000
-│   └── src/
-│       ├── App.jsx                  # 左侧子模块侧栏 + 右侧信息区（Economist/今日新闻）
-│       ├── App.css                  # 页面样式
-│       └── api/index.js             # 新闻接口封装（sync/list/get/translate/progress/today）
-
-├── frontend-monitor/                # 服务器监控前端 (/monitor/)
-│   ├── package.json                 # antd, recharts, axios
-│   ├── vite.config.js               # base: '/monitor/', 代理 /api → localhost:8000
-│   └── src/
-│       ├── main.jsx                 # 入口
-│       ├── App.jsx                  # 监控仪表盘（CPU/内存/磁盘/网络/进程/服务状态/趋势图）
-│       ├── App.css                  # 样式
-│       └── api.js                   # Axios 封装（/api/monitor/*）
-│
-└── deploy/                          # 部署配置
-    ├── nginx.conf                   # Nginx 站点配置（Cookie 认证，无 auth_basic）
-    ├── trading.service              # systemd 服务定义
-    ├── setup.sh                     # 首次部署脚本
-    └── update.sh                    # 更新部署脚本（拉取 + 构建 + 重启）
+├── backend/
+│   ├── main.py                      # FastAPI 入口与路由
+│   ├── models.py                    # ORM 数据模型
+│   ├── schemas.py                   # Pydantic schema
+│   ├── auth.py                      # 认证与 token
+│   ├── database.py                  # SQLite 连接
+│   ├── trading/                     # 交易域服务拆分（analytics/import/review/source/knowledge/tag）
+│   └── tests/                       # 后端测试（交易域为主）
+├── frontend/                        # 交易前端
+│   └── src/features/trading/        # 交易工作台与分析组件
+├── frontend-notes/                  # 笔记前端
+├── frontend-news/                   # 新闻前端
+├── frontend-monitor/                # 监控前端
+├── portal/                          # 门户与登录静态页
+├── deploy/                          # 部署脚本、Nginx、systemd 配置
+├── docs/                            # 交易域架构/审计/演进文档
+└── dev.sh                           # 本地一键调试脚本
 ```
 
----
+## 本地开发
 
-## 开发流程
+### 环境要求
 
-### 本地调试
+- Python 3.10+
+- Node.js 18+
+- npm
+- 可选：tmux（`./dev.sh` 自动优先使用）
 
-**前置条件**：Node.js 18+、Python 3.10+
+### 安装依赖
 
 ```bash
-# 1. 安装后端依赖（首次或依赖变更时）
-cd program/backend
-pip3 install -r requirements.txt
-
-# 2. 安装前端依赖（首次或依赖变更时）
-cd program/frontend && npm install
-cd program/frontend-notes && npm install
-cd program/frontend-news && npm install
-cd program/frontend-monitor && npm install
+cd backend && pip3 install -r requirements.txt
+cd ../frontend && npm install
+cd ../frontend-notes && npm install
+cd ../frontend-news && npm install
+cd ../frontend-monitor && npm install
 ```
 
-**启动本地服务**（推荐一键）：
+### 一键启动（推荐）
 
 ```bash
-cd program
-./dev.sh
+./dev.sh up
 ```
 
 常用命令：
 
 ```bash
-./dev.sh status   # 查看状态
-./dev.sh attach   # 进入 tmux 会话看日志
-./dev.sh down     # 停止全部服务
-./dev.sh restart  # 重启全部服务
+./dev.sh status
+./dev.sh attach
+./dev.sh down
+./dev.sh restart
 ```
 
-**启动本地服务**（开多个终端）：
+### 手动启动（多终端）
 
 ```bash
-# 终端 1 — 后端（DEV_MODE=1 跳过认证，--reload 文件修改自动重载）
-cd program/backend
+# backend
+cd backend
 DEV_MODE=1 python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
-# 终端 2 — 交易前端 → http://localhost:5173/trading/
-cd program/frontend
-npm run dev
+# trading frontend
+cd frontend && npm run dev
 
-# 终端 3 — 笔记前端 → http://localhost:5174/notes/
-cd program/frontend-notes
-npm run dev
+# notes frontend
+cd ../frontend-notes && npm run dev
 
-# 终端 4 — 新闻前端 → http://localhost:5176/news/
-cd program/frontend-news
-npm run dev
+# news frontend
+cd ../frontend-news && npm run dev
 
-# 终端 5 — 监控前端 → http://localhost:5175/monitor/
-cd program/frontend-monitor
-npm run dev
+# monitor frontend
+cd ../frontend-monitor && npm run dev
 ```
 
-> Vite 已配置 `/api` 代理到 `localhost:8000`，前后端联调无需额外配置。
->
-> `DEV_MODE=1` 会跳过 Cookie 认证检查，所有 API 直接可用。
->
-> 若端口 8000 被占用，执行 `lsof -ti:8000 | xargs kill -9` 释放端口。
+本地访问地址：
 
-### 部署到服务器
+- 交易：`http://localhost:5173/trading/`
+- 笔记：`http://localhost:5174/notes/`
+- 监控：`http://localhost:5175/monitor/`
+- 新闻：`http://localhost:5176/news/`
+
+## 配置与环境变量
+
+### 核心运行参数
+
+- `DEV_MODE=1`：开发模式，跳过 API 登录校验。
+- `COOKIE_SECURE`：控制登录 cookie 的 secure 属性（默认开发 0、非开发 1）。
+
+### 新闻翻译相关
+
+- `TRANSLATE_PROVIDER`：`auto` / `deepseek` / `openai`
+- `DEEPSEEK_API_KEY` / `OPENAI_API_KEY`
+- `OPENAI_BASE_URL` / `OPENAI_MODEL`
+- `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` / `DEEPSEEK_MODELS`
+- `TRANSLATE_MAX_WORKERS`
+
+### 新闻抓取相关
+
+- `ECONOMIST_REPO` / `ECONOMIST_BRANCH`
+- `TODAY_NEWS_CACHE_TTL`
+
+### 诗词接口（门户）
+
+- `POEM_REMOTE_URL`
+- `JINRISHICI_TOKEN`
+- `POEM_CACHE_TTL`
+
+## 数据与初始化行为
+
+- 主库：`backend/data/trading.db`
+- 启动即执行 `Base.metadata.create_all()` 自动建表。
+- 启动时包含部分兼容迁移（列缺失时自动 `ALTER TABLE`）。
+- 初次启动若无笔记本，会自动创建默认“日记本/文档”。
+- 上传文件目录：`backend/data/uploads/`
+- 新闻数据目录：`backend/data/news_epub/`
+
+## 测试与验证
+
+### 后端测试
 
 ```bash
-# 1. 本地提交推送
-cd program && git add -A && git commit -m "描述" && git push
-
-# 2. 远程一键更新
-ssh -i ~/.ssh/xiaoyao.pem root@8.135.147.61 "cd /opt/tradingRecords && bash deploy/update.sh"
+cd backend
+pytest -q
 ```
 
-`update.sh` 自动完成：`git pull` → 安装依赖 → 构建四个前端 → 同步 Nginx/门户配置 → 重启服务。
+现有测试重点覆盖：
 
-### 首次部署额外步骤
+- 导入与匹配保护行为（characterization）
+- 结构化复盘与 taxonomy
+- 来源元数据与检索
+- 交易分析指标
+- 周期复盘关联交易
+- 知识条目域行为
 
-初始化登录账号（在服务器上执行，仅需一次）：
+### 前端构建检查
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/auth/setup \
-  -H "Content-Type: application/json" \
-  -d '{"username":"你的用户名","password":"你的密码"}'
+cd frontend && npm run build
+cd ../frontend-notes && npm run build
+cd ../frontend-news && npm run build
+cd ../frontend-monitor && npm run build
 ```
 
----
+协作约定（见 `AGENTS.md`）：
 
-## API 接口
+- 推送前优先检查 `frontend-notes` 与 `frontend-news` 可构建。
+- 本地调试统一使用 `./dev.sh`。
+- 生产更新统一使用 `deploy/update.sh`。
 
-所有接口前缀 `/api`，线上需 Cookie 认证，本地 `DEV_MODE=1` 时免认证。
+## API 概览（按域）
 
-### 认证
+完整实现请以 `backend/main.py` 为准。以下列出当前主要路由分组：
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/auth/setup` | 初始化账号（仅首次，之后不可调用） |
-| POST | `/api/auth/login` | 登录（设置 session_token Cookie） |
-| POST | `/api/auth/logout` | 退出（清除 Cookie） |
-| GET | `/api/auth/check` | 检查登录状态 |
+### 认证与会话
 
-### 文件上传
+- `POST /api/auth/setup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/check`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/upload` | 上传图片（multipart/form-data） |
-| GET | `/api/uploads/{filename}` | 获取已上传的图片 |
+### 交易与分析
 
-### 交易记录
+- 交易 CRUD：`/api/trades`、`/api/trades/{id}`
+- 导入与持仓：`/api/trades/import-paste`、`/api/trades/positions`
+- 列表辅助：`/api/trades/count`、`/api/trades/sources`、`/api/trades/search-options`
+- 统计分析：`/api/trades/statistics`、`/api/trades/analytics`
+- 单笔复盘：`/api/trades/{id}/review`、`/api/trade-review-taxonomy`
+- 来源元数据：`/api/trades/{id}/source-metadata`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/trades` | 交易列表（分页、多字段筛选，支持 `source_keyword`） |
-| GET | `/api/trades/count` | 交易总数（与列表同筛选条件） |
-| GET | `/api/trades/search-options` | 复盘关联交易远程检索候选（关键词/日期/状态/品种） |
-| POST | `/api/trades` | 创建交易 |
-| GET | `/api/trades/{id}` | 获取单笔 |
-| PUT | `/api/trades/{id}` | 更新交易 |
-| DELETE | `/api/trades/{id}` | 删除交易 |
-| GET | `/api/trades/statistics` | 统计分析（支持 `symbol`、`source_keyword`） |
-| GET | `/api/trades/analytics` | 交易分析工作台数据（overview/time_series/dimensions/behavior/coverage/positions） |
-| POST | `/api/trades/import-paste` | 粘贴导入期货日结单 |
-| GET | `/api/trades/positions` | 当前持仓（支持 `symbol`、`source_keyword`） |
-| GET | `/api/trades/sources` | 获取动态来源列表（券商/历史导入来源，过滤噪声导入标签） |
-| GET | `/api/trades/{id}/source-metadata` | 获取单笔来源元数据（metadata 或 notes 回退） |
-| PUT | `/api/trades/{id}/source-metadata` | 更新单笔来源元数据 |
-| GET | `/api/trades/{id}/review` | 获取单笔结构化复盘 |
-| PUT | `/api/trades/{id}/review` | 更新单笔结构化复盘 |
-| DELETE | `/api/trades/{id}/review` | 删除单笔结构化复盘 |
-| GET | `/api/trade-review-taxonomy` | 获取结构化复盘 taxonomy canonical 值 |
+### 复盘与知识
 
-### 信息维护（交易）
+- 周期复盘：`/api/reviews`、`/api/reviews/{id}`
+- 样本关联：`PUT /api/reviews/{id}/trade-links`
+- 知识条目：`/api/knowledge-items`、`/api/knowledge-items/categories`
+- 券商维护：`/api/trade-brokers`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/trade-brokers` | 券商信息列表 |
-| POST | `/api/trade-brokers` | 新增券商信息 |
-| PUT | `/api/trade-brokers/{id}` | 更新券商信息 |
-| DELETE | `/api/trade-brokers/{id}` | 删除券商信息 |
+### 笔记系统
 
-### 复盘
+- 笔记本：`/api/notebooks`
+- 笔记：`/api/notes`、`/api/notes/stats`、`/api/notes/search`
+- 链接能力：`/api/notes/resolve-link`、`/api/notes/{id}/backlinks`
+- 日记视图：`/api/notes/diary-tree`、`/api/notes/diary-summaries`、`/api/notes/calendar`、`/api/notes/history-today`
+- 回收站：`/api/recycle/notes*`
+- 待办：`/api/todos`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/reviews` | 复盘列表 |
-| POST | `/api/reviews` | 创建复盘 |
-| GET | `/api/reviews/{id}` | 获取单条 |
-| PUT | `/api/reviews/{id}` | 更新 |
-| DELETE | `/api/reviews/{id}` | 删除 |
+### 新闻与监控
 
-### 笔记本（文件夹）
+- 新闻：`/api/news/sync`、`/api/news/issues*`、`/api/news/today`、`/api/news/article-content`
+- 监控：`/api/monitor/realtime`、`/api/monitor/history`
+- 门户诗词：`/api/poem/daily`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/notebooks` | 列表 |
-| POST | `/api/notebooks` | 创建（支持 parent_id 嵌套） |
-| PUT | `/api/notebooks/{id}` | 更新 |
-| DELETE | `/api/notebooks/{id}` | 删除（级联删除笔记） |
+### 上传
 
-### 笔记
+- `POST /api/upload`
+- `GET /api/uploads/{filename}`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/notes` | 列表（按类型、笔记本、日期、关键词筛选） |
-| POST | `/api/notes` | 创建 |
-| GET | `/api/notes/{id}` | 获取单条 |
-| PUT | `/api/notes/{id}` | 更新 |
-| DELETE | `/api/notes/{id}` | 删除 |
-| GET | `/api/notes/stats` | 统计（日记/文档数量、字数、最近文档） |
-| GET | `/api/notes/calendar` | 日历数据（某月有日记的日期列表） |
-| GET | `/api/notes/diary-tree` | 日记日期树（年 > 月 > 日结构） |
-| GET | `/api/notes/diary-summaries` | 日记梗概（按年/按月） |
-| GET | `/api/notes/search` | 全文搜索（按 note_type） |
-| GET | `/api/notes/resolve-link` | 解析 `[[文档名]]` 链接 |
-| GET | `/api/notes/{id}/backlinks` | 反向链接列表 |
+## 部署
 
-### 稍后待办
+- 首次部署：`deploy/setup.sh`
+- 日常更新：`deploy/update.sh`
+- 服务定义：`deploy/trading.service`
+- Nginx 配置：`deploy/nginx.conf`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/todos` | 列表（支持 include_completed、keyword） |
-| POST | `/api/todos` | 创建 |
-| PUT | `/api/todos/{id}` | 更新（内容/完成状态/优先级/截止/提醒/来源） |
-| DELETE | `/api/todos/{id}` | 删除 |
+生产默认形态：
 
-### 回收站
+- Nginx 暴露门户与四个前端路由前缀。
+- `/api/*` 反向代理到 `127.0.0.1:8000`。
+- FastAPI 由 systemd 管理。
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/recycle/notes` | 回收站列表（支持 note_type） |
-| POST | `/api/recycle/notes/{id}/restore` | 还原单条 |
-| DELETE | `/api/recycle/notes/{id}/purge` | 彻底删除单条 |
-| DELETE | `/api/recycle/notes/clear` | 一键清空（支持按 note_type） |
+## 当前成熟度与边界
 
-### 新闻实事
+### 已相对稳定
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/news/sync` | 同步并入库最新一期 |
-| GET | `/api/news/issues` | 期刊列表 |
-| GET | `/api/news/issues/{id}` | 期刊详情（含英文/中文内容） |
-| POST | `/api/news/issues/{id}/translate` | 翻译当前期 |
-| GET | `/api/news/issues/{id}/progress` | 翻译进度 |
-| GET | `/api/news/today` | 今日新闻聚合（经济/时政/AI/科技，含来源链接） |
-| GET | `/api/news/article-content` | 抓取指定新闻链接的正文内容 |
-### 服务器监控
+- 交易导入与开平匹配保护行为。
+- 交易列表/详情/结构化复盘/来源元数据主路径。
+- 周期复盘与样本关联基础能力。
+- 交易分析看板与关键指标口径。
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/monitor/realtime` | 实时系统快照（CPU/内存/磁盘/网络/进程/服务状态） |
-| GET | `/api/monitor/history` | 最近 1 小时历史数据（每 5 秒采样，最多 720 个点） |
+### 仍在演进
 
----
+- 交易域逻辑从 `main.py` 向 `backend/trading/*` 继续拆分。
+- 历史兼容字段（`notes`、`review_note`、旧 tags 文本列）仍保留，尚未完全退场。
+- UI 仍以单用户场景为主，权限分层、审计追踪、自动化迁移工具链尚未系统化。
 
-## 数据备份
+## 近期演进方向（基于现有代码与文档）
 
-```bash
-# 在服务器上执行
-cp /opt/tradingRecords/backend/data/trading.db /opt/tradingRecords/backend/data/trading_backup_$(date +%Y%m%d).db
-
-# 备份上传的图片
-tar czf /opt/tradingRecords/backend/data/uploads_backup_$(date +%Y%m%d).tar.gz /opt/tradingRecords/backend/data/uploads/
-```
-
----
-
-## 安全策略
-
-- SSH 密钥登录（已禁用密码登录）
-- UFW 防火墙：仅开放 22/80/443/ICMP
-- 自定义会话认证（HMAC 签名 Cookie，7 天有效期，HttpOnly）
-- 前端 401 自动拦截跳转登录页
-- 本地开发 `DEV_MODE=1` 环境变量隔离线上认证逻辑
-- 图片上传白名单（仅允许 jpg/png/gif/webp/svg/bmp）
+- 继续强化 trading workstation 的领域分层与模块内聚。
+- 持续保持 metadata-first 与 structured-review-first，同时兼容历史数据。
+- 逐步完善测试覆盖与行为保护清单，降低后续重构风险。
