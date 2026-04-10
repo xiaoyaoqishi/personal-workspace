@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from models import Trade, TradeReview, TradeSourceMetadata
+from models import Trade, TradeBroker, TradeReview, TradeSourceMetadata
 
 
 def extract_source_from_notes(note: Optional[str]) -> Dict[str, Optional[str]]:
@@ -74,3 +74,53 @@ def attach_trade_view_fields(db: Session, rows: List[Trade]) -> List[Trade]:
             setattr(trade, key, value)
         setattr(trade, "has_trade_review", trade.id in review_trade_ids)
     return rows
+
+
+def list_trade_sources(db: Session) -> List[str]:
+    values = set()
+    broker_rows = db.query(TradeBroker).order_by(TradeBroker.name.asc()).all()
+    for b in broker_rows:
+        if b.name and b.name.strip():
+            values.add(b.name.strip())
+    metadata_rows = db.query(TradeSourceMetadata).all()
+    for row in metadata_rows:
+        if row.broker_name and row.broker_name.strip():
+            values.add(row.broker_name.strip())
+        if row.source_label and row.source_label.strip():
+            values.add(row.source_label.strip())
+    note_rows = db.query(Trade.notes).filter(Trade.notes.isnot(None)).all()
+    for (note,) in note_rows:
+        parsed = extract_source_from_notes(note)
+        if parsed["broker_name"]:
+            values.add(parsed["broker_name"])
+        if parsed["source_label"]:
+            values.add(parsed["source_label"])
+    return sorted(values)
+
+
+def upsert_trade_source_metadata_for_import(
+    db: Session,
+    trade: Trade,
+    broker: Optional[str],
+    source_label: Optional[str] = "日结单粘贴导入",
+) -> None:
+    if not trade.id:
+        return
+    row = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id == trade.id).first()
+    if not row:
+        row = TradeSourceMetadata(trade_id=trade.id)
+        db.add(row)
+    parsed = extract_source_from_notes(trade.notes)
+    broker_name = (broker or parsed.get("broker_name") or "").strip() or None
+    source_name = (source_label or parsed.get("source_label") or "").strip() or None
+    if not row.broker_name and broker_name:
+        row.broker_name = broker_name
+    if not row.source_label and source_name:
+        row.source_label = source_name
+    if not row.import_channel:
+        row.import_channel = "paste_import"
+    if not row.parser_version:
+        row.parser_version = "paste_v1"
+    row.source_note_snapshot = trade.notes
+    if row.derived_from_notes in {None, True}:
+        row.derived_from_notes = False

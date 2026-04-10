@@ -2,11 +2,9 @@ import { Button, Popconfirm, Space, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { formatFuturesSymbol } from '../../../utils/futures';
-import { parseSourceFallbackFromNotes } from './constants';
 
 function renderSourceCell(row) {
-  if (row.source_display) return row.source_display;
-  return parseSourceFallbackFromNotes(row.notes);
+  return row.source_display || '-';
 }
 
 export default function TradeFillsTable({

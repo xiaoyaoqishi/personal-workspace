@@ -37,13 +37,3 @@ export function normalizeText(val) {
   const trimmed = String(val).trim();
   return trimmed || null;
 }
-
-export function parseSourceFallbackFromNotes(notes = '') {
-  const text = String(notes || '');
-  const mBroker = text.match(/来源券商:\s*([^|]+)/);
-  const mSource = text.match(/来源:\s*([^|]+)/);
-  const broker = mBroker ? mBroker[1].trim() : '';
-  const source = mSource ? mSource[1].trim() : '';
-  if (broker && source) return `${broker} / ${source}`;
-  return broker || source || '-';
-}

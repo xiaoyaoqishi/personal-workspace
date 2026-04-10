@@ -55,9 +55,21 @@ from trading.source_service import (
     extract_source_from_notes as _source_extract_source_from_notes,
     apply_source_keyword_filter as _source_apply_source_keyword_filter,
     attach_trade_view_fields as _source_attach_trade_view_fields,
+    list_trade_sources as _source_list_trade_sources,
+    upsert_trade_source_metadata_for_import as _source_upsert_trade_source_metadata_for_import,
 )
 from trading.analytics_service import build_trade_analytics
 from trading.import_service import import_paste_trades_staged
+from trading.review_service import (
+    attach_review_link_fields as _review_attach_review_link_fields,
+    sync_review_trade_links as _review_sync_review_trade_links,
+    normalize_review_scope as _review_normalize_review_scope,
+)
+from trading.knowledge_service import (
+    list_knowledge_items as _knowledge_list_knowledge_items,
+    list_knowledge_categories as _knowledge_list_categories,
+    normalize_knowledge_payload as _knowledge_normalize_payload,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -458,26 +470,12 @@ def _upsert_trade_source_metadata_for_import(
     broker: Optional[str],
     source_label: Optional[str] = "日结单粘贴导入",
 ):
-    if not trade.id:
-        return
-    row = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id == trade.id).first()
-    if not row:
-        row = TradeSourceMetadata(trade_id=trade.id)
-        db.add(row)
-    parsed = _extract_source_from_notes(trade.notes)
-    broker_name = (broker or parsed.get("broker_name") or "").strip() or None
-    source_name = (source_label or parsed.get("source_label") or "").strip() or None
-    if not row.broker_name and broker_name:
-        row.broker_name = broker_name
-    if not row.source_label and source_name:
-        row.source_label = source_name
-    if not row.import_channel:
-        row.import_channel = "paste_import"
-    if not row.parser_version:
-        row.parser_version = "paste_v1"
-    row.source_note_snapshot = trade.notes
-    if row.derived_from_notes in {None, True}:
-        row.derived_from_notes = False
+    _source_upsert_trade_source_metadata_for_import(
+        db,
+        trade,
+        broker=broker,
+        source_label=source_label,
+    )
 
 
 def _copy_trade_for_closed_part(src: Trade, close_qty: float, close_price: float, close_time: datetime, close_commission: float, close_pnl: float) -> Trade:
@@ -903,25 +901,7 @@ def delete_trade(trade_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/trades/sources")
 def list_trade_sources(db: Session = Depends(get_db)):
-    values = set()
-    broker_rows = db.query(TradeBroker).order_by(TradeBroker.name.asc()).all()
-    for b in broker_rows:
-        if b.name and b.name.strip():
-            values.add(b.name.strip())
-    metadata_rows = db.query(TradeSourceMetadata).all()
-    for row in metadata_rows:
-        if row.broker_name and row.broker_name.strip():
-            values.add(row.broker_name.strip())
-        if row.source_label and row.source_label.strip():
-            values.add(row.source_label.strip())
-    note_rows = db.query(Trade.notes).filter(Trade.notes.isnot(None)).all()
-    for (note,) in note_rows:
-        parsed = _extract_source_from_notes(note)
-        if parsed["broker_name"]:
-            values.add(parsed["broker_name"])
-        if parsed["source_label"]:
-            values.add(parsed["source_label"])
-    return {"items": sorted(values)}
+    return {"items": _source_list_trade_sources(db)}
 
 
 @app.get("/api/trade-review-taxonomy", response_model=TradeReviewTaxonomyResponse)
@@ -1111,30 +1091,25 @@ def list_knowledge_items(
     size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    query = db.query(KnowledgeItem)
-    if category:
-        query = query.filter(KnowledgeItem.category == category)
-    if status:
-        query = query.filter(KnowledgeItem.status == status)
-    if q and q.strip():
-        kw = q.strip()
-        query = query.filter(
-            or_(
-                KnowledgeItem.title.contains(kw),
-                KnowledgeItem.summary.contains(kw),
-                KnowledgeItem.content.contains(kw),
-                KnowledgeItem.tags.contains(kw),
-                KnowledgeItem.related_symbol.contains(kw),
-                KnowledgeItem.related_pattern.contains(kw),
-                KnowledgeItem.related_regime.contains(kw),
-            )
-        )
-    return query.order_by(KnowledgeItem.updated_at.desc(), KnowledgeItem.id.desc()).offset((page - 1) * size).limit(size).all()
+    return _knowledge_list_knowledge_items(
+        db,
+        category=category,
+        status=status,
+        keyword=q,
+        page=page,
+        size=size,
+    )
+
+
+@app.get("/api/knowledge-items/categories")
+def list_knowledge_item_categories(db: Session = Depends(get_db)):
+    return {"items": _knowledge_list_categories(db)}
 
 
 @app.post("/api/knowledge-items", response_model=KnowledgeItemResponse)
 def create_knowledge_item(data: KnowledgeItemCreate, db: Session = Depends(get_db)):
-    obj = KnowledgeItem(**data.model_dump())
+    payload = _knowledge_normalize_payload(data.model_dump())
+    obj = KnowledgeItem(**payload)
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -1154,7 +1129,8 @@ def update_knowledge_item(item_id: int, data: KnowledgeItemUpdate, db: Session =
     obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id).first()
     if not obj:
         raise HTTPException(404, "Knowledge item not found")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    payload = _knowledge_normalize_payload(data.model_dump(exclude_unset=True))
+    for k, v in payload.items():
         setattr(obj, k, v)
     db.commit()
     db.refresh(obj)
@@ -1175,53 +1151,17 @@ def delete_knowledge_item(item_id: int, db: Session = Depends(get_db)):
 
 
 def _attach_review_link_fields(db: Session, rows: List[Review]) -> List[Review]:
-    if not rows:
-        return rows
-    review_ids = [r.id for r in rows if r.id]
-    if not review_ids:
-        return rows
-    link_rows = (
-        db.query(ReviewTradeLink)
-        .filter(ReviewTradeLink.review_id.in_(review_ids))
-        .order_by(ReviewTradeLink.review_id.asc(), ReviewTradeLink.id.asc())
-        .all()
-    )
-    grouped: Dict[int, List[ReviewTradeLink]] = {}
-    for link in link_rows:
-        grouped.setdefault(link.review_id, []).append(link)
-    for row in rows:
-        links = grouped.get(row.id, [])
-        setattr(row, "trade_links", links)
-        setattr(row, "linked_trade_ids", [x.trade_id for x in links])
-    return rows
+    return _review_attach_review_link_fields(db, rows)
 
 
 def _sync_review_trade_links(db: Session, review: Review, links: List[Dict[str, Any]]) -> None:
-    db.query(ReviewTradeLink).filter(ReviewTradeLink.review_id == review.id).delete()
-    if not links:
-        return
-    requested_trade_ids = [int(x["trade_id"]) for x in links if x.get("trade_id")]
-    if requested_trade_ids:
-        existing_trade_ids = {
-            trade_id for (trade_id,) in db.query(Trade.id).filter(Trade.id.in_(requested_trade_ids)).all()
-        }
-        missing = [str(tid) for tid in requested_trade_ids if tid not in existing_trade_ids]
-        if missing:
-            raise HTTPException(400, f"trade_id 不存在: {', '.join(missing)}")
-    for item in links:
-        db.add(
-            ReviewTradeLink(
-                review_id=review.id,
-                trade_id=int(item["trade_id"]),
-                role=(item.get("role") or "linked_trade").strip() or "linked_trade",
-                notes=item.get("notes"),
-            )
-        )
+    _review_sync_review_trade_links(db, review, links)
 
 
 @app.get("/api/reviews", response_model=List[ReviewResponse])
 def list_reviews(
     review_type: Optional[str] = None,
+    review_scope: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -1231,6 +1171,8 @@ def list_reviews(
     q = db.query(Review)
     if review_type:
         q = q.filter(Review.review_type == review_type)
+    if review_scope:
+        q = q.filter(Review.review_scope == _review_normalize_review_scope(review_scope))
     if date_from:
         q = q.filter(Review.review_date >= date_from)
     if date_to:
@@ -1241,7 +1183,9 @@ def list_reviews(
 
 @app.post("/api/reviews", response_model=ReviewResponse)
 def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
-    obj = Review(**review.model_dump())
+    payload = review.model_dump()
+    payload["review_scope"] = _review_normalize_review_scope(payload.get("review_scope"))
+    obj = Review(**payload)
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -1261,7 +1205,10 @@ def update_review(review_id: int, data: ReviewUpdate, db: Session = Depends(get_
     r = db.query(Review).filter(Review.id == review_id).first()
     if not r:
         raise HTTPException(404, "Review not found")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    if "review_scope" in payload:
+        payload["review_scope"] = _review_normalize_review_scope(payload.get("review_scope"))
+    for k, v in payload.items():
         setattr(r, k, v)
     db.commit()
     db.refresh(r)

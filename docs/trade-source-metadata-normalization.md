@@ -23,6 +23,7 @@ Backend:
 Frontend:
 - 粘贴导入入口与交互保持不变。
 - 旧记录（仅 notes、无 metadata）仍可正常浏览和筛选。
+- 交易主列表来源展示已切到 metadata-first 字段（`source_display`），不再在主路径重复前端 notes 解析。
 
 ## Additive model
 
@@ -61,6 +62,16 @@ Backend (`backend/main.py`):
 Read path:
 - 读取 source 时保持“metadata + notes fallback”并行兼容。
 - metadata 存在时可优先提供显式值；缺失时回退解析 notes。
+
+## Review / Knowledge linkage in current architecture
+
+source metadata normalization 现已作为三层协同模型的一部分：
+1. `Trade`（成交/账本）
+2. `TradeReview` + `Review/ReviewTradeLink`（单笔 + 多笔复盘）
+3. `KnowledgeItem`（可复用知识沉淀）
+
+其中 source/broker 语义的 canonical 来源保持为 `TradeSourceMetadata`，
+`notes` 仅做兼容回退与导入留痕，不作为主工作流编辑入口。
 
 ## Frontend integration in this sprint
 

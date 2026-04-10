@@ -40,6 +40,18 @@ Frontend architecture target:
 Latest structural note:
 - `docs/trading-workstation-architecture.md` documents the current canonical active flow, compatibility-only paths, backend module split, and workspace orchestration split.
 
+Current sprint progress:
+- Added additive review linkage model:
+  - `ReviewTradeLink` + endpoint `PUT /api/reviews/{id}/trade-links`
+- Added additive knowledge model:
+  - `KnowledgeItem` + CRUD endpoints + category discovery endpoint
+- Added trading service modules:
+  - `review_service.py`
+  - `knowledge_service.py`
+- Frontend moved to workspace-style review/information maintenance pages:
+  - review page supports multi-trade linking workflow
+  - information maintenance page now supports knowledge-first + broker auxiliary
+
 ## Phase 1 (Current): Audit
 
 Completed in `docs/trading-system-audit.md` and `docs/trading-protected-behaviors.md`.

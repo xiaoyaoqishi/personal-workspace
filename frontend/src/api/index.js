@@ -39,6 +39,7 @@ export const reviewApi = {
   create: (data) => api.post('/reviews', data),
   update: (id, data) => api.put(`/reviews/${id}`, data),
   delete: (id) => api.delete(`/reviews/${id}`),
+  upsertTradeLinks: (id, data) => api.put(`/reviews/${id}/trade-links`, data),
 };
 
 export const tradeReviewApi = {
@@ -51,6 +52,15 @@ export const tradeReviewApi = {
 export const tradeSourceApi = {
   get: (tradeId) => api.get(`/trades/${tradeId}/source-metadata`),
   upsert: (tradeId, data) => api.put(`/trades/${tradeId}/source-metadata`, data),
+};
+
+export const knowledgeApi = {
+  list: (params) => api.get('/knowledge-items', { params }),
+  categories: () => api.get('/knowledge-items/categories'),
+  get: (id) => api.get(`/knowledge-items/${id}`),
+  create: (data) => api.post('/knowledge-items', data),
+  update: (id, data) => api.put(`/knowledge-items/${id}`, data),
+  delete: (id) => api.delete(`/knowledge-items/${id}`),
 };
 
 export default api;

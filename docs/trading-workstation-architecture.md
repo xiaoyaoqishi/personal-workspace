@@ -9,13 +9,20 @@ Trading subsystem active model:
 - structured per-trade review semantics (primary review workflow)
 3. `TradeSourceMetadata`  
 - source / broker / import semantics (metadata-first)
-4. Derived analytics  
+4. `Review` + `ReviewTradeLink`  
+- multi-trade / periodic / themed review session object
+- explicit many-trade association for “best/worst/representative/linked” samples
+5. `KnowledgeItem`  
+- trading-oriented knowledge/reference object (pattern/playbook/regime/risk/etc.)
+6. Derived analytics  
 - query outputs for review/research, not storage source-of-truth
 
 Request flow (active path):
 - List/detail APIs return trade ledger + source/review presence view fields.
 - Review editing writes `TradeReview`.
 - Source editing writes `TradeSourceMetadata`.
+- Periodic/theme review editing writes `Review`, and sample binding writes `ReviewTradeLink`.
+- Information maintenance writes `KnowledgeItem` (broker is one category, not the whole model).
 - Dashboard analytics reads explicit dimensions from `Trade`, `TradeReview`, `TradeSourceMetadata`.
 
 ## 2) Compatibility-Only Paths
@@ -32,6 +39,7 @@ Still preserved:
 Demoted to secondary role:
 - Parsing source from `notes` is fallback only when explicit metadata is absent.
 - `review_note` is no longer the primary review path.
+- “信息维护=仅券商” is no longer primary mental model; broker maintenance is now compatibility/auxiliary path.
 
 ## 3) Backend Module Split (this sprint)
 
@@ -47,6 +55,14 @@ New domain modules:
     1. parse + open dedup
     2. close precheck
     3. apply opens/closes + metadata write
+- `backend/trading/review_service.py`
+  - review scope normalization
+  - review-trade link role normalization
+  - review link attach/sync logic
+- `backend/trading/knowledge_service.py`
+  - knowledge list/query helpers
+  - knowledge payload normalization
+  - category discovery endpoint helper
 
 Goal:
 - reduce trading logic concentration in `main.py`
@@ -73,6 +89,16 @@ Result:
 - less duplicate load/save logic
 - faster iteration on review-first and metadata-first workflows
 
+Additional workspace upgrades:
+- `ReviewList` rebuilt into review research workspace:
+  - list + editor + linked-trades panel
+  - supports explicit review-trade association workflow
+  - supports `review_scope` filtering
+- `BrokerManage` rebuilt into information maintenance workspace:
+  - knowledge module (primary)
+  - broker module (compatible auxiliary)
+  - reduced modal-heavy operations for daily maintenance
+
 ## 5) How this supports trading research
 
 The system now better supports:
@@ -82,5 +108,7 @@ The system now better supports:
 - review conclusion vs pnl comparison
 - source/broker performance slices
 - structured coverage tracking (review/source metadata vs legacy-only)
+- linking periodic/themed conclusions back to concrete trade samples
+- converting recurring conclusions into reusable knowledge items
 
 This shifts the product from “recording trades” toward “researching discretionary edge”.

@@ -1,0 +1,70 @@
+.maintain-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.maintain-toolbar {
+  border-radius: 12px;
+  border: 1px solid #d8e1ea;
+  background: linear-gradient(145deg, #ffffff 0%, #f2f6fa 100%);
+}
+
+.maintain-toolbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.maintain-filter-card {
+  border-radius: 10px;
+}
+
+.maintain-list-card,
+.maintain-editor-card {
+  border-radius: 12px;
+}
+
+.maintain-list-item {
+  cursor: pointer;
+  padding: 10px 6px;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.maintain-list-item:hover {
+  background: #f7fafc;
+}
+
+.maintain-list-item.active {
+  background: #edf4ff;
+}
+
+.maintain-list-main {
+  width: 100%;
+}
+
+.maintain-list-title {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.maintain-list-meta {
+  margin: 6px 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.maintain-list-summary {
+  margin-bottom: 0;
+  color: #5a6575;
+}
+
+@media (max-width: 1200px) {
+  .maintain-toolbar-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
