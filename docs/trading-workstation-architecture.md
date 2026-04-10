@@ -12,9 +12,12 @@ Trading subsystem active model:
 4. `Review` + `ReviewTradeLink`  
 - multi-trade / periodic / themed review session object
 - explicit many-trade association for “best/worst/representative/linked” samples
-5. `KnowledgeItem`  
+5. `TagTerm` + link tables  
+- canonical multi-tag model for `TradeReview` / `Review` / `KnowledgeItem`
+- API active contract is `tags: string[]` (legacy text tag fields are compatibility-only mirrors)
+6. `KnowledgeItem`  
 - trading-oriented knowledge/reference object (pattern/playbook/regime/risk/etc.)
-6. Derived analytics  
+7. Derived analytics  
 - query outputs for review/research, not storage source-of-truth
 
 Request flow (active path):
@@ -22,6 +25,8 @@ Request flow (active path):
 - Review editing writes `TradeReview`.
 - Source editing writes `TradeSourceMetadata`.
 - Periodic/theme review editing writes `Review`, and sample binding writes `ReviewTradeLink`.
+- Linked-trade reads use backend-assembled `trade_summary` (no frontend N+1 lookup).
+- Tag writes use link-table sync; API returns normalized `tags` arrays.
 - Information maintenance writes `KnowledgeItem` (broker is one category, not the whole model).
 - Dashboard analytics reads explicit dimensions from `Trade`, `TradeReview`, `TradeSourceMetadata`.
 
@@ -39,9 +44,25 @@ Still preserved:
 Demoted to secondary role:
 - Parsing source from `notes` is fallback only when explicit metadata is absent.
 - `review_note` is no longer the primary review path.
+- `review_tags` / `reviews.tags` / `knowledge_items.tags` text columns are compatibility snapshots only.
 - “信息维护=仅券商” is no longer primary mental model; broker maintenance is now compatibility/auxiliary path.
 
-## 3) Backend Module Split (this sprint)
+## 3) UI Read/Edit Dual-State Rule (Active UX Contract)
+
+All trading-domain editable content should have clear two states:
+1. Read-only (default)
+- strong readability, card/description-first layout
+- optimized for quick scan
+2. Edit
+- focused controls only when needed
+- explicit save/cancel
+
+Applied in active paths:
+- Trade detail drawer: structured review / source metadata / legacy compatibility fields (section-level edit)
+- Review workspace: review content + linked-trade editing in edit mode, content cards in read mode
+- Knowledge workspace: knowledge and broker modules now support read-only default + edit mode switch
+
+## 4) Backend Module Split (this sprint)
 
 New domain modules:
 - `backend/trading/source_service.py`
@@ -69,7 +90,7 @@ Goal:
 - keep endpoint behavior stable
 - make trade domain logic easier to reason about and extend
 
-## 4) Frontend Workspace Split (this sprint)
+## 5) Frontend Workspace Split (this sprint)
 
 Trade workspace orchestration moved to:
 - `frontend/src/features/trading/workspace/useTradeWorkspace.js`
@@ -94,12 +115,14 @@ Additional workspace upgrades:
   - list + editor + linked-trades panel
   - supports explicit review-trade association workflow
   - supports `review_scope` filtering
+  - read-mode linked trades are rendered as content cards (date/symbol/direction/qty/open-close/pnl/source/role)
 - `BrokerManage` rebuilt into information maintenance workspace:
   - knowledge module (primary)
   - broker module (compatible auxiliary)
   - reduced modal-heavy operations for daily maintenance
+  - read-only/edit dual-state and real multi-tag editing/filtering
 
-## 5) How this supports trading research
+## 6) How this supports trading research
 
 The system now better supports:
 - opportunity structure analysis

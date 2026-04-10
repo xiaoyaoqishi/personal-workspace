@@ -52,6 +52,31 @@ Current sprint progress:
   - review page supports multi-trade linking workflow
   - information maintenance page now supports knowledge-first + broker auxiliary
 
+## Milestone Execution Snapshot
+
+Implemented (current branch):
+1. Checkpoint-based execution
+   - milestone-level git checkpoints used before major edits
+2. Read/Edit dual-state foundation
+   - trade detail drawer section-level read/edit
+   - review workspace read/edit toggle
+   - knowledge workspace read/edit toggle
+   - broker auxiliary workspace read/edit toggle
+3. Review linked-trade content rendering
+   - backend `trade_links[].trade_summary` additive response
+   - frontend linked-trade content cards (not raw ids)
+4. Multi-tag main model (association-table path)
+   - `TagTerm` + link tables for `TradeReview`/`Review`/`KnowledgeItem`
+   - API active payload/response uses `tags: string[]`
+   - legacy text tag fields preserved as compatibility mirror
+5. Chinese display consistency on active trading paths
+   - taxonomy/review role/knowledge category centralized mapping
+   - futures symbol display uses Chinese name mapping in active trading/review paths
+
+Remaining (next milestone):
+1. Continue reducing trading-domain logic concentration in `main.py` by extracting remaining query/stat/matching helpers into focused service modules.
+2. Final consistency polish pass (spacing hierarchy, empty/error states, repeated-action ergonomics).
+
 ## Phase 1 (Current): Audit
 
 Completed in `docs/trading-system-audit.md` and `docs/trading-protected-behaviors.md`.

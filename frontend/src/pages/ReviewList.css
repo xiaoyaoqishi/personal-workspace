@@ -66,20 +66,30 @@
 .review-link-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 72px 150px 1fr;
+  grid-template-columns: 340px 140px 1fr;
   gap: 8px;
   align-items: center;
 }
 
-.review-link-id {
-  font-weight: 600;
-  color: #334155;
+.review-linked-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.review-linked-card {
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 
 @media (max-width: 1200px) {
   .review-toolbar-inner {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .review-linked-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -4,6 +4,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Descriptions,
   Empty,
   Form,
   Input,
@@ -17,7 +18,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { brokerApi, knowledgeApi } from '../api';
 import {
@@ -27,12 +28,26 @@ import {
   dictToOptions,
   mapLabel,
 } from '../features/trading/localization';
+import { formatFuturesSymbol } from '../utils/futures';
 import './BrokerManage.css';
 
 const { TextArea, Search } = Input;
 
 const KNOWLEDGE_STATUS_OPTIONS = dictToOptions(KNOWLEDGE_STATUS_ZH);
 const KNOWLEDGE_PRIORITY_OPTIONS = dictToOptions(KNOWLEDGE_PRIORITY_ZH);
+
+function normalizeTags(raw) {
+  if (Array.isArray(raw)) return raw.map((x) => String(x || '').trim()).filter(Boolean);
+  return String(raw || '')
+    .split(/[,\n;|，、]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function tagsToSummary(raw) {
+  const tags = normalizeTags(raw);
+  return tags.length ? tags.join('、') : '';
+}
 
 function normalizeKnowledgePayload(values) {
   return {
@@ -41,7 +56,7 @@ function normalizeKnowledgePayload(values) {
     title: values.title?.trim() || '',
     summary: values.summary?.trim() || null,
     content: values.content?.trim() || null,
-    tags: values.tags?.trim() || null,
+    tags: normalizeTags(values.tags),
     related_symbol: values.related_symbol?.trim() || null,
     related_pattern: values.related_pattern?.trim() || null,
     related_regime: values.related_regime?.trim() || null,
@@ -69,14 +84,16 @@ export default function InfoMaintain() {
   const [knowledgeRows, setKnowledgeRows] = useState([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [knowledgeSaving, setKnowledgeSaving] = useState(false);
+  const [knowledgeEditing, setKnowledgeEditing] = useState(false);
   const [selectedKnowledgeId, setSelectedKnowledgeId] = useState(null);
-  const [knowledgeFilters, setKnowledgeFilters] = useState({ category: undefined, status: 'active', q: '' });
+  const [knowledgeFilters, setKnowledgeFilters] = useState({ category: undefined, status: 'active', tag: undefined, q: '' });
   const [knowledgeCategories, setKnowledgeCategories] = useState([]);
   const [knowledgeForm] = Form.useForm();
 
   const [brokerRows, setBrokerRows] = useState([]);
   const [brokerLoading, setBrokerLoading] = useState(false);
   const [brokerSaving, setBrokerSaving] = useState(false);
+  const [brokerEditing, setBrokerEditing] = useState(false);
   const [selectedBrokerId, setSelectedBrokerId] = useState(null);
   const [brokerForm] = Form.useForm();
 
@@ -98,6 +115,12 @@ export default function InfoMaintain() {
     return Object.entries(map).map(([value, label]) => ({ value, label }));
   }, [knowledgeCategories]);
 
+  const knowledgeTagOptions = useMemo(() => {
+    const set = new Set();
+    knowledgeRows.forEach((item) => normalizeTags(item.tags || item.tags_text).forEach((tag) => set.add(tag)));
+    return Array.from(set).map((x) => ({ value: x, label: x }));
+  }, [knowledgeRows]);
+
   const loadKnowledgeCategories = async () => {
     try {
       const res = await knowledgeApi.categories();
@@ -113,6 +136,7 @@ export default function InfoMaintain() {
       const params = { size: 200 };
       if (knowledgeFilters.category) params.category = knowledgeFilters.category;
       if (knowledgeFilters.status) params.status = knowledgeFilters.status;
+      if (knowledgeFilters.tag) params.tag = knowledgeFilters.tag;
       if (knowledgeFilters.q?.trim()) params.q = knowledgeFilters.q.trim();
       const res = await knowledgeApi.list(params);
       const rows = res.data || [];
@@ -165,7 +189,7 @@ export default function InfoMaintain() {
 
   useEffect(() => {
     loadKnowledge();
-  }, [knowledgeFilters.category, knowledgeFilters.status]);
+  }, [knowledgeFilters.category, knowledgeFilters.status, knowledgeFilters.tag, knowledgeFilters.q]);
 
   useEffect(() => {
     if (!selectedKnowledge) {
@@ -174,11 +198,13 @@ export default function InfoMaintain() {
         category: 'pattern_dictionary',
         status: 'active',
         priority: 'medium',
+        tags: [],
       });
       return;
     }
     knowledgeForm.setFieldsValue({
       ...selectedKnowledge,
+      tags: normalizeTags(selectedKnowledge.tags || selectedKnowledge.tags_text),
       due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
     });
   }, [selectedKnowledge, knowledgeForm]);
@@ -204,7 +230,9 @@ export default function InfoMaintain() {
       category: knowledgeFilters.category || 'pattern_dictionary',
       status: 'active',
       priority: 'medium',
+      tags: [],
     });
+    setKnowledgeEditing(true);
   };
 
   const saveKnowledge = async () => {
@@ -227,6 +255,7 @@ export default function InfoMaintain() {
       message.success(selectedKnowledgeId ? '知识条目已更新' : '知识条目已创建');
       await loadKnowledge(saved.id);
       setSelectedKnowledgeId(saved.id);
+      setKnowledgeEditing(false);
       await loadKnowledgeCategories();
     } catch (e) {
       if (!e?.errorFields) {
@@ -243,6 +272,7 @@ export default function InfoMaintain() {
       await knowledgeApi.delete(selectedKnowledgeId);
       message.success('知识条目已删除');
       await loadKnowledge();
+      setKnowledgeEditing(false);
       await loadKnowledgeCategories();
     } catch {
       message.error('删除失败');
@@ -252,6 +282,7 @@ export default function InfoMaintain() {
   const createBroker = () => {
     setSelectedBrokerId(null);
     brokerForm.resetFields();
+    setBrokerEditing(true);
   };
 
   const saveBroker = async () => {
@@ -274,6 +305,7 @@ export default function InfoMaintain() {
       message.success(selectedBrokerId ? '券商信息已更新' : '券商信息已创建');
       await loadBrokers(saved.id);
       setSelectedBrokerId(saved.id);
+      setBrokerEditing(false);
     } catch (e) {
       if (!e?.errorFields) {
         message.error(e?.response?.data?.detail || '保存失败');
@@ -289,10 +321,84 @@ export default function InfoMaintain() {
       await brokerApi.delete(selectedBrokerId);
       message.success('券商信息已删除');
       await loadBrokers();
+      setBrokerEditing(false);
     } catch {
       message.error('删除失败');
     }
   };
+
+  const selectKnowledge = (id) => {
+    setSelectedKnowledgeId(id);
+    setKnowledgeEditing(false);
+  };
+
+  const startEditKnowledge = () => {
+    if (!selectedKnowledge) return;
+    knowledgeForm.setFieldsValue({
+      ...selectedKnowledge,
+      tags: normalizeTags(selectedKnowledge.tags || selectedKnowledge.tags_text),
+      due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
+    });
+    setKnowledgeEditing(true);
+  };
+
+  const cancelKnowledgeEdit = () => {
+    if (selectedKnowledge) {
+      knowledgeForm.setFieldsValue({
+        ...selectedKnowledge,
+        tags: normalizeTags(selectedKnowledge.tags || selectedKnowledge.tags_text),
+        due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
+      });
+      setKnowledgeEditing(false);
+      return;
+    }
+    knowledgeForm.resetFields();
+    knowledgeForm.setFieldsValue({
+      category: knowledgeFilters.category || 'pattern_dictionary',
+      status: 'active',
+      priority: 'medium',
+      tags: [],
+    });
+    setKnowledgeEditing(false);
+  };
+
+  const selectBroker = (id) => {
+    setSelectedBrokerId(id);
+    setBrokerEditing(false);
+  };
+
+  const startEditBroker = () => {
+    if (!selectedBroker) return;
+    brokerForm.setFieldsValue({
+      name: selectedBroker.name || '',
+      account: selectedBroker.account || '',
+      password: selectedBroker.password || '',
+      extra_info: selectedBroker.extra_info || '',
+      notes: selectedBroker.notes || '',
+    });
+    setBrokerEditing(true);
+  };
+
+  const cancelBrokerEdit = () => {
+    if (selectedBroker) {
+      brokerForm.setFieldsValue({
+        name: selectedBroker.name || '',
+        account: selectedBroker.account || '',
+        password: selectedBroker.password || '',
+        extra_info: selectedBroker.extra_info || '',
+        notes: selectedBroker.notes || '',
+      });
+      setBrokerEditing(false);
+      return;
+    }
+    brokerForm.resetFields();
+    setBrokerEditing(false);
+  };
+
+  const selectedKnowledgeTags = normalizeTags(selectedKnowledge?.tags || selectedKnowledge?.tags_text);
+  const selectedKnowledgeSymbolLabel = selectedKnowledge?.related_symbol
+    ? formatFuturesSymbol(selectedKnowledge.related_symbol, selectedKnowledge.related_symbol)
+    : '-';
 
   return (
     <div className="maintain-workspace">
@@ -333,6 +439,14 @@ export default function InfoMaintain() {
                 style={{ width: 140 }}
                 onChange={(v) => setKnowledgeFilters((p) => ({ ...p, status: v }))}
               />
+              <Select
+                allowClear
+                value={knowledgeFilters.tag}
+                options={knowledgeTagOptions}
+                placeholder="标签"
+                style={{ width: 180 }}
+                onChange={(v) => setKnowledgeFilters((p) => ({ ...p, tag: v }))}
+              />
               <Search
                 allowClear
                 placeholder="搜索标题/标签/内容"
@@ -340,7 +454,14 @@ export default function InfoMaintain() {
                 onSearch={(v) => setKnowledgeFilters((p) => ({ ...p, q: v }))}
               />
               <Button onClick={createKnowledge} icon={<PlusOutlined />}>新建知识</Button>
-              <Button type="primary" loading={knowledgeSaving} icon={<SaveOutlined />} onClick={saveKnowledge}>保存</Button>
+              {knowledgeEditing ? (
+                <>
+                  <Button type="primary" loading={knowledgeSaving} icon={<SaveOutlined />} onClick={saveKnowledge}>保存</Button>
+                  <Button onClick={cancelKnowledgeEdit}>取消</Button>
+                </>
+              ) : (
+                <Button icon={<EditOutlined />} onClick={startEditKnowledge} disabled={!selectedKnowledgeId}>编辑</Button>
+              )}
               <Popconfirm title="确认删除当前知识条目？" onConfirm={deleteKnowledge} disabled={!selectedKnowledgeId}>
                 <Button danger icon={<DeleteOutlined />} disabled={!selectedKnowledgeId}>删除</Button>
               </Popconfirm>
@@ -356,7 +477,7 @@ export default function InfoMaintain() {
                   renderItem={(item) => (
                     <List.Item
                       className={`maintain-list-item ${item.id === selectedKnowledgeId ? 'active' : ''}`}
-                      onClick={() => setSelectedKnowledgeId(item.id)}
+                      onClick={() => selectKnowledge(item.id)}
                     >
                       <div className="maintain-list-main">
                         <div className="maintain-list-title">{item.title}</div>
@@ -366,7 +487,7 @@ export default function InfoMaintain() {
                           <Tag color="gold">{mapLabel(KNOWLEDGE_PRIORITY_ZH, item.priority)}</Tag>
                         </div>
                         <Typography.Paragraph className="maintain-list-summary" ellipsis={{ rows: 2 }}>
-                          {item.summary || item.next_action || item.tags || '无摘要'}
+                          {item.summary || item.next_action || tagsToSummary(item.tags || item.tags_text) || '无摘要'}
                         </Typography.Paragraph>
                       </div>
                     </List.Item>
@@ -376,24 +497,75 @@ export default function InfoMaintain() {
             </Col>
 
             <Col xs={24} xl={16}>
-              <Card title={selectedKnowledgeId ? `编辑知识 #${selectedKnowledgeId}` : '新建知识条目'} className="maintain-editor-card">
-                <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', status: 'active', priority: 'medium' }}>
-                  <Row gutter={12}>
-                    <Col span={10}><Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}><Input placeholder="例如：趋势启动回调判定" /></Form.Item></Col>
-                    <Col span={7}><Form.Item name="category" label="分类"><Select options={knowledgeCategoryOptions} /></Form.Item></Col>
-                    <Col span={7}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
-                    <Col span={8}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
-                    <Col span={8}><Form.Item name="related_symbol" label="关联品种"><Input placeholder="IF / AU" /></Form.Item></Col>
-                    <Col span={8}><Form.Item name="related_pattern" label="关联结构"><Input placeholder="failed_breakout_reversal" /></Form.Item></Col>
-                    <Col span={8}><Form.Item name="related_regime" label="关联环境"><Input placeholder="high-vol directional" /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="tags" label="标签"><Input placeholder="逗号分隔，例如：trend,pullback,risk" /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="summary" label="摘要"><TextArea rows={2} /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="content" label="正文"><TextArea rows={6} /></Form.Item></Col>
-                    <Col span={12}><Form.Item name="next_action" label="下一步动作"><TextArea rows={2} /></Form.Item></Col>
-                    <Col span={6}><Form.Item name="due_date" label="截止日期"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-                    <Col span={6}><Form.Item name="source_ref" label="来源引用"><Input placeholder="链接/来源" /></Form.Item></Col>
-                  </Row>
-                </Form>
+              <Card title={selectedKnowledgeId ? `知识 #${selectedKnowledgeId}` : '新建知识条目'} className="maintain-editor-card">
+                {knowledgeEditing ? (
+                  <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', status: 'active', priority: 'medium', tags: [] }}>
+                    <Row gutter={12}>
+                      <Col span={10}><Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}><Input placeholder="例如：趋势启动回调判定" /></Form.Item></Col>
+                      <Col span={7}><Form.Item name="category" label="分类"><Select options={knowledgeCategoryOptions} /></Form.Item></Col>
+                      <Col span={7}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
+                      <Col span={8}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
+                      <Col span={8}><Form.Item name="related_symbol" label="关联品种"><Input placeholder="IF / AU" /></Form.Item></Col>
+                      <Col span={8}><Form.Item name="related_pattern" label="关联结构"><Input placeholder="failed_breakout_reversal" /></Form.Item></Col>
+                      <Col span={8}><Form.Item name="related_regime" label="关联环境"><Input placeholder="high-vol directional" /></Form.Item></Col>
+                      <Col span={24}>
+                        <Form.Item name="tags" label="标签">
+                          <Select mode="tags" tokenSeparators={[',', '，']} options={knowledgeTagOptions} placeholder="输入标签并回车" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}><Form.Item name="summary" label="摘要"><TextArea rows={2} /></Form.Item></Col>
+                      <Col span={24}><Form.Item name="content" label="正文"><TextArea rows={6} /></Form.Item></Col>
+                      <Col span={12}><Form.Item name="next_action" label="下一步动作"><TextArea rows={2} /></Form.Item></Col>
+                      <Col span={6}><Form.Item name="due_date" label="截止日期"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+                      <Col span={6}><Form.Item name="source_ref" label="来源引用"><Input placeholder="链接/来源" /></Form.Item></Col>
+                    </Row>
+                  </Form>
+                ) : !selectedKnowledge ? (
+                  <Empty description="请选择左侧知识条目或新建" />
+                ) : (
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <Descriptions size="small" column={2}>
+                      <Descriptions.Item label="标题">{selectedKnowledge.title || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="分类">{mapLabel(KNOWLEDGE_CATEGORY_ZH, selectedKnowledge.category)}</Descriptions.Item>
+                      <Descriptions.Item label="状态">{mapLabel(KNOWLEDGE_STATUS_ZH, selectedKnowledge.status)}</Descriptions.Item>
+                      <Descriptions.Item label="优先级">{mapLabel(KNOWLEDGE_PRIORITY_ZH, selectedKnowledge.priority)}</Descriptions.Item>
+                      <Descriptions.Item label="关联品种">{selectedKnowledgeSymbolLabel}</Descriptions.Item>
+                      <Descriptions.Item label="关联结构">{selectedKnowledge.related_pattern || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="关联环境">{selectedKnowledge.related_regime || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="截止日期">{selectedKnowledge.due_date || '-'}</Descriptions.Item>
+                    </Descriptions>
+                    {selectedKnowledgeTags.length > 0 ? (
+                      <div>
+                        <Typography.Text type="secondary">标签</Typography.Text>
+                        <div style={{ marginTop: 4 }}>{selectedKnowledgeTags.map((t) => <Tag key={t}>{t}</Tag>)}</div>
+                      </div>
+                    ) : null}
+                    {selectedKnowledge.summary ? (
+                      <div>
+                        <Typography.Text type="secondary">摘要</Typography.Text>
+                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.summary}</Typography.Paragraph>
+                      </div>
+                    ) : null}
+                    {selectedKnowledge.content ? (
+                      <div>
+                        <Typography.Text type="secondary">正文</Typography.Text>
+                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.content}</Typography.Paragraph>
+                      </div>
+                    ) : null}
+                    {selectedKnowledge.next_action ? (
+                      <div>
+                        <Typography.Text type="secondary">下一步动作</Typography.Text>
+                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.next_action}</Typography.Paragraph>
+                      </div>
+                    ) : null}
+                    {selectedKnowledge.source_ref ? (
+                      <div>
+                        <Typography.Text type="secondary">来源引用</Typography.Text>
+                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.source_ref}</Typography.Paragraph>
+                      </div>
+                    ) : null}
+                  </Space>
+                )}
               </Card>
             </Col>
           </Row>
@@ -415,7 +587,7 @@ export default function InfoMaintain() {
                 renderItem={(item) => (
                   <List.Item
                     className={`maintain-list-item ${item.id === selectedBrokerId ? 'active' : ''}`}
-                    onClick={() => setSelectedBrokerId(item.id)}
+                    onClick={() => selectBroker(item.id)}
                   >
                     <div className="maintain-list-main">
                       <div className="maintain-list-title">{item.name}</div>
@@ -429,26 +601,49 @@ export default function InfoMaintain() {
 
           <Col xs={24} xl={16}>
             <Card
-              title={selectedBrokerId ? `编辑券商 #${selectedBrokerId}` : '新建券商'}
+              title={selectedBrokerId ? `券商 #${selectedBrokerId}` : '新建券商'}
               className="maintain-editor-card"
               extra={(
                 <Space>
-                  <Button type="primary" icon={<SaveOutlined />} loading={brokerSaving} onClick={saveBroker}>保存</Button>
+                  {brokerEditing ? (
+                    <>
+                      <Button type="primary" icon={<SaveOutlined />} loading={brokerSaving} onClick={saveBroker}>保存</Button>
+                      <Button onClick={cancelBrokerEdit}>取消</Button>
+                    </>
+                  ) : (
+                    <Button icon={<EditOutlined />} onClick={startEditBroker} disabled={!selectedBrokerId}>编辑</Button>
+                  )}
                   <Popconfirm title="确认删除当前券商？" onConfirm={deleteBroker} disabled={!selectedBrokerId}>
                     <Button danger icon={<DeleteOutlined />} disabled={!selectedBrokerId}>删除</Button>
                   </Popconfirm>
                 </Space>
               )}
             >
-              <Form form={brokerForm} layout="vertical">
-                <Row gutter={12}>
-                  <Col span={12}><Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}><Input placeholder="例如：宏源期货" /></Form.Item></Col>
-                  <Col span={12}><Form.Item label="账号" name="account"><Input placeholder="账号/客户号" /></Form.Item></Col>
-                  <Col span={12}><Form.Item label="密码" name="password"><Input.Password placeholder="可留空" /></Form.Item></Col>
-                  <Col span={12}><Form.Item label="其他信息" name="extra_info"><TextArea rows={2} placeholder="通道/风控限制等" /></Form.Item></Col>
-                  <Col span={24}><Form.Item label="备注" name="notes"><TextArea rows={3} /></Form.Item></Col>
-                </Row>
-              </Form>
+              {brokerEditing ? (
+                <Form form={brokerForm} layout="vertical">
+                  <Row gutter={12}>
+                    <Col span={12}><Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}><Input placeholder="例如：宏源期货" /></Form.Item></Col>
+                    <Col span={12}><Form.Item label="账号" name="account"><Input placeholder="账号/客户号" /></Form.Item></Col>
+                    <Col span={12}><Form.Item label="密码" name="password"><Input.Password placeholder="可留空" /></Form.Item></Col>
+                    <Col span={12}><Form.Item label="其他信息" name="extra_info"><TextArea rows={2} placeholder="通道/风控限制等" /></Form.Item></Col>
+                    <Col span={24}><Form.Item label="备注" name="notes"><TextArea rows={3} /></Form.Item></Col>
+                  </Row>
+                </Form>
+              ) : !selectedBroker ? (
+                <Empty description="请选择左侧券商或新建" />
+              ) : (
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="名称">{selectedBroker.name || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="账号">{selectedBroker.account || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="密码">{selectedBroker.password || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="其他信息">{selectedBroker.extra_info || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="备注">
+                    <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                      {selectedBroker.notes || '-'}
+                    </Typography.Paragraph>
+                  </Descriptions.Item>
+                </Descriptions>
+              )}
             </Card>
           </Col>
         </Row>
