@@ -79,6 +79,8 @@ class Trade(Base):
     error_tags = Column(Text)
     review_note = Column(Text)
     notes = Column(Text)
+    is_favorite = Column(Boolean, default=False)
+    star_rating = Column(Integer, nullable=True)
     trade_review = relationship("TradeReview", back_populates="trade", uselist=False, cascade="all, delete-orphan")
     source_metadata = relationship("TradeSourceMetadata", back_populates="trade", uselist=False, cascade="all, delete-orphan")
 
@@ -170,7 +172,10 @@ class Review(Base):
     tags_text = Column("tags", Text)
     action_items = Column(Text)
     content = Column(Text)
+    research_notes = Column(Text)
     summary = Column(Text)
+    is_favorite = Column(Boolean, default=False)
+    star_rating = Column(Integer, nullable=True)
     trade_links = relationship("ReviewTradeLink", back_populates="review", cascade="all, delete-orphan")
     tag_links = relationship("ReviewTagLink", back_populates="review", cascade="all, delete-orphan")
 

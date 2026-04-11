@@ -123,6 +123,17 @@ def _migrate_legacy_schema():
             db.execute(text("ALTER TABLE reviews ADD COLUMN tags TEXT"))
         if "action_items" not in review_cols:
             db.execute(text("ALTER TABLE reviews ADD COLUMN action_items TEXT"))
+        if "research_notes" not in review_cols:
+            db.execute(text("ALTER TABLE reviews ADD COLUMN research_notes TEXT"))
+        if "is_favorite" not in review_cols:
+            db.execute(text("ALTER TABLE reviews ADD COLUMN is_favorite BOOLEAN DEFAULT 0"))
+        if "star_rating" not in review_cols:
+            db.execute(text("ALTER TABLE reviews ADD COLUMN star_rating INTEGER"))
+        trade_cols = _column_names(db, "trades")
+        if "is_favorite" not in trade_cols:
+            db.execute(text("ALTER TABLE trades ADD COLUMN is_favorite BOOLEAN DEFAULT 0"))
+        if "star_rating" not in trade_cols:
+            db.execute(text("ALTER TABLE trades ADD COLUMN star_rating INTEGER"))
         db.commit()
     finally:
         db.close()
@@ -690,6 +701,11 @@ def list_trades(
     status: Optional[str] = None,
     strategy_type: Optional[str] = None,
     source_keyword: Optional[str] = None,
+    is_favorite: Optional[bool] = None,
+    min_star_rating: Optional[int] = Query(None, ge=1, le=5),
+    max_star_rating: Optional[int] = Query(None, ge=1, le=5),
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db),
 ):
     q = db.query(Trade)
@@ -707,8 +723,27 @@ def list_trades(
         q = q.filter(Trade.status == status)
     if strategy_type:
         q = q.filter(Trade.strategy_type == strategy_type)
+    if is_favorite is not None:
+        q = q.filter(Trade.is_favorite == is_favorite)
+    if min_star_rating is not None:
+        q = q.filter(Trade.star_rating >= min_star_rating)
+    if max_star_rating is not None:
+        q = q.filter(Trade.star_rating <= max_star_rating)
     q = _apply_source_keyword_filter(q, source_keyword)
-    rows = q.order_by(Trade.open_time.desc()).offset((page - 1) * size).limit(size).all()
+    if sort_by not in {None, "updated_at", "star_rating"}:
+        raise HTTPException(400, "sort_by must be one of: updated_at, star_rating")
+    if sort_order not in {"asc", "desc"}:
+        raise HTTPException(400, "sort_order must be one of: asc, desc")
+    order_desc = sort_order != "asc"
+    if sort_by == "updated_at":
+        order_expr = Trade.updated_at.desc() if order_desc else Trade.updated_at.asc()
+        q = q.order_by(order_expr, Trade.id.desc())
+    elif sort_by == "star_rating":
+        order_expr = Trade.star_rating.desc() if order_desc else Trade.star_rating.asc()
+        q = q.order_by(order_expr, Trade.updated_at.desc(), Trade.id.desc())
+    else:
+        q = q.order_by(Trade.open_time.desc())
+    rows = q.offset((page - 1) * size).limit(size).all()
     return _attach_trade_view_fields(db, rows)
 
 
@@ -825,6 +860,9 @@ def count_trades(
     status: Optional[str] = None,
     strategy_type: Optional[str] = None,
     source_keyword: Optional[str] = None,
+    is_favorite: Optional[bool] = None,
+    min_star_rating: Optional[int] = Query(None, ge=1, le=5),
+    max_star_rating: Optional[int] = Query(None, ge=1, le=5),
     db: Session = Depends(get_db),
 ):
     q = db.query(Trade)
@@ -842,6 +880,12 @@ def count_trades(
         q = q.filter(Trade.status == status)
     if strategy_type:
         q = q.filter(Trade.strategy_type == strategy_type)
+    if is_favorite is not None:
+        q = q.filter(Trade.is_favorite == is_favorite)
+    if min_star_rating is not None:
+        q = q.filter(Trade.star_rating >= min_star_rating)
+    if max_star_rating is not None:
+        q = q.filter(Trade.star_rating <= max_star_rating)
     q = _apply_source_keyword_filter(q, source_keyword)
     return {"total": q.count()}
 
@@ -1310,6 +1354,11 @@ def list_reviews(
     review_type: Optional[str] = None,
     review_scope: Optional[str] = None,
     tag: Optional[str] = None,
+    is_favorite: Optional[bool] = None,
+    min_star_rating: Optional[int] = Query(None, ge=1, le=5),
+    max_star_rating: Optional[int] = Query(None, ge=1, le=5),
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = "desc",
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -1323,11 +1372,30 @@ def list_reviews(
         q = q.filter(Review.review_scope == _review_normalize_review_scope(review_scope))
     if tag and tag.strip():
         q = q.filter(Review.tags_text.contains(tag.strip()))
+    if is_favorite is not None:
+        q = q.filter(Review.is_favorite == is_favorite)
+    if min_star_rating is not None:
+        q = q.filter(Review.star_rating >= min_star_rating)
+    if max_star_rating is not None:
+        q = q.filter(Review.star_rating <= max_star_rating)
     if date_from:
         q = q.filter(Review.review_date >= date_from)
     if date_to:
         q = q.filter(Review.review_date <= date_to)
-    rows = q.order_by(Review.review_date.desc()).offset((page - 1) * size).limit(size).all()
+    if sort_by not in {None, "updated_at", "star_rating"}:
+        raise HTTPException(400, "sort_by must be one of: updated_at, star_rating")
+    if sort_order not in {"asc", "desc"}:
+        raise HTTPException(400, "sort_order must be one of: asc, desc")
+    order_desc = sort_order != "asc"
+    if sort_by == "updated_at":
+        order_expr = Review.updated_at.desc() if order_desc else Review.updated_at.asc()
+        q = q.order_by(order_expr, Review.id.desc())
+    elif sort_by == "star_rating":
+        order_expr = Review.star_rating.desc() if order_desc else Review.star_rating.asc()
+        q = q.order_by(order_expr, Review.updated_at.desc(), Review.id.desc())
+    else:
+        q = q.order_by(Review.review_date.desc())
+    rows = q.offset((page - 1) * size).limit(size).all()
     return _attach_review_fields(db, rows)
 
 

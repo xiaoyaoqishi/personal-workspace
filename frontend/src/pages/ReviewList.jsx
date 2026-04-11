@@ -10,6 +10,7 @@ import {
   Input,
   List,
   Popconfirm,
+  Rate,
   Row,
   Select,
   Space,
@@ -19,6 +20,7 @@ import {
   message,
 } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { StarFilled, StarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { reviewApi, tradeApi } from '../api';
 import { FUTURES_SYMBOL_OPTIONS } from '../utils/futures';
@@ -36,6 +38,7 @@ import {
   mapLabel,
 } from '../features/trading/localization';
 import ReadEditActions from '../features/trading/components/ReadEditActions';
+import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import './ReviewList.css';
 
 const { TextArea } = Input;
@@ -80,6 +83,9 @@ function normalizeReviewPayload(values) {
     summary: values.summary?.trim() || null,
     action_items: values.action_items?.trim() || null,
     content: values.content?.trim() || null,
+    research_notes: values.research_notes || null,
+    is_favorite: !!values.is_favorite,
+    star_rating: values.star_rating || null,
     review_date: values.review_date.format('YYYY-MM-DD'),
   };
 }
@@ -137,6 +143,10 @@ export default function ReviewList() {
   const [activeType, setActiveType] = useState('daily');
   const [activeScope, setActiveScope] = useState(undefined);
   const [activeTag, setActiveTag] = useState(undefined);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [minStars, setMinStars] = useState(undefined);
+  const [sortBy, setSortBy] = useState('updated_at');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [selectedReviewId, setSelectedReviewId] = useState(null);
   const [linkedTrades, setLinkedTrades] = useState([]);
   const [tradeOptions, setTradeOptions] = useState([]);
@@ -204,6 +214,8 @@ export default function ReviewList() {
         review_scope: activeScope || 'periodic',
         review_date: dayjs(),
         tags: [],
+        is_favorite: false,
+        star_rating: null,
       });
       setLinkedTrades([]);
       return;
@@ -214,6 +226,8 @@ export default function ReviewList() {
       review_type: review.review_type || activeType,
       review_scope: review.review_scope || 'periodic',
       review_date: review.review_date ? dayjs(review.review_date) : dayjs(),
+      is_favorite: !!review.is_favorite,
+      star_rating: review.star_rating || null,
     });
     setLinkedTrades((review.trade_links || []).map((x) => ({
       trade_id: x.trade_id,
@@ -229,6 +243,10 @@ export default function ReviewList() {
       const params = { review_type: activeType, size: 200 };
       if (activeScope) params.review_scope = activeScope;
       if (activeTag) params.tag = activeTag;
+      if (favoriteOnly) params.is_favorite = true;
+      if (minStars) params.min_star_rating = minStars;
+      if (sortBy) params.sort_by = sortBy;
+      if (sortOrder) params.sort_order = sortOrder;
       const res = await reviewApi.list(params);
       const rows = res.data || [];
       setReviews(rows);
@@ -298,7 +316,7 @@ export default function ReviewList() {
 
   useEffect(() => {
     loadReviews();
-  }, [activeType, activeScope, activeTag]);
+  }, [activeType, activeScope, activeTag, favoriteOnly, minStars, sortBy, sortOrder]);
 
   useEffect(() => {
     return () => {
@@ -434,6 +452,10 @@ export default function ReviewList() {
             <Select value={activeType} options={REVIEW_TYPE_OPTIONS} onChange={setActiveType} style={{ width: 130 }} />
             <Select allowClear value={activeScope} options={REVIEW_SCOPE_OPTIONS} placeholder="范围" onChange={setActiveScope} style={{ width: 130 }} />
             <Select allowClear value={activeTag} options={reviewTagOptions} placeholder="标签筛选" onChange={setActiveTag} style={{ width: 140 }} />
+            <Select value={favoriteOnly ? 'fav' : 'all'} style={{ width: 110 }} onChange={(v) => setFavoriteOnly(v === 'fav')} options={[{ label: '全部', value: 'all' }, { label: '仅收藏', value: 'fav' }]} />
+            <Select allowClear value={minStars} placeholder="最低星级" style={{ width: 120 }} onChange={setMinStars} options={[1, 2, 3, 4, 5].map((x) => ({ value: x, label: `${x} 星` }))} />
+            <Select value={sortBy} style={{ width: 120 }} onChange={setSortBy} options={[{ value: 'updated_at', label: '最近更新' }, { value: 'star_rating', label: '按星级' }]} />
+            <Select value={sortOrder} style={{ width: 100 }} onChange={setSortOrder} options={[{ value: 'desc', label: '降序' }, { value: 'asc', label: '升序' }]} />
             <Button onClick={handleNewReview} icon={<PlusOutlined />}>新建复盘</Button>
             <ReadEditActions
               editing={editing}
@@ -464,6 +486,8 @@ export default function ReviewList() {
                       <Tag>{mapLabel(REVIEW_TYPE_ZH, item.review_type)}</Tag>
                       <Tag color="blue">{mapLabel(REVIEW_SCOPE_ZH, item.review_scope || 'periodic')}</Tag>
                       <Tag color="gold">关联 {item.linked_trade_ids?.length || 0}</Tag>
+                      {item.is_favorite ? <StarFilled style={{ color: '#f5a623' }} /> : <StarOutlined style={{ color: '#cfcfcf' }} />}
+                      <Rate disabled value={item.star_rating || 0} style={{ fontSize: 12 }} />
                     </div>
                     <Typography.Paragraph className="review-list-summary" ellipsis={{ rows: 2 }}>
                       {item.summary || item.focus_topic || item.next_focus || '无摘要'}
@@ -479,7 +503,7 @@ export default function ReviewList() {
           <Card title={selectedReviewId ? `复盘 #${selectedReviewId}` : '新建复盘'} className="review-editor-card">
             {editing ? (
               <>
-                <Form form={form} layout="vertical" initialValues={{ review_type: activeType, review_scope: 'periodic', review_date: dayjs(), tags: [] }}>
+                <Form form={form} layout="vertical" initialValues={{ review_type: activeType, review_scope: 'periodic', review_date: dayjs(), tags: [], is_favorite: false, star_rating: null }}>
                   <Row gutter={12}>
                     <Col span={10}><Form.Item name="title" label="标题"><Input placeholder="例如：本周趋势延续复盘" /></Form.Item></Col>
                     <Col span={5}><Form.Item name="review_type" label="类型" rules={[{ required: true }]}><Select options={REVIEW_TYPE_OPTIONS} /></Form.Item></Col>
@@ -490,6 +514,16 @@ export default function ReviewList() {
                     <Col span={8}>
                       <Form.Item name="tags" label="标签">
                         <Select mode="tags" tokenSeparators={[',', '，']} options={reviewTagOptions} placeholder="输入标签并回车" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="is_favorite" label="收藏" valuePropName="checked">
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="star_rating" label="星级">
+                        <Rate />
                       </Form.Item>
                     </Col>
 
@@ -528,7 +562,20 @@ export default function ReviewList() {
 
                     <Col span={24}><Form.Item name="summary" label="结论摘要"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={24}><Form.Item name="action_items" label="后续动作"><TextArea rows={2} placeholder="可转化为执行清单/知识项" /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="content" label="详细复盘"><TextArea rows={4} /></Form.Item></Col>
+                    <Col span={24}><Form.Item name="content" label="详细复盘文本"><TextArea rows={4} /></Form.Item></Col>
+                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
+                    <Col span={24}>
+                      <Form.Item shouldUpdate noStyle>
+                        {() => (
+                          <ResearchContentPanel
+                            editing
+                            title="周期/主题图文研究"
+                            value={form.getFieldValue('research_notes')}
+                            onChange={(next) => form.setFieldValue('research_notes', next)}
+                          />
+                        )}
+                      </Form.Item>
+                    </Col>
                   </Row>
                 </Form>
 
@@ -655,6 +702,8 @@ export default function ReviewList() {
                     <Descriptions.Item label="范围">{mapLabel(REVIEW_SCOPE_ZH, selectedReview.review_scope || 'periodic')}</Descriptions.Item>
                     <Descriptions.Item label="聚焦主题">{selectedReview.focus_topic || '-'}</Descriptions.Item>
                     <Descriptions.Item label="市场环境">{selectedReview.market_regime || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="收藏">{selectedReview.is_favorite ? '是' : '否'}</Descriptions.Item>
+                    <Descriptions.Item label="星级"><Rate disabled value={selectedReview.star_rating || 0} /></Descriptions.Item>
                   </Descriptions>
                   {tagsForRead.length > 0 ? (
                     <div style={{ marginTop: 8 }}>
@@ -675,10 +724,13 @@ export default function ReviewList() {
                   </Card>
                 ) : null}
                 {selectedReview.content ? (
-                  <Card size="small" title="详细复盘" className="review-read-card">
+                  <Card size="small" title="详细复盘文本" className="review-read-card">
                     <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedReview.content}</Typography.Paragraph>
                   </Card>
                 ) : null}
+                <Card size="small" title="图文研究" className="review-read-card">
+                  <ResearchContentPanel value={selectedReview.research_notes} title="周期/主题图文研究" />
+                </Card>
 
                 <Card size="small" title="关联交易（内容卡片）" className="review-link-card">
                   {(selectedReview.trade_links || []).length === 0 ? (

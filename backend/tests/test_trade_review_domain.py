@@ -35,7 +35,7 @@ def test_trade_review_upsert_and_get(app_client):
         "entry_thesis": "setup had structure but entry was late",
         "management_actions": "reduced size after volatility expansion",
         "tags": ["趋势", "执行"],
-        "research_notes": "needs tighter trigger on second leg",
+        "research_notes": "<p>needs tighter trigger on second leg</p><p><img src=\"/api/uploads/a.png\" alt=\"x\" style=\"width:320px\"/></p>",
     }
     put_resp = app_client.put(f"/api/trades/{trade_id}/review", json=payload)
     assert put_resp.status_code == 200, put_resp.text

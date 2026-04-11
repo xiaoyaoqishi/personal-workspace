@@ -69,6 +69,7 @@ export default function TradeList() {
         onSaveReview={ws.handleSaveDetailReview}
         onSaveSource={ws.handleSaveDetailSource}
         onSaveLegacy={ws.handleSaveDetailLegacy}
+        onUpdateTradeSignal={ws.handleUpdateTradeSignal}
       />
 
       <TradeImportModal

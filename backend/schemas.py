@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Union
 from datetime import date, datetime
 
@@ -67,6 +67,8 @@ class TradeCreate(BaseModel):
     error_tags: Optional[str] = None
     review_note: Optional[str] = None
     notes: Optional[str] = None
+    is_favorite: Optional[bool] = False
+    star_rating: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class TradeUpdate(BaseModel):
@@ -132,6 +134,8 @@ class TradeUpdate(BaseModel):
     error_tags: Optional[str] = None
     review_note: Optional[str] = None
     notes: Optional[str] = None
+    is_favorite: Optional[bool] = None
+    star_rating: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class TradeResponse(TradeCreate):
@@ -304,7 +308,10 @@ class ReviewCreate(BaseModel):
     pause_patterns: Optional[str] = None
     action_items: Optional[str] = None
     content: Optional[str] = None
+    research_notes: Optional[str] = None
     summary: Optional[str] = None
+    is_favorite: Optional[bool] = False
+    star_rating: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class ReviewUpdate(BaseModel):
@@ -335,7 +342,10 @@ class ReviewUpdate(BaseModel):
     pause_patterns: Optional[str] = None
     action_items: Optional[str] = None
     content: Optional[str] = None
+    research_notes: Optional[str] = None
     summary: Optional[str] = None
+    is_favorite: Optional[bool] = None
+    star_rating: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class ReviewTradeLinkUpsert(BaseModel):

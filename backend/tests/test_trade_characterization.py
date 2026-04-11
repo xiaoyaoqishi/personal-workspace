@@ -354,3 +354,42 @@ def test_trade_detail_error_tags_edit_compatibility(app_client):
     final_trade = get_resp.json()
     assert final_trade["error_tags"] == updated_tags
     assert json.loads(final_trade["error_tags"]) == ["止损不坚决"]
+
+def test_trade_favorite_and_rating_filters(app_client):
+    payload = {
+        "trade_date": "2026-04-05",
+        "instrument_type": "futures",
+        "symbol": "IF",
+        "contract": "IF2506",
+        "direction": "long",
+        "open_time": "2026-04-05T09:00:00",
+        "open_price": 3500,
+        "quantity": 1,
+        "status": "open",
+        "is_favorite": True,
+        "star_rating": 5,
+    }
+    create_1 = app_client.post("/api/trades", json=payload)
+    assert create_1.status_code == 200, create_1.text
+    id_1 = create_1.json()["id"]
+
+    payload_2 = {
+        **payload,
+        "open_time": "2026-04-05T10:00:00",
+        "is_favorite": False,
+        "star_rating": 2,
+    }
+    create_2 = app_client.post("/api/trades", json=payload_2)
+    assert create_2.status_code == 200, create_2.text
+
+    list_resp = app_client.get("/api/trades", params={"is_favorite": True, "min_star_rating": 4, "size": 200})
+    assert list_resp.status_code == 200, list_resp.text
+    rows = list_resp.json()
+    assert len(rows) == 1
+    assert rows[0]["id"] == id_1
+    assert rows[0]["is_favorite"] is True
+    assert rows[0]["star_rating"] == 5
+
+    count_resp = app_client.get("/api/trades/count", params={"is_favorite": True, "min_star_rating": 4})
+    assert count_resp.status_code == 200, count_resp.text
+    assert count_resp.json()["total"] == 1

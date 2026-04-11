@@ -1,5 +1,5 @@
-import { Button, Popconfirm, Space, Table, Tag } from 'antd';
-import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
+import { Button, Popconfirm, Rate, Space, Table, Tag } from 'antd';
+import { DeleteOutlined, EditOutlined, EyeOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { formatInstrumentDisplay } from '../display';
 
@@ -89,6 +89,16 @@ export default function TradeFillsTable({
       title: '复盘',
       width: 80,
       render: (_, r) => (r.has_trade_review ? <Tag color="green">结构化</Tag> : <Tag>未录入</Tag>),
+    },
+    {
+      title: '收藏',
+      width: 70,
+      render: (_, r) => (r.is_favorite ? <StarFilled style={{ color: '#f5a623' }} /> : <StarOutlined style={{ color: '#cfcfcf' }} />),
+    },
+    {
+      title: '星级',
+      width: 130,
+      render: (_, r) => <Rate disabled allowHalf={false} value={r.star_rating || 0} />,
     },
     {
       title: '操作',

@@ -86,6 +86,43 @@ export default function TradeWorkspaceFilterBar({
                 ]}
                 onChange={(v) => onUpdateFilter('status', v)}
               />
+              <Select
+                placeholder="收藏"
+                allowClear
+                style={{ width: 100 }}
+                options={[
+                  { label: '已收藏', value: true },
+                  { label: '未收藏', value: false },
+                ]}
+                onChange={(v) => onUpdateFilter('is_favorite', v)}
+              />
+              <Select
+                placeholder="最低星级"
+                allowClear
+                style={{ width: 110 }}
+                options={[1, 2, 3, 4, 5].map((x) => ({ label: `${x} 星`, value: x }))}
+                onChange={(v) => onUpdateFilter('min_star_rating', v)}
+              />
+              <Select
+                placeholder="排序"
+                allowClear
+                style={{ width: 130 }}
+                options={[
+                  { label: '最近更新', value: 'updated_at' },
+                  { label: '星级', value: 'star_rating' },
+                ]}
+                onChange={(v) => onUpdateFilter('sort_by', v)}
+              />
+              <Select
+                placeholder="顺序"
+                style={{ width: 100 }}
+                defaultValue="desc"
+                options={[
+                  { label: '降序', value: 'desc' },
+                  { label: '升序', value: 'asc' },
+                ]}
+                onChange={(v) => onUpdateFilter('sort_order', v)}
+              />
             </Space>
           </Col>
         )}

@@ -132,6 +132,48 @@ def test_review_tags_array_and_filter(app_client):
     assert rows[0]["id"] == review["id"]
 
 
+def test_review_favorite_rating_and_research_notes_filters(app_client):
+    create_resp = app_client.post(
+        "/api/reviews",
+        json={
+            "review_type": "daily",
+            "review_scope": "periodic",
+            "review_date": "2026-04-03",
+            "title": "favorite review",
+            "is_favorite": True,
+            "star_rating": 5,
+            "research_notes": "<p>with image</p><p><img src=\"/api/uploads/r1.png\" style=\"width:280px\"/></p>",
+        },
+    )
+    assert create_resp.status_code == 200, create_resp.text
+    review = create_resp.json()
+    assert review["is_favorite"] is True
+    assert review["star_rating"] == 5
+    assert "<img" in (review["research_notes"] or "")
+
+    create_resp_2 = app_client.post(
+        "/api/reviews",
+        json={
+            "review_type": "daily",
+            "review_scope": "periodic",
+            "review_date": "2026-04-04",
+            "title": "normal review",
+            "is_favorite": False,
+            "star_rating": 2,
+        },
+    )
+    assert create_resp_2.status_code == 200, create_resp_2.text
+
+    fav_rows = app_client.get(
+        "/api/reviews",
+        params={"review_type": "daily", "is_favorite": True, "min_star_rating": 4},
+    )
+    assert fav_rows.status_code == 200, fav_rows.text
+    data = fav_rows.json()
+    assert len(data) == 1
+    assert data[0]["id"] == review["id"]
+
+
 def test_knowledge_item_crud_filters_and_categories(app_client):
     create_a = app_client.post(
         "/api/knowledge-items",

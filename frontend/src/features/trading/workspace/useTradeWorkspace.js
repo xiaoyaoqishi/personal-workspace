@@ -269,6 +269,16 @@ export function useTradeWorkspace() {
     setDetailSavingLegacy(false);
   };
 
+  const handleUpdateTradeSignal = async (patch) => {
+    if (!activeTradeId) return;
+    try {
+      await tradeApi.update(activeTradeId, patch);
+      await Promise.all([loadTradeDetail(activeTradeId), loadTrades()]);
+    } catch (e) {
+      message.error(e.response?.data?.detail || '交易信号更新失败');
+    }
+  };
+
   const handleImportTrades = async () => {
     if (!importText.trim()) {
       message.warning('请先粘贴数据');
@@ -398,6 +408,7 @@ export function useTradeWorkspace() {
     handleSaveDetailReview,
     handleSaveDetailSource,
     handleSaveDetailLegacy,
+    handleUpdateTradeSignal,
     handleImportTrades,
     openImportModal,
     handleBatchDelete,

@@ -371,3 +371,43 @@ cd ../frontend-monitor && npm run build
 - 继续强化 trading workstation 的领域分层与模块内聚。
 - 持续保持 metadata-first 与 structured-review-first，同时兼容历史数据。
 - 逐步完善测试覆盖与行为保护清单，降低后续重构风险。
+
+## 2026-04 Sprint: Rich Research + Favorites/Rating
+
+### Domain model changes
+- `Trade`
+  - `is_favorite: boolean`
+  - `star_rating: integer | null (1..5)`
+- `TradeReview`
+  - `research_notes: text (HTML rich research content)`
+  - For legacy plain-text payloads, frontend/backend rendering keeps compatibility by converting plain text to readable HTML blocks.
+- `Review`
+  - `is_favorite: boolean`
+  - `star_rating: integer | null (1..5)`
+  - `research_notes: text (HTML rich research content)`
+
+### Research-content ownership rule
+- Single-trade rich research content is primarily stored in `TradeReview`.
+- Periodic/themed rich research content is primarily stored in `Review`.
+- `Trade` entity remains focused on trade facts/signals and should not become a mixed research text container.
+
+### API additions
+- Trade list/count (`/api/trades`, `/api/trades/count`) supports:
+  - `is_favorite`
+  - `min_star_rating`
+  - `max_star_rating`
+  - `/api/trades` additionally supports: `sort_by=updated_at|star_rating`, `sort_order=asc|desc`
+- Review list (`/api/reviews`) supports:
+  - `is_favorite`
+  - `min_star_rating`
+  - `max_star_rating`
+  - `sort_by=updated_at|star_rating`
+  - `sort_order=asc|desc`
+
+### UX model
+- Trade detail and Review detail both support rich research content with:
+  - image upload/paste
+  - manual image width adjustment (persisted in HTML)
+  - strong read-only card rendering
+  - read-only zoom via image preview group
+- Favorites and star ratings are visible in list + detail and usable for daily filtering.

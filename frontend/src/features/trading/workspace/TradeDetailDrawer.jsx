@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -7,132 +7,23 @@ import {
   Divider,
   Drawer,
   Empty,
-  Image,
   Input,
-  InputNumber,
-  message,
-  Modal,
+  Rate,
   Row,
-  Slider,
   Space,
   Spin,
   Tag,
   Typography,
   Select,
 } from 'antd';
-import { PictureOutlined, ReloadOutlined } from '@ant-design/icons';
-import api from '../../../api';
+import { ReloadOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { formatInstrumentDisplay, normalizeTagList } from '../display';
 import { getTaxonomyLabel, taxonomyOptionsWithZh } from '../localization';
 import { normalizeSourceLabelForDisplay } from '../sourceDisplay';
 import ReadEditActions from '../components/ReadEditActions';
+import ResearchContentPanel from '../components/ResearchContentPanel';
 
 const { TextArea } = Input;
-const IMAGE_MD_RE = /!\[[^\]]*]\(([^)\s]+)\)/g;
-const IMG_TAG_RE = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-const RESEARCH_FONT_OPTIONS = [
-  { label: '雅黑', value: '"Microsoft YaHei", "PingFang SC", sans-serif' },
-  { label: '宋体', value: '"SimSun", "Songti SC", serif' },
-  { label: '楷体', value: '"KaiTi", "STKaiti", serif' },
-  { label: '黑体', value: '"SimHei", "Heiti SC", sans-serif' },
-  { label: '等宽', value: '"Consolas", "Courier New", monospace' },
-];
-
-function extractResearchImageUrls(text) {
-  const urls = [];
-  const source = String(text || '');
-  if (/<[a-z][\s\S]*>/i.test(source)) {
-    let match = IMG_TAG_RE.exec(source);
-    while (match) {
-      if (match[1]) urls.push(match[1]);
-      match = IMG_TAG_RE.exec(source);
-    }
-  } else {
-    let match = IMAGE_MD_RE.exec(source);
-    while (match) {
-      if (match[1]) urls.push(match[1]);
-      match = IMAGE_MD_RE.exec(source);
-    }
-  }
-  return Array.from(new Set(urls));
-}
-
-function escapeHtml(raw) {
-  return String(raw || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function legacyTextToHtml(text) {
-  const escaped = escapeHtml(text);
-  const withImage = escaped.replace(IMAGE_MD_RE, (_m, url) => `<img src="${url}" alt="research-image" />`);
-  return withImage
-    .split(/\n{2,}/)
-    .map((x) => `<p>${(x || '').replaceAll('\n', '<br/>') || '<br/>'}</p>`)
-    .join('');
-}
-
-function ensureResearchHtml(raw) {
-  const text = String(raw || '').trim();
-  if (!text) return '<p><br/></p>';
-  if (/<[a-z][\s\S]*>/i.test(text)) return text;
-  return legacyTextToHtml(text);
-}
-
-function sanitizeResearchHtml(raw) {
-  const noScript = String(raw || '').replace(/<script[\s\S]*?<\/script>/gi, '');
-  const noEventAttrs = noScript
-    .replace(/\son\w+="[^"]*"/gi, '')
-    .replace(/\son\w+='[^']*'/gi, '');
-  return noEventAttrs;
-}
-
-function normalizeResearchHtml(raw) {
-  const html = sanitizeResearchHtml(String(raw || '').trim());
-  if (!html) return '';
-  const textOnly = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
-  const hasImg = /<img[\s\S]*?>/i.test(html);
-  return (!textOnly && !hasImg) ? '' : html;
-}
-
-function insertImageAtCursor(container, url) {
-  if (!container) return;
-  const html = `<p><img src="${url}" alt="research-image" /></p><p><br/></p>`;
-  container.focus();
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) {
-    container.insertAdjacentHTML('beforeend', html);
-    return;
-  }
-  let range = selection.getRangeAt(0);
-  if (!container.contains(range.commonAncestorContainer)) {
-    range = document.createRange();
-    range.selectNodeContents(container);
-    range.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-  range.deleteContents();
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  const frag = document.createDocumentFragment();
-  let node;
-  let lastNode = null;
-  while ((node = temp.firstChild)) {
-    lastNode = frag.appendChild(node);
-  }
-  range.insertNode(frag);
-  if (lastNode) {
-    range = document.createRange();
-    range.setStartAfter(lastNode);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-}
 
 function ReadonlyParagraph({ label, value }) {
   const v = String(value || '').trim();
@@ -167,31 +58,16 @@ export default function TradeDetailDrawer({
   onSaveReview,
   onSaveSource,
   onSaveLegacy,
+  onUpdateTradeSignal,
 }) {
   const [reviewEditing, setReviewEditing] = useState(false);
   const [sourceEditing, setSourceEditing] = useState(false);
   const [legacyEditing, setLegacyEditing] = useState(false);
-  const [researchModalOpen, setResearchModalOpen] = useState(false);
-  const [researchDraftHtml, setResearchDraftHtml] = useState('<p><br/></p>');
-  const [researchUploading, setResearchUploading] = useState(false);
-  const researchUploadRef = useRef(null);
-  const researchEditorRef = useRef(null);
-  const researchReadonlyRef = useRef(null);
-  const selectedResearchImageRef = useRef(null);
-  const [selectedResearchImageWidth, setSelectedResearchImageWidth] = useState(0);
-  const [editorFontFamily, setEditorFontFamily] = useState('"Microsoft YaHei", "PingFang SC", sans-serif');
-  const [editorFontSize, setEditorFontSize] = useState(14);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
     setReviewEditing(false);
     setSourceEditing(false);
     setLegacyEditing(false);
-    setResearchModalOpen(false);
-    setResearchUploading(false);
-    selectedResearchImageRef.current = null;
-    setSelectedResearchImageWidth(0);
   }, [tradeId, open]);
 
   const reviewTags = useMemo(
@@ -219,29 +95,6 @@ export default function TradeDetailDrawer({
       review?.research_notes,
     ].some((x) => String(x || '').trim());
   }, [review, reviewTags]);
-  const researchHtml = useMemo(
-    () => ensureResearchHtml(review?.research_notes || ''),
-    [review?.research_notes]
-  );
-  const researchImages = useMemo(
-    () => extractResearchImageUrls(review?.research_notes || ''),
-    [review?.research_notes]
-  );
-
-  useEffect(() => {
-    const normalizeImages = (container) => {
-      if (!container) return;
-      container.querySelectorAll('img').forEach((img) => {
-        img.style.maxWidth = '100%';
-        img.style.borderRadius = '8px';
-        img.style.display = 'block';
-        img.style.margin = '10px 0';
-        img.style.cursor = 'zoom-in';
-      });
-    };
-    normalizeImages(researchEditorRef.current);
-    normalizeImages(researchReadonlyRef.current);
-  }, [researchDraftHtml, researchHtml, review?.research_notes]);
 
   const saveReview = async () => {
     await onSaveReview();
@@ -256,83 +109,6 @@ export default function TradeDetailDrawer({
   const saveLegacy = async () => {
     await onSaveLegacy();
     setLegacyEditing(false);
-  };
-
-  const openResearchModal = () => {
-    setResearchDraftHtml(ensureResearchHtml(review?.research_notes || ''));
-    setResearchModalOpen(true);
-  };
-
-  const saveResearchDraft = () => {
-    const currentHtml = researchEditorRef.current?.innerHTML ?? researchDraftHtml;
-    onChangeReview('research_notes', normalizeResearchHtml(currentHtml));
-    setResearchModalOpen(false);
-  };
-
-  const uploadResearchImages = async (files) => {
-    if (!files || files.length === 0) return;
-    setResearchUploading(true);
-    try {
-      const uploaded = [];
-      for (const file of files) {
-        const form = new FormData();
-        form.append('file', file);
-        const res = await api.post('/upload', form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        const url = res.data?.url;
-        if (url) uploaded.push(url);
-      }
-      const container = researchEditorRef.current;
-      if (container && uploaded.length > 0) {
-        uploaded.forEach((url) => insertImageAtCursor(container, url));
-        setResearchDraftHtml(container.innerHTML);
-      }
-      message.success('图片已插入研究记录');
-    } catch {
-      message.error('图片上传失败');
-    } finally {
-      setResearchUploading(false);
-      if (researchUploadRef.current) researchUploadRef.current.value = '';
-    }
-  };
-
-  const handleResearchPaste = async (e) => {
-    const items = Array.from(e.clipboardData?.items || []);
-    const imageFiles = items
-      .filter((item) => item.kind === 'file' && item.type && item.type.startsWith('image/'))
-      .map((item) => item.getAsFile())
-      .filter(Boolean);
-    if (imageFiles.length === 0) return;
-    e.preventDefault();
-    await uploadResearchImages(imageFiles);
-  };
-
-  const applySelectedImageWidth = (nextWidth) => {
-    const width = Number(nextWidth);
-    if (!width || width < 40) return;
-    const img = selectedResearchImageRef.current;
-    if (!img) return;
-    img.style.width = `${Math.round(width)}px`;
-    img.style.height = 'auto';
-    setSelectedResearchImageWidth(Math.round(width));
-    if (researchEditorRef.current) {
-      setResearchDraftHtml(researchEditorRef.current.innerHTML);
-    }
-  };
-
-  const handleResearchEditorClick = (e) => {
-    const img = e.target?.closest?.('img');
-    if (!img) {
-      selectedResearchImageRef.current = null;
-      setSelectedResearchImageWidth(0);
-      return;
-    }
-    selectedResearchImageRef.current = img;
-    const width = Math.round(
-      parseFloat(img.style.width || '0') || img.getBoundingClientRect().width || 0
-    );
-    setSelectedResearchImageWidth(width);
   };
 
   const cancelSectionEdit = async (setter) => {
@@ -387,6 +163,22 @@ export default function TradeDetailDrawer({
               <Descriptions.Item label="来源">{trade.source_display || '-'}</Descriptions.Item>
               <Descriptions.Item label="结构化复盘">
                 {reviewExists ? <Tag color="green">已建立</Tag> : <Tag>未建立</Tag>}
+              </Descriptions.Item>
+              <Descriptions.Item label="收藏" span={2}>
+                <Button
+                  type="text"
+                  icon={trade.is_favorite ? <StarFilled style={{ color: '#f5a623' }} /> : <StarOutlined />}
+                  onClick={() => onUpdateTradeSignal?.({ is_favorite: !trade.is_favorite })}
+                >
+                  {trade.is_favorite ? '已收藏' : '加入收藏'}
+                </Button>
+              </Descriptions.Item>
+              <Descriptions.Item label="星级" span={2}>
+                <Rate
+                  value={trade.star_rating || 0}
+                  allowClear
+                  onChange={(v) => onUpdateTradeSignal?.({ star_rating: v || null })}
+                />
               </Descriptions.Item>
             </Descriptions>
           </Card>
@@ -486,15 +278,12 @@ export default function TradeDetailDrawer({
                   <TextArea rows={2} value={review.exit_reason} onChange={(e) => onChangeReview('exit_reason', e.target.value)} />
                 </Col>
                 <Col span={24}>
-                  <Typography.Text type="secondary">研究记录</Typography.Text>
-                  <div style={{ marginTop: 6 }}>
-                    <Space>
-                      <Button onClick={openResearchModal}>弹窗录入</Button>
-                      <Typography.Text type="secondary">
-                        支持文字与图片，图片会自动插入内容
-                      </Typography.Text>
-                    </Space>
-                  </div>
+                  <ResearchContentPanel
+                    editing
+                    title="单笔交易图文研究"
+                    value={review.research_notes}
+                    onChange={(next) => onChangeReview('research_notes', next)}
+                  />
                 </Col>
               </Row>
             ) : !hasReviewContent ? (
@@ -521,33 +310,7 @@ export default function TradeDetailDrawer({
                 <ReadonlyParagraph label="边界" value={review.invalidation_boundary} />
                 <ReadonlyParagraph label="管理动作" value={review.management_actions} />
                 <ReadonlyParagraph label="离场原因" value={review.exit_reason} />
-                {String(review.research_notes || '').trim() ? (
-                  <div style={{ marginBottom: 10 }}>
-                    <Typography.Text type="secondary">研究记录</Typography.Text>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        border: '1px solid #f0f0f0',
-                        borderRadius: 8,
-                        background: '#fafafa',
-                        padding: 12,
-                        lineHeight: 1.75,
-                      }}
-                      onClick={(e) => {
-                        const img = e.target.closest('img');
-                        if (!img) return;
-                        const src = img.getAttribute('src') || '';
-                        const idx = researchImages.indexOf(src);
-                        if (idx >= 0) {
-                          setPreviewIndex(idx);
-                          setPreviewOpen(true);
-                        }
-                      }}
-                    >
-                      <div ref={researchReadonlyRef} dangerouslySetInnerHTML={{ __html: researchHtml }} />
-                    </div>
-                  </div>
-                ) : null}
+                <ResearchContentPanel value={review.research_notes} title="单笔交易图文研究" />
               </div>
             )}
           </Card>
@@ -632,115 +395,6 @@ export default function TradeDetailDrawer({
           </Card>
         </Space>
       )}
-      <Modal
-        title="研究记录录入"
-        centered
-        width={860}
-        open={researchModalOpen}
-        onCancel={() => setResearchModalOpen(false)}
-        onOk={saveResearchDraft}
-        okText="应用到复盘"
-        destroyOnClose
-      >
-        <Space style={{ marginBottom: 10 }}>
-          <Button
-            icon={<PictureOutlined />}
-            loading={researchUploading}
-            onClick={() => researchUploadRef.current?.click()}
-          >
-            上传图片
-          </Button>
-          <Typography.Text type="secondary">可多选，上传后自动插入图片链接</Typography.Text>
-          <input
-            ref={researchUploadRef}
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => uploadResearchImages(Array.from(e.target.files || []))}
-          />
-        </Space>
-        <Space wrap style={{ marginBottom: 10 }}>
-          <Typography.Text type="secondary">字体</Typography.Text>
-          <select
-            value={editorFontFamily}
-            onChange={(e) => setEditorFontFamily(e.target.value)}
-            style={{ height: 32, border: '1px solid #d9d9d9', borderRadius: 6, padding: '0 8px' }}
-          >
-            {RESEARCH_FONT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <Typography.Text type="secondary">字号</Typography.Text>
-          <InputNumber
-            min={12}
-            max={36}
-            value={editorFontSize}
-            onChange={(v) => setEditorFontSize(Number(v) || 14)}
-            style={{ width: 90 }}
-          />
-          {selectedResearchImageWidth > 0 ? (
-            <>
-              <Typography.Text type="secondary">图片宽度</Typography.Text>
-              <Slider
-                min={60}
-                max={1200}
-                step={1}
-                value={selectedResearchImageWidth}
-                onChange={applySelectedImageWidth}
-                style={{ width: 220, margin: '0 8px' }}
-              />
-              <InputNumber
-                min={60}
-                max={1200}
-                value={selectedResearchImageWidth}
-                onChange={applySelectedImageWidth}
-                style={{ width: 100 }}
-              />
-            </>
-          ) : (
-            <Typography.Text type="secondary">点击编辑区图片可缩放</Typography.Text>
-          )}
-        </Space>
-        <div
-          ref={researchEditorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={(e) => setResearchDraftHtml(e.currentTarget.innerHTML)}
-          onPaste={handleResearchPaste}
-          onClick={handleResearchEditorClick}
-          style={{
-            minHeight: 360,
-            border: '1px solid #d9d9d9',
-            borderRadius: 8,
-            padding: 12,
-            lineHeight: 1.75,
-            background: '#fff',
-            overflow: 'auto',
-            fontSize: `${editorFontSize}px`,
-            fontFamily: editorFontFamily,
-            direction: 'ltr',
-            textAlign: 'left',
-            unicodeBidi: 'plaintext',
-            writingMode: 'horizontal-tb',
-          }}
-          dangerouslySetInnerHTML={{ __html: researchDraftHtml }}
-        />
-      </Modal>
-      <Image.PreviewGroup
-        preview={{
-          visible: previewOpen,
-          current: previewIndex,
-          onVisibleChange: (visible) => setPreviewOpen(visible),
-          onChange: (current) => setPreviewIndex(current),
-        }}
-      >
-        <div style={{ position: 'fixed', left: -99999, top: -99999, opacity: 0 }}>
-          {researchImages.map((url, idx) => (
-            <Image key={`${url}-${idx}`} src={url} alt="research" />
-          ))}
-        </div>
-      </Image.PreviewGroup>
     </Drawer>
   );
 }
