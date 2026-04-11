@@ -56,15 +56,24 @@ def resolve_trade_source_fields(trade: Trade, metadata: Optional[TradeSourceMeta
 
 
 def apply_source_keyword_filter(q, source_keyword: Optional[str]):
-    kw = (source_keyword or "").strip()
-    if not kw:
+    keywords = [
+        x.strip()
+        for x in str(source_keyword or "").split(",")
+        if x and x.strip()
+    ]
+    if not keywords:
         return q
     q = q.outerjoin(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id)
-    return q.filter(
-        or_(
+    conditions = []
+    for kw in keywords:
+        conditions.extend([
             Trade.notes.contains(kw),
             TradeSourceMetadata.broker_name.contains(kw),
             TradeSourceMetadata.source_label.contains(kw),
+        ])
+    return q.filter(
+        or_(
+            *conditions,
         )
     )
 

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, Col, Empty, Row, Spin, Typography } from 'antd';
+import dayjs from 'dayjs';
 import { tradeApi } from '../api';
 import './Dashboard.css';
 import AnalyticsFilterBar from '../features/trading/analytics/AnalyticsFilterBar';
@@ -31,6 +32,20 @@ export default function Dashboard() {
       .catch(() => setSourceOptions([]));
   }, []);
 
+  const parseCsv = (v) => String(v || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const filterValues = useMemo(() => {
+    const hasDate = filters.date_from && filters.date_to;
+    return {
+      dateRange: hasDate ? [dayjs(filters.date_from), dayjs(filters.date_to)] : null,
+      symbols: parseCsv(filters.symbol),
+      sources: parseCsv(filters.source_keyword),
+    };
+  }, [filters]);
+
   const setDateRange = (dates) => {
     setFilters((prev) => {
       if (dates) {
@@ -41,23 +56,23 @@ export default function Dashboard() {
     });
   };
 
-  const setSymbol = (v) => {
+  const setSymbol = (values) => {
     setFilters((prev) => {
-      if (!v) {
+      if (!values || values.length === 0) {
         const { symbol, ...rest } = prev;
         return rest;
       }
-      return { ...prev, symbol: v };
+      return { ...prev, symbol: values.join(',') };
     });
   };
 
-  const setSource = (v) => {
+  const setSource = (values) => {
     setFilters((prev) => {
-      if (!v) {
+      if (!values || values.length === 0) {
         const { source_keyword, ...rest } = prev;
         return rest;
       }
-      return { ...prev, source_keyword: v };
+      return { ...prev, source_keyword: values.join(',') };
     });
   };
 
@@ -86,6 +101,7 @@ export default function Dashboard() {
 
       <AnalyticsFilterBar
         sourceOptions={sourceOptions}
+        filterValues={filterValues}
         onSetDateRange={setDateRange}
         onSetSymbol={setSymbol}
         onSetSource={setSource}

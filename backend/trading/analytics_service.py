@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 from models import Trade, TradeReview
 
 
+def _split_csv_values(value: Optional[str]) -> List[str]:
+    return [x.strip() for x in str(value or "").split(",") if x and x.strip()]
+
+
 def _sample_std(values: List[float]) -> float:
     n = len(values)
     if n <= 1:
@@ -131,6 +135,8 @@ def build_trade_analytics(
     build_position_state_from_db: Callable[[Session, Optional[str]], Dict[str, Dict[str, Any]]],
     extract_source_from_notes: Callable[[Optional[str]], Dict[str, Optional[str]]],
 ) -> Dict[str, Any]:
+    symbols = _split_csv_values(symbol)
+
     q = db.query(Trade)
     if date_from:
         q = q.filter(Trade.trade_date >= date_from)
@@ -138,8 +144,8 @@ def build_trade_analytics(
         q = q.filter(Trade.trade_date <= date_to)
     if instrument_type:
         q = q.filter(Trade.instrument_type == instrument_type)
-    if symbol:
-        q = q.filter(Trade.symbol == symbol)
+    if symbols:
+        q = q.filter(Trade.symbol.in_(symbols))
     q = apply_source_keyword_filter(q, source_keyword)
 
     trades = attach_trade_view_fields(db, q.order_by(Trade.trade_date.asc(), Trade.id.asc()).all())
@@ -275,7 +281,7 @@ def build_trade_analytics(
         qty = float(st.get("quantity") or 0.0)
         if qty < 1e-9:
             continue
-        if symbol and st["symbol"] != symbol:
+        if symbols and st["symbol"] not in symbols:
             continue
         open_position_rows.append(
             {
