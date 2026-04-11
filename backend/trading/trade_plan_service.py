@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from fastapi import HTTPException
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from models import (
@@ -60,18 +61,24 @@ def attach_trade_plan_link_fields(db: Session, rows: List[TradePlan]) -> List[Tr
     if not plan_ids:
         return rows
 
-    trade_link_rows = (
-        db.query(TradePlanTradeLink)
-        .filter(TradePlanTradeLink.trade_plan_id.in_(plan_ids))
-        .order_by(TradePlanTradeLink.trade_plan_id.asc(), TradePlanTradeLink.sort_order.asc(), TradePlanTradeLink.id.asc())
-        .all()
-    )
-    review_session_link_rows = (
-        db.query(TradePlanReviewSessionLink)
-        .filter(TradePlanReviewSessionLink.trade_plan_id.in_(plan_ids))
-        .order_by(TradePlanReviewSessionLink.trade_plan_id.asc(), TradePlanReviewSessionLink.id.asc())
-        .all()
-    )
+    try:
+        trade_link_rows = (
+            db.query(TradePlanTradeLink)
+            .filter(TradePlanTradeLink.trade_plan_id.in_(plan_ids))
+            .order_by(TradePlanTradeLink.trade_plan_id.asc(), TradePlanTradeLink.sort_order.asc(), TradePlanTradeLink.id.asc())
+            .all()
+        )
+    except OperationalError:
+        trade_link_rows = []
+    try:
+        review_session_link_rows = (
+            db.query(TradePlanReviewSessionLink)
+            .filter(TradePlanReviewSessionLink.trade_plan_id.in_(plan_ids))
+            .order_by(TradePlanReviewSessionLink.trade_plan_id.asc(), TradePlanReviewSessionLink.id.asc())
+            .all()
+        )
+    except OperationalError:
+        review_session_link_rows = []
 
     trade_grouped: Dict[int, List[TradePlanTradeLink]] = {}
     for link in trade_link_rows:

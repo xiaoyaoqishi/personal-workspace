@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from fastapi import HTTPException
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from models import ReviewSession, ReviewSessionTradeLink, Trade, TradeReview, TradeSourceMetadata
@@ -91,12 +92,15 @@ def attach_review_session_link_fields(db: Session, rows: List[ReviewSession]) ->
     review_session_ids = [r.id for r in rows if r.id]
     if not review_session_ids:
         return rows
-    link_rows = (
-        db.query(ReviewSessionTradeLink)
-        .filter(ReviewSessionTradeLink.review_session_id.in_(review_session_ids))
-        .order_by(ReviewSessionTradeLink.review_session_id.asc(), ReviewSessionTradeLink.sort_order.asc(), ReviewSessionTradeLink.id.asc())
-        .all()
-    )
+    try:
+        link_rows = (
+            db.query(ReviewSessionTradeLink)
+            .filter(ReviewSessionTradeLink.review_session_id.in_(review_session_ids))
+            .order_by(ReviewSessionTradeLink.review_session_id.asc(), ReviewSessionTradeLink.sort_order.asc(), ReviewSessionTradeLink.id.asc())
+            .all()
+        )
+    except OperationalError:
+        link_rows = []
     grouped: Dict[int, List[ReviewSessionTradeLink]] = {}
     for link in link_rows:
         grouped.setdefault(link.review_session_id, []).append(link)
