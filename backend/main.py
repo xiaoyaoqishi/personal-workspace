@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, UploadFile, File
+﻿from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -567,7 +567,7 @@ def _apply_fill_to_state(state: Dict[str, Dict[str, Any]], fill: Trade):
 
 def _build_position_state_from_db(db: Session, source_keyword: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     state: Dict[str, Dict[str, Any]] = {}
-    q = db.query(Trade).filter(Trade.instrument_type == "期货", Trade.status == "open")
+    q = db.query(Trade).filter(Trade.status == "open")
     q = _apply_source_keyword_filter(q, source_keyword)
     rows = q.order_by(Trade.open_time.asc(), Trade.id.asc()).all()
     for t in rows:
@@ -1182,6 +1182,13 @@ def delete_trade(trade_id: int, db: Session = Depends(get_db)):
 @app.get("/api/trades/sources")
 def list_trade_sources(db: Session = Depends(get_db)):
     return {"items": _source_list_trade_sources(db)}
+
+
+@app.get("/api/trades/symbols")
+def list_trade_symbols(db: Session = Depends(get_db)):
+    rows = db.query(Trade.symbol).filter(Trade.symbol.isnot(None)).distinct().order_by(Trade.symbol.asc()).all()
+    items = [str(symbol).strip() for (symbol,) in rows if str(symbol or "").strip()]
+    return {"items": items}
 
 
 @app.get("/api/trade-review-taxonomy", response_model=TradeReviewTaxonomyResponse)

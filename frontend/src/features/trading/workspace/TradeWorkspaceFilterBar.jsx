@@ -1,5 +1,4 @@
 ﻿import { Button, Card, Col, DatePicker, Popconfirm, Row, Segmented, Select, Space } from 'antd';
-import { FUTURES_SYMBOL_OPTIONS } from '../../../utils/futures';
 
 const { RangePicker } = DatePicker;
 
@@ -13,6 +12,7 @@ export default function TradeWorkspaceFilterBar({
   onCreateReviewSessionFromSelected,
   onCreateReviewSessionFromFilter,
   onCreateTradePlanFromSelected,
+  symbolOptions,
   onSetDateRange,
   onUpdateFilter,
 }) {
@@ -33,10 +33,8 @@ export default function TradeWorkspaceFilterBar({
         {viewMode === 'fills' && (
           <Col>
             <Space wrap>
-              <Button onClick={onOpenBatchEdit}>批量修改</Button>
               <Button onClick={onOpenBatchStructuredReview}>多选结构化复盘</Button>
               <Button onClick={onCreateReviewSessionFromSelected}>多选建复盘会话</Button>
-              <Button onClick={onCreateReviewSessionFromFilter}>筛选结果建复盘会话</Button>
               <Button onClick={onCreateTradePlanFromSelected}>多选建交易计划</Button>
               <Popconfirm title={`确认删除已勾选的 ${selectedRowKeys.length} 条记录？`} onConfirm={onBatchDelete}>
                 <Button danger>批量删除</Button>
@@ -63,7 +61,7 @@ export default function TradeWorkspaceFilterBar({
                 showSearch
                 optionFilterProp="label"
                 style={{ width: 170 }}
-                options={FUTURES_SYMBOL_OPTIONS}
+                options={symbolOptions || []}
                 onChange={(v) => onUpdateFilter('symbol', v)}
               />
               <Select
@@ -130,4 +128,3 @@ export default function TradeWorkspaceFilterBar({
     </Card>
   );
 }
-

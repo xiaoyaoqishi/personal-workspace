@@ -29,6 +29,7 @@ Trading Records Workspace
 - 粘贴导入交易（`/api/trades/import-paste`），带分阶段校验与开平仓匹配。
 - 持仓视图（`/api/trades/positions`）。
 - 结构化交易复盘分类体系与单笔复盘元数据。
+- 图文研究录入默认包含标准复盘字段（入场论点、证据、边界、管理动作、离场原因）。
 - 交易来源元数据层，并兼容从旧 notes 文本回退提取来源。
 - 复盘会话（`/api/review-sessions`）作为一等对象，支持关联交易和按筛选条件生成样本。
 - 交易计划（`/api/trade-plans`）及状态流转校验，可关联交易与复盘会话。

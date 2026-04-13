@@ -12,6 +12,7 @@ import {
 import { taxonomyCanonicalValues } from '../localization';
 import { normalizeTagList } from '../display';
 import { normalizeSourceLabelForDisplay } from '../sourceDisplay';
+import { futuresNameBySymbol } from '../../../utils/futures';
 
 export function useTradeWorkspace() {
   const [trades, setTrades] = useState([]);
@@ -22,6 +23,7 @@ export function useTradeWorkspace() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [viewMode, setViewMode] = useState('fills');
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [symbolOptions, setSymbolOptions] = useState([]);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [batchEditOpen, setBatchEditOpen] = useState(false);
@@ -55,6 +57,7 @@ export function useTradeWorkspace() {
 
   useEffect(() => {
     loadSources();
+    loadSymbols();
     loadReviewTaxonomy();
   }, []);
 
@@ -65,6 +68,23 @@ export function useTradeWorkspace() {
       setSourceOptions(items.map((v) => ({ label: v, value: v })));
     } catch {
       setSourceOptions([]);
+    }
+  };
+
+  const loadSymbols = async () => {
+    try {
+      const res = await tradeApi.symbols();
+      const items = res.data?.items || [];
+      setSymbolOptions(items.map((v) => {
+        const value = String(v || '').trim();
+        const zh = futuresNameBySymbol(value, value);
+        return {
+          label: zh ? `${zh}(${String(value).toUpperCase()})` : value,
+          value,
+        };
+      }));
+    } catch {
+      setSymbolOptions([]);
     }
   };
 
@@ -196,7 +216,7 @@ export function useTradeWorkspace() {
       setDetailOpen(false);
       setActiveTradeId(null);
     }
-    loadTrades();
+    await Promise.all([loadTrades(), loadSymbols()]);
   };
 
   const handleSaveDetailReview = async () => {
@@ -294,6 +314,7 @@ export function useTradeWorkspace() {
       setImportResult(res.data || null);
       message.success(`导入完成：新增 ${res.data?.inserted || 0}，跳过 ${res.data?.skipped || 0}`);
       await Promise.all([loadTrades(), loadSources()]);
+      await loadSymbols();
     } catch (e) {
       message.error(e.response?.data?.detail || '导入失败');
     } finally {
@@ -318,6 +339,7 @@ export function useTradeWorkspace() {
       message.success(`已删除 ${selectedRowKeys.length} 条`);
       setSelectedRowKeys([]);
       loadTrades();
+      loadSymbols();
     } catch {
       message.error('批量删除失败');
     }
@@ -494,6 +516,7 @@ export function useTradeWorkspace() {
     pagination,
     viewMode,
     sourceOptions,
+    symbolOptions,
     // batch
     selectedRowKeys,
     batchEditOpen,

@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Form, Input, InputNumber, Select, DatePicker, Switch, Button,
   Tabs, message, Space, Row, Col, Divider,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
+import { brokerApi, tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
 import { taxonomyCanonicalValues, taxonomyOptionsWithZh } from '../features/trading/localization';
 import { normalizeTagList } from '../features/trading/display';
 import { normalizeSourceLabelForDisplay } from '../features/trading/sourceDisplay';
+import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -58,6 +59,7 @@ export default function TradeForm() {
   const [sourceExists, setSourceExists] = useState(false);
   const [sourceDerivedFromNotes, setSourceDerivedFromNotes] = useState(true);
   const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
+  const [brokerOptions, setBrokerOptions] = useState([]);
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -84,6 +86,25 @@ export default function TradeForm() {
             review_conclusion: taxonomyCanonicalValues('review_conclusion'),
           });
         }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    brokerApi.list()
+      .then((res) => {
+        if (!alive) return;
+        const rows = Array.isArray(res.data) ? res.data : [];
+        setBrokerOptions(rows
+          .map((x) => String(x?.name || '').trim())
+          .filter(Boolean)
+          .map((name) => ({ label: name, value: name })));
+      })
+      .catch(() => {
+        if (alive) setBrokerOptions([]);
       });
     return () => {
       alive = false;
@@ -173,6 +194,9 @@ export default function TradeForm() {
       if (data.open_time) data.open_time = data.open_time.format('YYYY-MM-DDTHH:mm:ss');
       if (data.close_time) data.close_time = data.close_time.format('YYYY-MM-DDTHH:mm:ss');
       if (Array.isArray(data.error_tags)) data.error_tags = JSON.stringify(data.error_tags);
+      if (!isEdit && (data.quantity === undefined || data.quantity === null || data.quantity === '')) {
+        data.quantity = 0;
+      }
 
       let tradeId = id;
       if (isEdit) {
@@ -182,25 +206,27 @@ export default function TradeForm() {
         tradeId = createRes.data?.id;
       }
 
-      const normalizedReview = {};
-      Object.entries(reviewData).forEach(([k, v]) => {
-        if (k === 'tags') {
-          normalizedReview[k] = normalizeTagList(v);
-        } else {
-          normalizedReview[k] = typeof v === 'string' ? v.trim() : v;
-        }
-      });
-      const hasReviewData = Object.values(normalizedReview).some((v) => {
-        if (Array.isArray(v)) return v.length > 0;
-        return v !== null && v !== undefined && v !== '';
-      });
+      if (isEdit) {
+        const normalizedReview = {};
+        Object.entries(reviewData).forEach(([k, v]) => {
+          if (k === 'tags') {
+            normalizedReview[k] = normalizeTagList(v);
+          } else {
+            normalizedReview[k] = typeof v === 'string' ? v.trim() : v;
+          }
+        });
+        const hasReviewData = Object.values(normalizedReview).some((v) => {
+          if (Array.isArray(v)) return v.length > 0;
+          return v !== null && v !== undefined && v !== '';
+        });
 
-      if (tradeId && hasReviewData) {
-        await tradeReviewApi.upsert(tradeId, normalizedReview);
-        setReviewExists(true);
-      } else if (tradeId && isEdit && reviewExists) {
-        await tradeReviewApi.delete(tradeId);
-        setReviewExists(false);
+        if (tradeId && hasReviewData) {
+          await tradeReviewApi.upsert(tradeId, normalizedReview);
+          setReviewExists(true);
+        } else if (tradeId && reviewExists) {
+          await tradeReviewApi.delete(tradeId);
+          setReviewExists(false);
+        }
       }
 
       const normalizedSource = {};
@@ -244,11 +270,13 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true }]}><Input /></Form.Item></Col>
           <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
-          <Col span={8}>
-            <Form.Item label="品种分类" name="category">
-              <Select allowClear options={opt(['黑色', '能化', '有色', '农产品', '股指', '国债', '加密货币', '外汇', '其他'])} />
-            </Form.Item>
-          </Col>
+          {isEdit ? (
+            <Col span={8}>
+              <Form.Item label="品种分类" name="category">
+                <Select allowClear options={opt(['黑色', '能化', '有色', '农产品', '股指', '国债', '加密货币', '外汇', '其他'])} />
+              </Form.Item>
+            </Col>
+          ) : null}
           <Col span={8}>
             <Form.Item label="方向" name="direction" rules={[{ required: true }]}>
               <Select options={[{ label: '做多', value: '做多' }, { label: '做空', value: '做空' }]} />
@@ -263,28 +291,46 @@ export default function TradeForm() {
           </Col>
           <Col span={6}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={6}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="手数" name="quantity" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={6}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={6}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={6}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="滑点" name="slippage"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          {isEdit ? <Col span={6}><Form.Item label="滑点" name="slippage"><InputNumber style={{ width: '100%' }} /></Form.Item></Col> : null}
           <Col span={6}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="盈亏点数" name="pnl_points"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="持仓时长" name="holding_duration"><Input /></Form.Item></Col>
-          <Col span={8}>
-            <Form.Item label="交易时段" name="trading_session">
-              <Select allowClear options={opt(['上午', '下午', '夜盘前段', '夜盘后段'])} />
-            </Form.Item>
-          </Col>
-          <Col span={8}><Form.Item label="是否隔夜" name="is_overnight" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={24}><Divider>期货特有字段</Divider></Col>
-          <Col span={6}>
-            <Form.Item label="主力/次主力" name="is_main_contract">
-              <Select allowClear options={opt(['主力', '次主力', '远月'])} />
-            </Form.Item>
-          </Col>
-          <Col span={6}><Form.Item label="临近交割月" name="is_near_delivery" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="换月阶段" name="is_contract_switch" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="高波动时段" name="is_high_volatility" valuePropName="checked"><Switch /></Form.Item></Col>
+          {isEdit ? <Col span={6}><Form.Item label="盈亏点数" name="pnl_points"><InputNumber style={{ width: '100%' }} /></Form.Item></Col> : null}
+          {isEdit ? <Col span={8}><Form.Item label="持仓时长" name="holding_duration"><Input /></Form.Item></Col> : null}
+          {isEdit ? (
+            <Col span={8}>
+              <Form.Item label="交易时段" name="trading_session">
+                <Select allowClear options={opt(['上午', '下午', '夜盘前段', '夜盘后段'])} />
+              </Form.Item>
+            </Col>
+          ) : null}
+          {isEdit ? <Col span={8}><Form.Item label="是否隔夜" name="is_overnight" valuePropName="checked"><Switch /></Form.Item></Col> : null}
+          {isEdit ? <Col span={24}><Divider>期货特有字段</Divider></Col> : null}
+          {isEdit ? (
+            <Col span={6}>
+              <Form.Item label="主力/次主力" name="is_main_contract">
+                <Select allowClear options={opt(['主力', '次主力', '远月'])} />
+              </Form.Item>
+            </Col>
+          ) : null}
+          {isEdit ? <Col span={6}><Form.Item label="临近交割月" name="is_near_delivery" valuePropName="checked"><Switch /></Form.Item></Col> : null}
+          {isEdit ? <Col span={6}><Form.Item label="换月阶段" name="is_contract_switch" valuePropName="checked"><Switch /></Form.Item></Col> : null}
+          {isEdit ? <Col span={6}><Form.Item label="高波动时段" name="is_high_volatility" valuePropName="checked"><Switch /></Form.Item></Col> : null}
+          {!isEdit ? (
+            <>
+              <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
+              <Col span={12}>
+                <Form.Item label="券商" name="broker_name">
+                  <Select allowClear options={brokerOptions} placeholder="请选择券商" />
+                </Form.Item>
+              </Col>
+              <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：手工补录" /></Form.Item></Col>
+              <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
+              <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
+              <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
+            </>
+          ) : null}
         </Row>
       ),
     },
@@ -406,20 +452,54 @@ export default function TradeForm() {
               />
             </Form.Item>
           </Col>
-          <Col span={24}><Form.Item label="入场论点" name="entry_thesis"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={12}><Form.Item label="有效证据" name="invalidation_valid_evidence"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={12}><Form.Item label="失效证据" name="invalidation_trigger_evidence"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={24}><Form.Item label="相似但不同边界" name="invalidation_boundary"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={24}><Form.Item label="管理动作" name="management_actions"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={24}><Form.Item label="离场原因" name="exit_reason"><TextArea rows={2} /></Form.Item></Col>
           <Col span={24}>
             <Form.Item label="复盘标签" name="tags">
               <Select mode="tags" tokenSeparators={[',', '，']} placeholder="输入并回车添加标签" />
             </Form.Item>
           </Col>
-          <Col span={24}><Form.Item label="研究记录" name="research_notes"><TextArea rows={3} /></Form.Item></Col>
+          <Col span={24}>
+            <Form.Item name="entry_thesis" hidden><Input /></Form.Item>
+            <Form.Item name="invalidation_valid_evidence" hidden><Input /></Form.Item>
+            <Form.Item name="invalidation_trigger_evidence" hidden><Input /></Form.Item>
+            <Form.Item name="invalidation_boundary" hidden><Input /></Form.Item>
+            <Form.Item name="management_actions" hidden><Input /></Form.Item>
+            <Form.Item name="exit_reason" hidden><Input /></Form.Item>
+            <Form.Item name="research_notes" hidden><Input /></Form.Item>
+            <Form.Item noStyle shouldUpdate>
+              {() => (
+                <Form.Item label="图文录入">
+                  <ResearchContentPanel
+                    editing
+                    title="交易图文研究"
+                    value={form.getFieldValue('research_notes') || ''}
+                    onChange={(next) => form.setFieldValue('research_notes', next)}
+                    standardFieldsValue={{
+                      entry_thesis: form.getFieldValue('entry_thesis') || '',
+                      invalidation_valid_evidence: form.getFieldValue('invalidation_valid_evidence') || '',
+                      invalidation_trigger_evidence: form.getFieldValue('invalidation_trigger_evidence') || '',
+                      invalidation_boundary: form.getFieldValue('invalidation_boundary') || '',
+                      management_actions: form.getFieldValue('management_actions') || '',
+                      exit_reason: form.getFieldValue('exit_reason') || '',
+                    }}
+                    onStandardFieldsChange={(next) => {
+                      form.setFieldValue('entry_thesis', next.entry_thesis || '');
+                      form.setFieldValue('invalidation_valid_evidence', next.invalidation_valid_evidence || '');
+                      form.setFieldValue('invalidation_trigger_evidence', next.invalidation_trigger_evidence || '');
+                      form.setFieldValue('invalidation_boundary', next.invalidation_boundary || '');
+                      form.setFieldValue('management_actions', next.management_actions || '');
+                      form.setFieldValue('exit_reason', next.exit_reason || '');
+                    }}
+                  />
+                </Form.Item>
+              )}
+            </Form.Item>
+          </Col>
           <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
-          <Col span={12}><Form.Item label="券商" name="broker_name"><Input placeholder="例如：宏源期货" /></Form.Item></Col>
+          <Col span={12}>
+            <Form.Item label="券商" name="broker_name">
+              <Select allowClear options={brokerOptions} placeholder="请选择券商" />
+            </Form.Item>
+          </Col>
           <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：手工补录" /></Form.Item></Col>
           <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
           <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
@@ -443,6 +523,7 @@ export default function TradeForm() {
       ),
     },
   ];
+  const displayedTabItems = isEdit ? tabItems : [tabItems[0]];
 
   return (
     <div>
@@ -451,7 +532,7 @@ export default function TradeForm() {
         <h2 style={{ margin: 0 }}>{isEdit ? '编辑交易' : '新建交易'}</h2>
       </Space>
       <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Tabs items={tabItems} />
+        <Tabs items={displayedTabItems} />
         <Form.Item style={{ marginTop: 16 }}>
           <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />} size="large">保存</Button>
         </Form.Item>

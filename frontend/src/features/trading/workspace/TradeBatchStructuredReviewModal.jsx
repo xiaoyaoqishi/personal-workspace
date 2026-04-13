@@ -1,9 +1,7 @@
-﻿import { Col, Input, Modal, Row, Select, Typography } from 'antd';
+﻿import { Col, Modal, Row, Select, Typography } from 'antd';
 import { normalizeTagList } from '../display';
 import { taxonomyOptionsWithZh } from '../localization';
 import ResearchContentPanel from '../components/ResearchContentPanel';
-
-const { TextArea } = Input;
 
 export default function TradeBatchStructuredReviewModal({
   open,
@@ -89,35 +87,27 @@ export default function TradeBatchStructuredReviewModal({
           />
         </Col>
         <Col span={24}>
-          <Typography.Text type="secondary">入场论点</Typography.Text>
-          <TextArea rows={2} value={review.entry_thesis || ''} onChange={(e) => onChange('entry_thesis', e.target.value)} />
-        </Col>
-        <Col span={12}>
-          <Typography.Text type="secondary">有效证据</Typography.Text>
-          <TextArea rows={2} value={review.invalidation_valid_evidence || ''} onChange={(e) => onChange('invalidation_valid_evidence', e.target.value)} />
-        </Col>
-        <Col span={12}>
-          <Typography.Text type="secondary">失效证据</Typography.Text>
-          <TextArea rows={2} value={review.invalidation_trigger_evidence || ''} onChange={(e) => onChange('invalidation_trigger_evidence', e.target.value)} />
-        </Col>
-        <Col span={24}>
-          <Typography.Text type="secondary">边界</Typography.Text>
-          <TextArea rows={2} value={review.invalidation_boundary || ''} onChange={(e) => onChange('invalidation_boundary', e.target.value)} />
-        </Col>
-        <Col span={24}>
-          <Typography.Text type="secondary">管理动作</Typography.Text>
-          <TextArea rows={2} value={review.management_actions || ''} onChange={(e) => onChange('management_actions', e.target.value)} />
-        </Col>
-        <Col span={24}>
-          <Typography.Text type="secondary">离场原因</Typography.Text>
-          <TextArea rows={2} value={review.exit_reason || ''} onChange={(e) => onChange('exit_reason', e.target.value)} />
-        </Col>
-        <Col span={24}>
           <ResearchContentPanel
             editing
             title="多选交易图文研究"
             value={review.research_notes || ''}
             onChange={(next) => onChange('research_notes', next)}
+            standardFieldsValue={{
+              entry_thesis: review.entry_thesis,
+              invalidation_valid_evidence: review.invalidation_valid_evidence,
+              invalidation_trigger_evidence: review.invalidation_trigger_evidence,
+              invalidation_boundary: review.invalidation_boundary,
+              management_actions: review.management_actions,
+              exit_reason: review.exit_reason,
+            }}
+            onStandardFieldsChange={(next) => {
+              onChange('entry_thesis', next.entry_thesis || '');
+              onChange('invalidation_valid_evidence', next.invalidation_valid_evidence || '');
+              onChange('invalidation_trigger_evidence', next.invalidation_trigger_evidence || '');
+              onChange('invalidation_boundary', next.invalidation_boundary || '');
+              onChange('management_actions', next.management_actions || '');
+              onChange('exit_reason', next.exit_reason || '');
+            }}
           />
         </Col>
       </Row>

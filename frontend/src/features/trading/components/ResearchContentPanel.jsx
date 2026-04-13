@@ -21,6 +21,23 @@ const { TextArea } = Input;
 const IMG_TAG_RE = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
 const IMAGE_MD_RE = /!\[[^\]]*]\(([^)\s]+)\)/g;
 const FORMAT_KIND = 'research_v2';
+const STANDARD_FIELD_DEFS = [
+  { key: 'entry_thesis', label: '入场论点', placeholder: '记录本次入场的核心论点' },
+  { key: 'invalidation_valid_evidence', label: '有效证据', placeholder: '哪些证据支持当前判断' },
+  { key: 'invalidation_trigger_evidence', label: '失效证据', placeholder: '哪些证据出现时判断失效' },
+  { key: 'invalidation_boundary', label: '边界', placeholder: '相似但不同的边界条件' },
+  { key: 'management_actions', label: '管理动作', placeholder: '仓位、加减仓、保护动作等' },
+  { key: 'exit_reason', label: '离场原因', placeholder: '最终离场的触发原因' },
+];
+
+function normalizeStandardFields(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const out = {};
+  STANDARD_FIELD_DEFS.forEach(({ key }) => {
+    out[key] = String(source[key] || '').trim();
+  });
+  return out;
+}
 
 function stripHtmlToText(html) {
   const withBreak = String(html || '')
@@ -66,7 +83,7 @@ function normalizeImage(item, idx) {
 
 function parseResearchValue(raw) {
   const text = String(raw || '').trim();
-  if (!text) return { body: '', images: [] };
+  if (!text) return { body: '', images: [], standardFields: normalizeStandardFields() };
 
   try {
     const parsed = JSON.parse(text);
@@ -76,6 +93,7 @@ function parseResearchValue(raw) {
         images: Array.isArray(parsed.images)
           ? parsed.images.map((x, i) => normalizeImage(x, i)).filter((x) => x.url)
           : [],
+        standardFields: normalizeStandardFields(parsed.standard_fields || parsed.standardFields),
       };
     }
   } catch {
@@ -91,7 +109,7 @@ function parseResearchValue(raw) {
   const body = /<[a-z][\s\S]*>/i.test(text)
     ? stripHtmlToText(text)
     : text.replace(IMAGE_MD_RE, '').trim();
-  return { body, images: legacyImages };
+  return { body, images: legacyImages, standardFields: normalizeStandardFields() };
 }
 
 function serializeResearchValue(model) {
@@ -99,14 +117,17 @@ function serializeResearchValue(model) {
   const images = (Array.isArray(model?.images) ? model.images : [])
     .map((x, i) => normalizeImage(x, i))
     .filter((x) => x.url);
+  const standardFields = normalizeStandardFields(model?.standardFields);
 
-  if (!body && images.length === 0) return '';
+  const hasStandardField = Object.values(standardFields).some((x) => String(x || '').trim());
+  if (!body && images.length === 0 && !hasStandardField) return '';
 
   return JSON.stringify({
     kind: FORMAT_KIND,
-    version: 2,
+    version: 3,
     body,
     images,
+    standard_fields: standardFields,
   });
 }
 
@@ -115,22 +136,30 @@ export default function ResearchContentPanel({
   editing = false,
   title = '图文研究记录',
   onChange,
+  standardFieldsValue,
+  onStandardFieldsChange,
 }) {
   const parsed = useMemo(() => parseResearchValue(value), [value]);
+  const mergedStandardFields = useMemo(
+    () => normalizeStandardFields({ ...parsed.standardFields, ...standardFieldsValue }),
+    [parsed.standardFields, standardFieldsValue],
+  );
   const [modalOpen, setModalOpen] = useState(false);
-  const [draft, setDraft] = useState(parsed);
+  const [draft, setDraft] = useState({ ...parsed, standardFields: mergedStandardFields });
   const [uploading, setUploading] = useState(false);
   const uploadRef = useRef(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
   const openModal = () => {
-    setDraft(parseResearchValue(value));
+    const latest = parseResearchValue(value);
+    setDraft({ ...latest, standardFields: normalizeStandardFields({ ...latest.standardFields, ...standardFieldsValue }) });
     setModalOpen(true);
   };
 
   const saveModal = () => {
     onChange?.(serializeResearchValue(draft));
+    onStandardFieldsChange?.(normalizeStandardFields(draft.standardFields));
     setModalOpen(false);
   };
 
@@ -144,6 +173,16 @@ export default function ResearchContentPanel({
 
   const removeImage = (idx) => {
     setDraft((prev) => ({ ...prev, images: (prev.images || []).filter((_, i) => i !== idx) }));
+  };
+
+  const updateStandardField = (key, val) => {
+    setDraft((prev) => ({
+      ...prev,
+      standardFields: {
+        ...(prev.standardFields || {}),
+        [key]: val,
+      },
+    }));
   };
 
   const uploadImages = async (files) => {
@@ -189,12 +228,13 @@ export default function ResearchContentPanel({
     await uploadImages(imageFiles);
   };
 
-  const readonlyData = parsed;
+  const readonlyData = { ...parsed, standardFields: mergedStandardFields };
 
   if (!editing) {
     const hasText = String(readonlyData.body || '').trim().length > 0;
     const hasImages = (readonlyData.images || []).length > 0;
-    if (!hasText && !hasImages) {
+    const hasStandardFields = Object.values(readonlyData.standardFields || {}).some((x) => String(x || '').trim());
+    if (!hasText && !hasImages && !hasStandardFields) {
       return <Empty description="暂无图文研究记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
 
@@ -214,6 +254,22 @@ export default function ResearchContentPanel({
             <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: hasImages ? 12 : 0 }}>
               {readonlyData.body}
             </Typography.Paragraph>
+          ) : null}
+          {hasStandardFields ? (
+            <div style={{ marginBottom: hasImages ? 12 : 0 }}>
+              {STANDARD_FIELD_DEFS.map((field) => {
+                const v = String(readonlyData.standardFields?.[field.key] || '').trim();
+                if (!v) return null;
+                return (
+                  <div key={field.key} style={{ marginBottom: 8 }}>
+                    <Typography.Text type="secondary">{field.label}</Typography.Text>
+                    <Typography.Paragraph style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>
+                      {v}
+                    </Typography.Paragraph>
+                  </div>
+                );
+              })}
+            </div>
           ) : null}
 
           {hasImages ? (
@@ -281,6 +337,23 @@ export default function ResearchContentPanel({
         destroyOnClose
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <div>
+            <Typography.Text type="secondary">标准字段</Typography.Text>
+            <Row gutter={12} style={{ marginTop: 8 }}>
+              {STANDARD_FIELD_DEFS.map((field) => (
+                <Col key={field.key} span={field.key.includes('evidence') ? 12 : 24}>
+                  <Typography.Text type="secondary">{field.label}</Typography.Text>
+                  <TextArea
+                    rows={2}
+                    placeholder={field.placeholder}
+                    value={draft.standardFields?.[field.key] || ''}
+                    onChange={(e) => updateStandardField(field.key, e.target.value)}
+                  />
+                </Col>
+              ))}
+            </Row>
+          </div>
+
           <div>
             <Typography.Text type="secondary">研究文本</Typography.Text>
             <TextArea

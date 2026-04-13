@@ -38,6 +38,7 @@ export default function TradeList() {
           const row = await ws.createTradePlanFromSelected();
           if (row?.id) navigate('/plans');
         }}
+        symbolOptions={ws.symbolOptions}
         onSetDateRange={ws.setDateRange}
         onUpdateFilter={ws.updateFilter}
       />

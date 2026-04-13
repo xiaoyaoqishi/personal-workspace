@@ -26,6 +26,7 @@ export const tradeApi = {
   importPaste: (data) => api.post('/trades/import-paste', data),
   positions: (params) => api.get('/trades/positions', { params }),
   sources: () => api.get('/trades/sources'),
+  symbols: () => api.get('/trades/symbols'),
 };
 
 export const brokerApi = {

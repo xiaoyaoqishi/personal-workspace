@@ -254,35 +254,27 @@ export default function TradeDetailDrawer({
                   />
                 </Col>
                 <Col span={24}>
-                  <Typography.Text type="secondary">入场论点</Typography.Text>
-                  <TextArea rows={2} value={review.entry_thesis} onChange={(e) => onChangeReview('entry_thesis', e.target.value)} />
-                </Col>
-                <Col span={12}>
-                  <Typography.Text type="secondary">有效证据</Typography.Text>
-                  <TextArea rows={2} value={review.invalidation_valid_evidence} onChange={(e) => onChangeReview('invalidation_valid_evidence', e.target.value)} />
-                </Col>
-                <Col span={12}>
-                  <Typography.Text type="secondary">失效证据</Typography.Text>
-                  <TextArea rows={2} value={review.invalidation_trigger_evidence} onChange={(e) => onChangeReview('invalidation_trigger_evidence', e.target.value)} />
-                </Col>
-                <Col span={24}>
-                  <Typography.Text type="secondary">边界</Typography.Text>
-                  <TextArea rows={2} value={review.invalidation_boundary} onChange={(e) => onChangeReview('invalidation_boundary', e.target.value)} />
-                </Col>
-                <Col span={24}>
-                  <Typography.Text type="secondary">管理动作</Typography.Text>
-                  <TextArea rows={2} value={review.management_actions} onChange={(e) => onChangeReview('management_actions', e.target.value)} />
-                </Col>
-                <Col span={24}>
-                  <Typography.Text type="secondary">离场原因</Typography.Text>
-                  <TextArea rows={2} value={review.exit_reason} onChange={(e) => onChangeReview('exit_reason', e.target.value)} />
-                </Col>
-                <Col span={24}>
                   <ResearchContentPanel
                     editing
                     title="单笔交易图文研究"
                     value={review.research_notes}
                     onChange={(next) => onChangeReview('research_notes', next)}
+                    standardFieldsValue={{
+                      entry_thesis: review.entry_thesis,
+                      invalidation_valid_evidence: review.invalidation_valid_evidence,
+                      invalidation_trigger_evidence: review.invalidation_trigger_evidence,
+                      invalidation_boundary: review.invalidation_boundary,
+                      management_actions: review.management_actions,
+                      exit_reason: review.exit_reason,
+                    }}
+                    onStandardFieldsChange={(next) => {
+                      onChangeReview('entry_thesis', next.entry_thesis || '');
+                      onChangeReview('invalidation_valid_evidence', next.invalidation_valid_evidence || '');
+                      onChangeReview('invalidation_trigger_evidence', next.invalidation_trigger_evidence || '');
+                      onChangeReview('invalidation_boundary', next.invalidation_boundary || '');
+                      onChangeReview('management_actions', next.management_actions || '');
+                      onChangeReview('exit_reason', next.exit_reason || '');
+                    }}
                   />
                 </Col>
               </Row>
@@ -304,13 +296,18 @@ export default function TradeDetailDrawer({
                     </div>
                   </div>
                 ) : null}
-                <ReadonlyParagraph label="入场论点" value={review.entry_thesis} />
-                <ReadonlyParagraph label="有效证据" value={review.invalidation_valid_evidence} />
-                <ReadonlyParagraph label="失效证据" value={review.invalidation_trigger_evidence} />
-                <ReadonlyParagraph label="边界" value={review.invalidation_boundary} />
-                <ReadonlyParagraph label="管理动作" value={review.management_actions} />
-                <ReadonlyParagraph label="离场原因" value={review.exit_reason} />
-                <ResearchContentPanel value={review.research_notes} title="单笔交易图文研究" />
+                <ResearchContentPanel
+                  value={review.research_notes}
+                  title="单笔交易图文研究"
+                  standardFieldsValue={{
+                    entry_thesis: review.entry_thesis,
+                    invalidation_valid_evidence: review.invalidation_valid_evidence,
+                    invalidation_trigger_evidence: review.invalidation_trigger_evidence,
+                    invalidation_boundary: review.invalidation_boundary,
+                    management_actions: review.management_actions,
+                    exit_reason: review.exit_reason,
+                  }}
+                />
               </div>
             )}
           </Card>

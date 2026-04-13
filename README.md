@@ -29,6 +29,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - Paste-based trade import (`/api/trades/import-paste`) with staged validation and open/close matching logic.
 - Open position view (`/api/trades/positions`).
 - Structured trade review taxonomy + per-trade review metadata.
+- Research content modal now includes standard review fields (entry thesis, evidence, boundary, management, exit reason) by default.
 - Trade source metadata layer and source fallback parsing from legacy notes.
 - Review sessions as first-class objects (`/api/review-sessions`) with linked trades and filtered-slice generation.
 - Trade plans (`/api/trade-plans`) with enforced status transitions and links to trades/review sessions.
