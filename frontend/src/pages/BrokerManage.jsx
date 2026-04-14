@@ -67,7 +67,10 @@ function normalizeNoteIdList(raw) {
   const out = [];
   const seen = new Set();
   for (const item of raw) {
-    const id = Number(item);
+    const primitive = (item && typeof item === 'object' && 'value' in item)
+      ? item.value
+      : item;
+    const id = Number(primitive);
     if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
     seen.add(id);
     out.push(id);
@@ -644,9 +647,11 @@ export default function InfoMaintain() {
                             mode="multiple"
                             allowClear
                             showSearch
+                            filterOption={false}
                             optionFilterProp="label"
                             options={knowledgeDocOptions}
                             onSearch={searchKnowledgeDocs}
+                            onChange={(vals) => knowledgeForm.setFieldValue('related_note_ids', normalizeNoteIdList(vals))}
                             placeholder="输入关键字搜索笔记文档并多选"
                             notFoundContent={knowledgeDocSearching ? '搜索中...' : '无匹配文档'}
                           />

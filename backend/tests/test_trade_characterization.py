@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 import pytest
 
@@ -80,6 +81,29 @@ def test_import_with_header_row(app_client):
     assert result["skipped"] == 0
     assert result["errors"] == []
     assert app_client.get("/api/trades/count").json()["total"] == 1
+
+
+def test_import_with_9_columns_defaults_date_to_today(app_client):
+    row_without_date = "\t".join(
+        [
+            "IF2506",
+            "买",
+            "投机",
+            "3500",
+            "1",
+            "350000",
+            "开",
+            "1",
+            "0",
+        ]
+    )
+    result = import_paste(app_client, [row_without_date], broker="宏源期货", with_header=False)
+
+    assert result["inserted"] == 1
+    assert result["errors"] == []
+    rows = list_trades(app_client, source_keyword="宏源期货")
+    assert len(rows) == 1
+    assert rows[0]["trade_date"] == date.today().isoformat()
 
 
 def test_malformed_mixed_batch_is_partially_successful(app_client):

@@ -12,6 +12,7 @@ SERVICES=(
   "notes|$ROOT_DIR/frontend-notes|npm run dev"
   "monitor|$ROOT_DIR/frontend-monitor|npm run dev"
 )
+PYTHON_CMD=""
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -25,8 +26,22 @@ has_tmux() {
 }
 
 ensure_base_deps() {
-  require_cmd python3
   require_cmd npm
+  resolve_python_cmd
+  SERVICES[0]="backend|$ROOT_DIR/backend|DEV_MODE=1 $PYTHON_CMD -m uvicorn main:app --host 127.0.0.1 --port 8000"
+}
+
+resolve_python_cmd() {
+  local candidates=("python3" "python" "py -3")
+  local cand
+  for cand in "${candidates[@]}"; do
+    if bash -lc "$cand -c 'import sys; print(sys.version_info[0])'" >/dev/null 2>&1; then
+      PYTHON_CMD="$cand"
+      return
+    fi
+  done
+  echo "缺少可用的 Python 解释器（尝试了: python3 / python / py -3）"
+  exit 1
 }
 
 parse_service() {

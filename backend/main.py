@@ -450,22 +450,26 @@ def _map_open_close(v: str) -> str:
 
 
 def _parse_paste_row(cells: List[str], broker: Optional[str]) -> Trade:
-    if len(cells) < 10:
-        raise ValueError("列数不足，期望10列")
-    trade_day = _parse_cn_date(cells[0])
-    contract = str(cells[1] or "").strip()
+    normalized_cells = list(cells or [])
+    # 兼容无日期粘贴：仅当录入9列时，默认补当天日期为第一列。
+    if len(normalized_cells) == 9:
+        normalized_cells = [date.today().isoformat(), *normalized_cells]
+    if len(normalized_cells) < 10:
+        raise ValueError("列数不足，期望10列；若无交易日期可录入9列自动补当天")
+    trade_day = _parse_cn_date(normalized_cells[0])
+    contract = str(normalized_cells[1] or "").strip()
     if not contract:
         raise ValueError("合约为空")
-    direction = _map_direction(cells[2])
-    category = str(cells[3] or "").strip() or None
-    open_price = _parse_float(cells[4], "成交价")
-    quantity = _parse_float(cells[5], "手数")
+    direction = _map_direction(normalized_cells[2])
+    category = str(normalized_cells[3] or "").strip() or None
+    open_price = _parse_float(normalized_cells[4], "成交价")
+    quantity = _parse_float(normalized_cells[5], "手数")
     if quantity <= 0:
         raise ValueError("手数必须大于0")
-    _turnover = _parse_float(cells[6], "成交额")
-    status = _map_open_close(cells[7])
-    commission = _parse_float(cells[8], "手续费")
-    pnl = _parse_float(cells[9], "平仓盈亏")
+    _turnover = _parse_float(normalized_cells[6], "成交额")
+    status = _map_open_close(normalized_cells[7])
+    commission = _parse_float(normalized_cells[8], "手续费")
+    pnl = _parse_float(normalized_cells[9], "平仓盈亏")
     open_time = datetime.combine(trade_day, datetime.min.time()).replace(hour=9, minute=0, second=0)
     close_time = None
     close_price = None

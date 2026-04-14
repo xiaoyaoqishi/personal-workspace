@@ -25,7 +25,13 @@ npm install
 npm run build
 
 echo "=== 同步门户页面 ==="
-cp ../portal/*.html /opt/tradingRecords/portal/
+for src in ../portal/*.html; do
+  dst="/opt/tradingRecords/portal/$(basename "$src")"
+  if [ "$(readlink -f "$src")" = "$(readlink -f "$dst")" ]; then
+    continue
+  fi
+  cp "$src" "$dst"
+done
 
 echo "=== 重启服务 ==="
 cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-available/trading

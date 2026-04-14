@@ -72,17 +72,22 @@ export function useTradeWorkspace() {
   };
 
   const loadSymbols = async () => {
+    const toOption = (symbol) => {
+      const value = String(symbol || '').trim().toUpperCase();
+      if (!value) return null;
+      const zh = futuresNameBySymbol(value, value);
+      return {
+        label: zh ? `${zh}(${value})` : value,
+        value,
+      };
+    };
     try {
       const res = await tradeApi.symbols();
-      const items = res.data?.items || [];
-      setSymbolOptions(items.map((v) => {
-        const value = String(v || '').trim();
-        const zh = futuresNameBySymbol(value, value);
-        return {
-          label: zh ? `${zh}(${String(value).toUpperCase()})` : value,
-          value,
-        };
-      }));
+      const apiSymbols = (res.data?.items || [])
+        .map((v) => String(v || '').trim().toUpperCase())
+        .filter(Boolean);
+      const merged = Array.from(new Set(apiSymbols)).sort();
+      setSymbolOptions(merged.map(toOption).filter(Boolean));
     } catch {
       setSymbolOptions([]);
     }
