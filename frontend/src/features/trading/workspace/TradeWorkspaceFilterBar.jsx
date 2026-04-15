@@ -36,7 +36,7 @@ export default function TradeWorkspaceFilterBar({
               <Button onClick={onOpenBatchStructuredReview}>多选结构化复盘</Button>
               <Button onClick={onCreateReviewSessionFromSelected}>多选建复盘会话</Button>
               <Button onClick={onCreateTradePlanFromSelected}>多选建交易计划</Button>
-              <Popconfirm title={`确认删除已勾选的 ${selectedRowKeys.length} 条记录？`} onConfirm={onBatchDelete}>
+              <Popconfirm title={`确认将已勾选的 ${selectedRowKeys.length} 条记录移入回收站？`} onConfirm={onBatchDelete}>
                 <Button danger>批量删除</Button>
               </Popconfirm>
               <span style={{ color: '#888', fontSize: 12 }}>已勾选 {selectedRowKeys.length} 条</span>

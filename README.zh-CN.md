@@ -34,6 +34,7 @@ Trading Records Workspace
 - 复盘会话（`/api/review-sessions`）作为一等对象，支持关联交易和按筛选条件生成样本。
 - 交易计划（`/api/trade-plans`）及状态流转校验，可关联交易与复盘会话。
 - 知识库（`/api/knowledge-items`），支持分类/标签/状态筛选。
+- 交易模块回收站：成交记录、知识、券商、复盘会话、交易计划支持删除后恢复（`/api/recycle/*`）。
 - 笔记本/笔记/待办系统，含回收站、反向链接、搜索、日历接口。
 - 图片上传与访问（`/api/upload`、`/api/uploads/{filename}`）。
 - 每日诗词接口，支持远程获取 + 本地兜底缓存（`/api/poem/daily`）。
@@ -209,6 +210,10 @@ cd ../frontend-monitor && npm run build
 - 首次使用需先调用 `POST /api/auth/setup` 初始化账号，否则无法登录。
 - 前端 Axios 拦截 `401` 并跳转 `/login`。
 - 笔记编辑器与交易研究面板图片都通过 `/api/upload` 上传。
+- 交易模块回收站接口：
+  - `GET /api/recycle/{trades|knowledge-items|trade-brokers|review-sessions|trade-plans}`
+  - `POST /api/recycle/<resource>/{id}/restore`
+  - `DELETE /api/recycle/<resource>/{id}/purge`
 - `AGENTS.md` 协作约定要求：
   - 本地调试统一使用 `./dev.sh`。
   - 生产更新统一使用 `deploy/update.sh`。

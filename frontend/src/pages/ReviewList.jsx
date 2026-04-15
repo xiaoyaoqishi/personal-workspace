@@ -376,11 +376,11 @@ export default function ReviewList() {
     if (!selectedId) return;
     try {
       await reviewSessionApi.delete(selectedId);
-      message.success('复盘会话已删除');
+      message.success('复盘会话已移入回收站');
       setEditing(false);
       await loadRows();
     } catch {
-      message.error('删除失败');
+      message.error('移入回收站失败');
     }
   };
 
@@ -430,7 +430,7 @@ export default function ReviewList() {
             <Select allowClear value={minStars} placeholder="最低星级" style={{ width: 120 }} onChange={setMinStars} options={[1, 2, 3, 4, 5].map((x) => ({ value: x, label: `${x} 星` }))} />
             <Button onClick={() => { setSelectedId(null); resetForm(null); setEditing(true); }} icon={<PlusOutlined />}>新建会话</Button>
             <ReadEditActions editing={editing} saving={saving} onEdit={() => { if (selected) { resetForm(selected); setEditing(true); } }} onSave={handleSave} onCancel={() => { resetForm(selected); setEditing(false); }} editDisabled={!selectedId} />
-            <Popconfirm title="确认删除当前复盘会话？" onConfirm={handleDelete} disabled={!selectedId}><Button danger icon={<DeleteOutlined />} disabled={!selectedId}>删除</Button></Popconfirm>
+            <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger icon={<DeleteOutlined />} disabled={!selectedId}>删除</Button></Popconfirm>
           </Space>
         </div>
       </Card>
@@ -569,5 +569,4 @@ export default function ReviewList() {
     </div>
   );
 }
-
 

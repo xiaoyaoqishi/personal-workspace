@@ -101,7 +101,7 @@ export default function TradeFillsTable({
             详情
           </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => onOpenEdit(r.id)} />
-          <Popconfirm title="确定删除？" onConfirm={() => onDelete(r.id)}>
+          <Popconfirm title="确定移入回收站？" onConfirm={() => onDelete(r.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>

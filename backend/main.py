@@ -161,6 +161,16 @@ def _migrate_legacy_schema():
             db.execute(text("ALTER TABLE trades ADD COLUMN is_favorite BOOLEAN DEFAULT 0"))
         if "star_rating" not in trade_cols:
             db.execute(text("ALTER TABLE trades ADD COLUMN star_rating INTEGER"))
+        if "is_deleted" not in trade_cols:
+            db.execute(text("ALTER TABLE trades ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
+        if "deleted_at" not in trade_cols:
+            db.execute(text("ALTER TABLE trades ADD COLUMN deleted_at DATETIME"))
+        if _table_exists(db, "trade_brokers"):
+            _ensure_sqlite_column(db, "trade_brokers", "is_deleted", "BOOLEAN DEFAULT 0")
+            _ensure_sqlite_column(db, "trade_brokers", "deleted_at", "DATETIME")
+        if _table_exists(db, "knowledge_items"):
+            _ensure_sqlite_column(db, "knowledge_items", "is_deleted", "BOOLEAN DEFAULT 0")
+            _ensure_sqlite_column(db, "knowledge_items", "deleted_at", "DATETIME")
         if _table_exists(db, "review_sessions"):
             _ensure_sqlite_column(db, "review_sessions", "review_kind", "VARCHAR(40) DEFAULT 'custom'")
             _ensure_sqlite_column(db, "review_sessions", "review_scope", "VARCHAR(40) DEFAULT 'custom'")
@@ -178,6 +188,8 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "review_sessions", "filter_snapshot_json", "TEXT")
             _ensure_sqlite_column(db, "review_sessions", "is_favorite", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "review_sessions", "star_rating", "INTEGER")
+            _ensure_sqlite_column(db, "review_sessions", "is_deleted", "BOOLEAN DEFAULT 0")
+            _ensure_sqlite_column(db, "review_sessions", "deleted_at", "DATETIME")
         if _table_exists(db, "trade_plans"):
             _ensure_sqlite_column(db, "trade_plans", "status", "VARCHAR(20) DEFAULT 'draft'")
             _ensure_sqlite_column(db, "trade_plans", "symbol", "VARCHAR(50)")
@@ -197,6 +209,8 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "trade_plans", "source_ref", "VARCHAR(200)")
             _ensure_sqlite_column(db, "trade_plans", "post_result_summary", "TEXT")
             _ensure_sqlite_column(db, "trade_plans", "research_notes", "TEXT")
+            _ensure_sqlite_column(db, "trade_plans", "is_deleted", "BOOLEAN DEFAULT 0")
+            _ensure_sqlite_column(db, "trade_plans", "deleted_at", "DATETIME")
         db.commit()
     finally:
         db.close()
@@ -574,7 +588,7 @@ def _apply_fill_to_state(state: Dict[str, Dict[str, Any]], fill: Trade):
 
 def _build_position_state_from_db(db: Session, source_keyword: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     state: Dict[str, Dict[str, Any]] = {}
-    q = db.query(Trade).filter(Trade.status == "open")
+    q = db.query(Trade).filter(Trade.is_deleted == False, Trade.status == "open")  # noqa: E712
     q = _apply_source_keyword_filter(q, source_keyword)
     rows = q.order_by(Trade.open_time.asc(), Trade.id.asc()).all()
     for t in rows:
@@ -701,6 +715,7 @@ def _apply_close_fill_to_db(db: Session, fill: Trade, broker: Optional[str] = No
     close_side = _position_side(fill.direction, "closed")
     close_time = fill.close_time or datetime.combine(fill.trade_date, datetime.min.time()).replace(hour=15)
     q = db.query(Trade).filter(
+        Trade.is_deleted == False,  # noqa: E712
         Trade.instrument_type == "期货",
         Trade.symbol == symbol,
         Trade.direction == close_side,
@@ -835,7 +850,7 @@ def list_trades(
     sort_order: Optional[str] = "desc",
     db: Session = Depends(get_db),
 ):
-    q = db.query(Trade)
+    q = db.query(Trade).filter(Trade.is_deleted == False)  # noqa: E712
     if date_from:
         q = q.filter(Trade.trade_date >= date_from)
     if date_to:
@@ -906,7 +921,11 @@ def list_trade_search_options(
 ):
     include_trade_ids = _parse_include_ids(include_ids)
 
-    query = db.query(Trade).outerjoin(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id)
+    query = (
+        db.query(Trade)
+        .filter(Trade.is_deleted == False)  # noqa: E712
+        .outerjoin(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id)
+    )
     if symbol:
         query = query.filter(Trade.symbol == symbol)
     if date_from:
@@ -937,7 +956,7 @@ def list_trade_search_options(
     if missing_include_ids:
         include_rows = (
             db.query(Trade)
-            .filter(Trade.id.in_(missing_include_ids))
+            .filter(Trade.id.in_(missing_include_ids), Trade.is_deleted == False)  # noqa: E712
             .order_by(Trade.open_time.desc(), Trade.id.desc())
             .all()
         )
@@ -992,7 +1011,7 @@ def count_trades(
     max_star_rating: Optional[int] = Query(None, ge=1, le=5),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Trade)
+    q = db.query(Trade).filter(Trade.is_deleted == False)  # noqa: E712
     if date_from:
         q = q.filter(Trade.trade_date >= date_from)
     if date_to:
@@ -1026,7 +1045,7 @@ def get_statistics(
     source_keyword: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = db.query(Trade).filter(Trade.status == "closed")
+    q = db.query(Trade).filter(Trade.is_deleted == False, Trade.status == "closed")  # noqa: E712
     if date_from:
         q = q.filter(Trade.trade_date >= date_from)
     if date_to:
@@ -1158,7 +1177,7 @@ def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/trades/{trade_id:int}", response_model=TradeResponse)
 def get_trade(trade_id: int, db: Session = Depends(get_db)):
-    t = db.query(Trade).filter(Trade.id == trade_id).first()
+    t = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not t:
         raise HTTPException(404, "Trade not found")
     return _attach_trade_view_fields(db, [t])[0]
@@ -1166,7 +1185,7 @@ def get_trade(trade_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/trades/{trade_id:int}", response_model=TradeResponse)
 def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)):
-    t = db.query(Trade).filter(Trade.id == trade_id).first()
+    t = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not t:
         raise HTTPException(404, "Trade not found")
     for k, v in data.model_dump(exclude_unset=True).items():
@@ -1178,10 +1197,11 @@ def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)
 
 @app.delete("/api/trades/{trade_id:int}")
 def delete_trade(trade_id: int, db: Session = Depends(get_db)):
-    t = db.query(Trade).filter(Trade.id == trade_id).first()
+    t = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not t:
         raise HTTPException(404, "Trade not found")
-    db.delete(t)
+    t.is_deleted = True
+    t.deleted_at = datetime.now()
     db.commit()
     return {"ok": True}
 
@@ -1193,7 +1213,13 @@ def list_trade_sources(db: Session = Depends(get_db)):
 
 @app.get("/api/trades/symbols")
 def list_trade_symbols(db: Session = Depends(get_db)):
-    rows = db.query(Trade.symbol).filter(Trade.symbol.isnot(None)).distinct().order_by(Trade.symbol.asc()).all()
+    rows = (
+        db.query(Trade.symbol)
+        .filter(Trade.is_deleted == False, Trade.symbol.isnot(None))  # noqa: E712
+        .distinct()
+        .order_by(Trade.symbol.asc())
+        .all()
+    )
     items = [str(symbol).strip() for (symbol,) in rows if str(symbol or "").strip()]
     return {"items": items}
 
@@ -1205,7 +1231,7 @@ def get_trade_review_taxonomy():
 
 @app.get("/api/trades/{trade_id:int}/review", response_model=TradeReviewResponse)
 def get_trade_review(trade_id: int, db: Session = Depends(get_db)):
-    trade = db.query(Trade).filter(Trade.id == trade_id).first()
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not trade:
         raise HTTPException(404, "Trade not found")
     review = db.query(TradeReview).filter(TradeReview.trade_id == trade_id).first()
@@ -1216,7 +1242,7 @@ def get_trade_review(trade_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/trades/{trade_id:int}/review", response_model=TradeReviewResponse)
 def upsert_trade_review(trade_id: int, data: TradeReviewUpsert, db: Session = Depends(get_db)):
-    trade = db.query(Trade).filter(Trade.id == trade_id).first()
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not trade:
         raise HTTPException(404, "Trade not found")
 
@@ -1245,7 +1271,7 @@ def upsert_trade_review(trade_id: int, data: TradeReviewUpsert, db: Session = De
 
 @app.delete("/api/trades/{trade_id:int}/review")
 def delete_trade_review(trade_id: int, db: Session = Depends(get_db)):
-    trade = db.query(Trade).filter(Trade.id == trade_id).first()
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not trade:
         raise HTTPException(404, "Trade not found")
     review = db.query(TradeReview).filter(TradeReview.trade_id == trade_id).first()
@@ -1258,7 +1284,7 @@ def delete_trade_review(trade_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/trades/{trade_id:int}/source-metadata", response_model=TradeSourceMetadataResponse)
 def get_trade_source_metadata(trade_id: int, db: Session = Depends(get_db)):
-    trade = db.query(Trade).filter(Trade.id == trade_id).first()
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not trade:
         raise HTTPException(404, "Trade not found")
 
@@ -1293,7 +1319,7 @@ def get_trade_source_metadata(trade_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/trades/{trade_id:int}/source-metadata", response_model=TradeSourceMetadataResponse)
 def upsert_trade_source_metadata(trade_id: int, data: TradeSourceMetadataUpsert, db: Session = Depends(get_db)):
-    trade = db.query(Trade).filter(Trade.id == trade_id).first()
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not trade:
         raise HTTPException(404, "Trade not found")
 
@@ -1323,7 +1349,12 @@ def upsert_trade_source_metadata(trade_id: int, data: TradeSourceMetadataUpsert,
 
 @app.get("/api/trade-brokers", response_model=List[TradeBrokerResponse])
 def list_trade_brokers(db: Session = Depends(get_db)):
-    return db.query(TradeBroker).order_by(TradeBroker.updated_at.desc(), TradeBroker.id.desc()).all()
+    return (
+        db.query(TradeBroker)
+        .filter(TradeBroker.is_deleted == False)  # noqa: E712
+        .order_by(TradeBroker.updated_at.desc(), TradeBroker.id.desc())
+        .all()
+    )
 
 
 @app.post("/api/trade-brokers", response_model=TradeBrokerResponse)
@@ -1332,8 +1363,18 @@ def create_trade_broker(data: TradeBrokerCreate, db: Session = Depends(get_db)):
     if not name:
         raise HTTPException(400, "名称不能为空")
     existed = db.query(TradeBroker).filter(TradeBroker.name == name).first()
-    if existed:
+    if existed and not existed.is_deleted:
         raise HTTPException(400, "该名称已存在")
+    if existed and existed.is_deleted:
+        existed.is_deleted = False
+        existed.deleted_at = None
+        existed.account = (data.account or "").strip() or None
+        existed.password = (data.password or "").strip() or None
+        existed.extra_info = (data.extra_info or "").strip() or None
+        existed.notes = (data.notes or "").strip() or None
+        db.commit()
+        db.refresh(existed)
+        return existed
     obj = TradeBroker(
         name=name,
         account=(data.account or "").strip() or None,
@@ -1349,7 +1390,7 @@ def create_trade_broker(data: TradeBrokerCreate, db: Session = Depends(get_db)):
 
 @app.put("/api/trade-brokers/{broker_id}", response_model=TradeBrokerResponse)
 def update_trade_broker(broker_id: int, data: TradeBrokerUpdate, db: Session = Depends(get_db)):
-    obj = db.query(TradeBroker).filter(TradeBroker.id == broker_id).first()
+    obj = db.query(TradeBroker).filter(TradeBroker.id == broker_id, TradeBroker.is_deleted == False).first()  # noqa: E712
     if not obj:
         raise HTTPException(404, "券商不存在")
     payload = data.model_dump(exclude_unset=True)
@@ -1376,10 +1417,11 @@ def update_trade_broker(broker_id: int, data: TradeBrokerUpdate, db: Session = D
 
 @app.delete("/api/trade-brokers/{broker_id}")
 def delete_trade_broker(broker_id: int, db: Session = Depends(get_db)):
-    obj = db.query(TradeBroker).filter(TradeBroker.id == broker_id).first()
+    obj = db.query(TradeBroker).filter(TradeBroker.id == broker_id, TradeBroker.is_deleted == False).first()  # noqa: E712
     if not obj:
         raise HTTPException(404, "券商不存在")
-    db.delete(obj)
+    obj.is_deleted = True
+    obj.deleted_at = datetime.now()
     db.commit()
     return {"ok": True}
 
@@ -1437,7 +1479,7 @@ def create_knowledge_item(data: KnowledgeItemCreate, db: Session = Depends(get_d
 
 @app.get("/api/knowledge-items/{item_id}", response_model=KnowledgeItemResponse)
 def get_knowledge_item(item_id: int, db: Session = Depends(get_db)):
-    obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id).first()
+    obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == False).first()  # noqa: E712
     if not obj:
         raise HTTPException(404, "Knowledge item not found")
     rows = _attach_knowledge_item_tags(db, [obj])
@@ -1447,7 +1489,7 @@ def get_knowledge_item(item_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/knowledge-items/{item_id}", response_model=KnowledgeItemResponse)
 def update_knowledge_item(item_id: int, data: KnowledgeItemUpdate, db: Session = Depends(get_db)):
-    obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id).first()
+    obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == False).first()  # noqa: E712
     if not obj:
         raise HTTPException(404, "Knowledge item not found")
     payload = _knowledge_normalize_payload(data.model_dump(exclude_unset=True))
@@ -1473,10 +1515,11 @@ def update_knowledge_item(item_id: int, data: KnowledgeItemUpdate, db: Session =
 
 @app.delete("/api/knowledge-items/{item_id}")
 def delete_knowledge_item(item_id: int, db: Session = Depends(get_db)):
-    obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id).first()
+    obj = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == False).first()  # noqa: E712
     if not obj:
         raise HTTPException(404, "Knowledge item not found")
-    db.delete(obj)
+    obj.is_deleted = True
+    obj.deleted_at = datetime.now()
     db.commit()
     return {"ok": True}
 
@@ -1569,6 +1612,7 @@ def _apply_trade_filters(
     min_star_rating: Optional[int] = None,
     max_star_rating: Optional[int] = None,
 ):
+    q = q.filter(Trade.is_deleted == False)  # noqa: E712
     if date_from:
         q = q.filter(Trade.trade_date >= date_from)
     if date_to:
@@ -1594,7 +1638,7 @@ def _apply_trade_filters(
 
 
 def _build_trade_ids_from_filter(db: Session, filter_params: Dict[str, Any]) -> List[int]:
-    q = db.query(Trade)
+    q = db.query(Trade).filter(Trade.is_deleted == False)  # noqa: E712
     q = _apply_trade_filters(
         q,
         date_from=filter_params.get("date_from"),
@@ -1644,7 +1688,7 @@ def list_review_sessions(
     size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    q = db.query(ReviewSession)
+    q = db.query(ReviewSession).filter(ReviewSession.is_deleted == False)  # noqa: E712
     if review_kind:
         q = q.filter(ReviewSession.review_kind == _review_session_normalize_kind(review_kind))
     if review_scope:
@@ -1746,7 +1790,7 @@ def create_review_session_from_selection(payload: ReviewSessionCreateFromSelecti
 
 @app.get("/api/review-sessions/{review_session_id}", response_model=ReviewSessionResponse)
 def get_review_session(review_session_id: int, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review session not found")
     return _attach_review_session_fields(db, [row])[0]
@@ -1754,7 +1798,7 @@ def get_review_session(review_session_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/review-sessions/{review_session_id}", response_model=ReviewSessionResponse)
 def update_review_session(review_session_id: int, data: ReviewSessionUpdate, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review session not found")
     payload = data.model_dump(exclude_unset=True)
@@ -1776,10 +1820,11 @@ def update_review_session(review_session_id: int, data: ReviewSessionUpdate, db:
 
 @app.delete("/api/review-sessions/{review_session_id}")
 def delete_review_session(review_session_id: int, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review session not found")
-    db.delete(row)
+    row.is_deleted = True
+    row.deleted_at = datetime.now()
     db.commit()
     return {"ok": True}
 
@@ -1790,7 +1835,7 @@ def upsert_review_session_trade_links(
     payload: ReviewSessionTradeLinksPayload,
     db: Session = Depends(get_db),
 ):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review session not found")
     _review_session_sync_trade_links(
@@ -1885,7 +1930,7 @@ def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/reviews/{review_id}", response_model=ReviewResponse)
 def get_review(review_id: int, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review not found")
     row = _attach_review_session_fields(db, [row])[0]
@@ -1894,7 +1939,7 @@ def get_review(review_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/reviews/{review_id}", response_model=ReviewResponse)
 def update_review(review_id: int, data: ReviewUpdate, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review not found")
     payload = data.model_dump(exclude_unset=True)
@@ -1930,17 +1975,18 @@ def update_review(review_id: int, data: ReviewUpdate, db: Session = Depends(get_
 
 @app.delete("/api/reviews/{review_id}")
 def delete_review(review_id: int, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review not found")
-    db.delete(row)
+    row.is_deleted = True
+    row.deleted_at = datetime.now()
     db.commit()
     return {"ok": True}
 
 
 @app.put("/api/reviews/{review_id}/trade-links", response_model=ReviewResponse)
 def upsert_review_trade_links(review_id: int, payload: ReviewTradeLinksPayload, db: Session = Depends(get_db)):
-    row = db.query(ReviewSession).filter(ReviewSession.id == review_id).first()
+    row = db.query(ReviewSession).filter(ReviewSession.id == review_id, ReviewSession.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Review not found")
     _review_session_sync_trade_links(
@@ -1974,7 +2020,7 @@ def list_trade_plans(
     size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    q = db.query(TradePlan)
+    q = db.query(TradePlan).filter(TradePlan.is_deleted == False)  # noqa: E712
     if status:
         q = q.filter(TradePlan.status == _trade_plan_normalize_status(status))
     if symbol:
@@ -2004,7 +2050,7 @@ def create_trade_plan(payload: TradePlanCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/trade-plans/{trade_plan_id}", response_model=TradePlanResponse)
 def get_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
-    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id).first()
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade plan not found")
     return _attach_trade_plan_fields(db, [row])[0]
@@ -2012,7 +2058,7 @@ def get_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/trade-plans/{trade_plan_id}", response_model=TradePlanResponse)
 def update_trade_plan(trade_plan_id: int, payload: TradePlanUpdate, db: Session = Depends(get_db)):
-    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id).first()
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade plan not found")
     updates = payload.model_dump(exclude_unset=True)
@@ -2032,10 +2078,11 @@ def update_trade_plan(trade_plan_id: int, payload: TradePlanUpdate, db: Session 
 
 @app.delete("/api/trade-plans/{trade_plan_id}")
 def delete_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
-    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id).first()
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade plan not found")
-    db.delete(row)
+    row.is_deleted = True
+    row.deleted_at = datetime.now()
     db.commit()
     return {"ok": True}
 
@@ -2046,7 +2093,7 @@ def upsert_trade_plan_trade_links(
     payload: TradePlanTradeLinksPayload,
     db: Session = Depends(get_db),
 ):
-    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id).first()
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade plan not found")
     _trade_plan_sync_trade_links(db, row, [x.model_dump() for x in (payload.trade_links or [])])
@@ -2061,7 +2108,7 @@ def upsert_trade_plan_review_session_links(
     payload: TradePlanReviewSessionLinksPayload,
     db: Session = Depends(get_db),
 ):
-    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id).first()
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade plan not found")
     _trade_plan_sync_review_session_links(db, row, [x.model_dump() for x in (payload.review_session_links or [])])
@@ -2072,7 +2119,7 @@ def upsert_trade_plan_review_session_links(
 
 @app.post("/api/trade-plans/{trade_plan_id}/create-followup-review-session", response_model=ReviewSessionResponse)
 def create_followup_review_session_from_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
-    plan = db.query(TradePlan).filter(TradePlan.id == trade_plan_id).first()
+    plan = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
     if not plan:
         raise HTTPException(404, "Trade plan not found")
     plan = _attach_trade_plan_fields(db, [plan])[0]
@@ -2109,6 +2156,220 @@ def create_followup_review_session_from_trade_plan(trade_plan_id: int, db: Sessi
     db.commit()
     db.refresh(plan)
     return session
+
+
+# ── Trading Recycle Bin ──
+
+
+@app.get("/api/recycle/trades", response_model=List[TradeResponse])
+def list_recycle_trades(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(Trade)
+        .filter(Trade.is_deleted == True)  # noqa: E712
+        .order_by(Trade.deleted_at.desc(), Trade.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    return _attach_trade_view_fields(db, rows)
+
+
+@app.post("/api/recycle/trades/{trade_id}/restore", response_model=TradeResponse)
+def restore_recycle_trade(trade_id: int, db: Session = Depends(get_db)):
+    row = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Trade not found in recycle bin")
+    row.is_deleted = False
+    row.deleted_at = None
+    db.commit()
+    db.refresh(row)
+    return _attach_trade_view_fields(db, [row])[0]
+
+
+@app.delete("/api/recycle/trades/{trade_id}/purge")
+def purge_recycle_trade(trade_id: int, db: Session = Depends(get_db)):
+    row = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Trade not found in recycle bin")
+    db.query(ReviewSessionTradeLink).filter(ReviewSessionTradeLink.trade_id == trade_id).delete(synchronize_session=False)
+    db.query(TradePlanTradeLink).filter(TradePlanTradeLink.trade_id == trade_id).delete(synchronize_session=False)
+    db.query(ReviewTradeLink).filter(ReviewTradeLink.trade_id == trade_id).delete(synchronize_session=False)
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/recycle/knowledge-items", response_model=List[KnowledgeItemResponse])
+def list_recycle_knowledge_items(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(KnowledgeItem)
+        .filter(KnowledgeItem.is_deleted == True)  # noqa: E712
+        .order_by(KnowledgeItem.deleted_at.desc(), KnowledgeItem.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    rows = _attach_knowledge_item_tags(db, rows)
+    return _knowledge_attach_related_notes(db, rows)
+
+
+@app.post("/api/recycle/knowledge-items/{item_id}/restore", response_model=KnowledgeItemResponse)
+def restore_recycle_knowledge_item(item_id: int, db: Session = Depends(get_db)):
+    row = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Knowledge item not found in recycle bin")
+    row.is_deleted = False
+    row.deleted_at = None
+    db.commit()
+    db.refresh(row)
+    rows = _attach_knowledge_item_tags(db, [row])
+    rows = _knowledge_attach_related_notes(db, rows)
+    return rows[0]
+
+
+@app.delete("/api/recycle/knowledge-items/{item_id}/purge")
+def purge_recycle_knowledge_item(item_id: int, db: Session = Depends(get_db)):
+    row = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Knowledge item not found in recycle bin")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/recycle/trade-brokers", response_model=List[TradeBrokerResponse])
+def list_recycle_trade_brokers(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(TradeBroker)
+        .filter(TradeBroker.is_deleted == True)  # noqa: E712
+        .order_by(TradeBroker.deleted_at.desc(), TradeBroker.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+
+
+@app.post("/api/recycle/trade-brokers/{broker_id}/restore", response_model=TradeBrokerResponse)
+def restore_recycle_trade_broker(broker_id: int, db: Session = Depends(get_db)):
+    row = db.query(TradeBroker).filter(TradeBroker.id == broker_id, TradeBroker.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Trade broker not found in recycle bin")
+    row.is_deleted = False
+    row.deleted_at = None
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.delete("/api/recycle/trade-brokers/{broker_id}/purge")
+def purge_recycle_trade_broker(broker_id: int, db: Session = Depends(get_db)):
+    row = db.query(TradeBroker).filter(TradeBroker.id == broker_id, TradeBroker.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Trade broker not found in recycle bin")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/recycle/review-sessions", response_model=List[ReviewSessionResponse])
+def list_recycle_review_sessions(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(ReviewSession)
+        .filter(ReviewSession.is_deleted == True)  # noqa: E712
+        .order_by(ReviewSession.deleted_at.desc(), ReviewSession.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    return _attach_review_session_fields(db, rows)
+
+
+@app.post("/api/recycle/review-sessions/{review_session_id}/restore", response_model=ReviewSessionResponse)
+def restore_recycle_review_session(review_session_id: int, db: Session = Depends(get_db)):
+    row = (
+        db.query(ReviewSession)
+        .filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == True)  # noqa: E712
+        .first()
+    )
+    if not row:
+        raise HTTPException(404, "Review session not found in recycle bin")
+    row.is_deleted = False
+    row.deleted_at = None
+    db.commit()
+    db.refresh(row)
+    return _attach_review_session_fields(db, [row])[0]
+
+
+@app.delete("/api/recycle/review-sessions/{review_session_id}/purge")
+def purge_recycle_review_session(review_session_id: int, db: Session = Depends(get_db)):
+    row = (
+        db.query(ReviewSession)
+        .filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == True)  # noqa: E712
+        .first()
+    )
+    if not row:
+        raise HTTPException(404, "Review session not found in recycle bin")
+    db.query(TradePlanReviewSessionLink).filter(
+        TradePlanReviewSessionLink.review_session_id == review_session_id
+    ).delete(synchronize_session=False)
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/recycle/trade-plans", response_model=List[TradePlanResponse])
+def list_recycle_trade_plans(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(TradePlan)
+        .filter(TradePlan.is_deleted == True)  # noqa: E712
+        .order_by(TradePlan.deleted_at.desc(), TradePlan.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    return _attach_trade_plan_fields(db, rows)
+
+
+@app.post("/api/recycle/trade-plans/{trade_plan_id}/restore", response_model=TradePlanResponse)
+def restore_recycle_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Trade plan not found in recycle bin")
+    row.is_deleted = False
+    row.deleted_at = None
+    db.commit()
+    db.refresh(row)
+    return _attach_trade_plan_fields(db, [row])[0]
+
+
+@app.delete("/api/recycle/trade-plans/{trade_plan_id}/purge")
+def purge_recycle_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
+    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == True).first()  # noqa: E712
+    if not row:
+        raise HTTPException(404, "Trade plan not found in recycle bin")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
 
 
 # ── Notebook ──

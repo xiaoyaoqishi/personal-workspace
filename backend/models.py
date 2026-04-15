@@ -81,6 +81,8 @@ class Trade(Base):
     notes = Column(Text)
     is_favorite = Column(Boolean, default=False)
     star_rating = Column(Integer, nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
     trade_review = relationship("TradeReview", back_populates="trade", uselist=False, cascade="all, delete-orphan")
     source_metadata = relationship("TradeSourceMetadata", back_populates="trade", uselist=False, cascade="all, delete-orphan")
 
@@ -220,6 +222,8 @@ class ReviewSession(Base):
     filter_snapshot_json = Column(Text)
     is_favorite = Column(Boolean, default=False)
     star_rating = Column(Integer, nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
 
     trade_links = relationship("ReviewSessionTradeLink", back_populates="review_session", cascade="all, delete-orphan")
 
@@ -271,6 +275,8 @@ class TradePlan(Base):
     source_ref = Column(String(200))
     post_result_summary = Column(Text)
     research_notes = Column(Text)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
 
     trade_links = relationship("TradePlanTradeLink", back_populates="trade_plan", cascade="all, delete-orphan")
     review_session_links = relationship("TradePlanReviewSessionLink", back_populates="trade_plan", cascade="all, delete-orphan")
@@ -333,6 +339,8 @@ class KnowledgeItem(Base):
     next_action = Column(Text)
     due_date = Column(Date)
     source_ref = Column(String(200))
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
     tag_links = relationship("KnowledgeItemTagLink", back_populates="knowledge_item", cascade="all, delete-orphan")
     note_links = relationship("KnowledgeItemNoteLink", back_populates="knowledge_item", cascade="all, delete-orphan")
 
@@ -491,3 +499,5 @@ class TradeBroker(Base):
     password = Column(String(200), nullable=True)
     extra_info = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)

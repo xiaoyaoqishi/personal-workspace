@@ -142,6 +142,7 @@ class TradeResponse(TradeCreate):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     source_broker_name: Optional[str] = None
     source_label: Optional[str] = None
     source_display: Optional[str] = None
@@ -275,6 +276,7 @@ class TradeBrokerResponse(TradeBrokerCreate):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -462,6 +464,7 @@ class ReviewSessionResponse(ReviewSessionCreate):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     tags: List[str] = []
     tags_text: Optional[str] = None
     trade_links: List[ReviewSessionTradeLinkResponse] = []
@@ -576,6 +579,7 @@ class TradePlanResponse(TradePlanCreate):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     tags: List[str] = []
     tags_text: Optional[str] = None
     trade_links: List[TradePlanTradeLinkResponse] = []
@@ -643,6 +647,7 @@ class KnowledgeItemResponse(KnowledgeItemCreate):
     related_notes: List[KnowledgeRelatedNoteResponse] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -749,4 +754,3 @@ class TodoResponse(BaseModel):
 
 
 # 鈹€鈹€ News 鈹€鈹€
-

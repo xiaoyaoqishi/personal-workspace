@@ -34,6 +34,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - Review sessions as first-class objects (`/api/review-sessions`) with linked trades and filtered-slice generation.
 - Trade plans (`/api/trade-plans`) with enforced status transitions and links to trades/review sessions.
 - Knowledge base (`/api/knowledge-items`) with category/tag/status filtering and multi-doc note links.
+- Trading recycle bin for five domains: trades, knowledge items, brokers, review sessions, trade plans (`/api/recycle/*` restore/purge endpoints).
 - Notebook/notes/todo system with recycle bin and backlinks/search/calendar endpoints.
 - Image upload and serving (`/api/upload`, `/api/uploads/{filename}`).
 - Daily poem endpoint with remote fetch + local fallback cache (`/api/poem/daily`).
@@ -213,6 +214,10 @@ Frontend monitor app (`frontend-monitor`) polls these endpoints and renders dash
 - Knowledge item API fields:
   - `POST/PUT /api/knowledge-items`: optional `related_note_ids: number[]` for linked doc notes (`note_type=doc` only).
   - `GET /api/knowledge-items*`: returns `related_notes` (`id`, `title`, `note_type`, `updated_at`, `notebook_id`) for each item.
+- Trading recycle APIs:
+  - `GET /api/recycle/{trades|knowledge-items|trade-brokers|review-sessions|trade-plans}`
+  - `POST /api/recycle/<resource>/{id}/restore`
+  - `DELETE /api/recycle/<resource>/{id}/purge`
 - Notes deep-link query params (`/notes/`):
   - `tab=doc|diary`
   - `noteId=<number>`

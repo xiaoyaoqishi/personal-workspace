@@ -87,6 +87,34 @@ export const knowledgeApi = {
   delete: (id) => api.delete(`/knowledge-items/${id}`),
 };
 
+export const recycleApi = {
+  trades: {
+    list: (params) => api.get('/recycle/trades', { params }),
+    restore: (id) => api.post(`/recycle/trades/${id}/restore`),
+    purge: (id) => api.delete(`/recycle/trades/${id}/purge`),
+  },
+  knowledgeItems: {
+    list: (params) => api.get('/recycle/knowledge-items', { params }),
+    restore: (id) => api.post(`/recycle/knowledge-items/${id}/restore`),
+    purge: (id) => api.delete(`/recycle/knowledge-items/${id}/purge`),
+  },
+  tradeBrokers: {
+    list: (params) => api.get('/recycle/trade-brokers', { params }),
+    restore: (id) => api.post(`/recycle/trade-brokers/${id}/restore`),
+    purge: (id) => api.delete(`/recycle/trade-brokers/${id}/purge`),
+  },
+  reviewSessions: {
+    list: (params) => api.get('/recycle/review-sessions', { params }),
+    restore: (id) => api.post(`/recycle/review-sessions/${id}/restore`),
+    purge: (id) => api.delete(`/recycle/review-sessions/${id}/purge`),
+  },
+  tradePlans: {
+    list: (params) => api.get('/recycle/trade-plans', { params }),
+    restore: (id) => api.post(`/recycle/trade-plans/${id}/restore`),
+    purge: (id) => api.delete(`/recycle/trade-plans/${id}/purge`),
+  },
+};
+
 export const noteApi = {
   list: (params) => api.get('/notes', { params }),
   search: (params) => api.get('/notes/search', { params }),

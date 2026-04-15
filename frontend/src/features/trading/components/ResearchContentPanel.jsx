@@ -135,15 +135,16 @@ export default function ResearchContentPanel({
   value,
   editing = false,
   title = '图文研究记录',
+  showStandardFields = true,
   onChange,
   standardFieldsValue,
   onStandardFieldsChange,
 }) {
   const parsed = useMemo(() => parseResearchValue(value), [value]);
-  const mergedStandardFields = useMemo(
-    () => normalizeStandardFields({ ...parsed.standardFields, ...standardFieldsValue }),
-    [parsed.standardFields, standardFieldsValue],
-  );
+  const mergedStandardFields = useMemo(() => {
+    if (!showStandardFields) return normalizeStandardFields();
+    return normalizeStandardFields({ ...parsed.standardFields, ...standardFieldsValue });
+  }, [parsed.standardFields, showStandardFields, standardFieldsValue]);
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState({ ...parsed, standardFields: mergedStandardFields });
   const [uploading, setUploading] = useState(false);
@@ -153,13 +154,20 @@ export default function ResearchContentPanel({
 
   const openModal = () => {
     const latest = parseResearchValue(value);
-    setDraft({ ...latest, standardFields: normalizeStandardFields({ ...latest.standardFields, ...standardFieldsValue }) });
+    setDraft({
+      ...latest,
+      standardFields: showStandardFields
+        ? normalizeStandardFields({ ...latest.standardFields, ...standardFieldsValue })
+        : normalizeStandardFields(),
+    });
     setModalOpen(true);
   };
 
   const saveModal = () => {
     onChange?.(serializeResearchValue(draft));
-    onStandardFieldsChange?.(normalizeStandardFields(draft.standardFields));
+    if (showStandardFields) {
+      onStandardFieldsChange?.(normalizeStandardFields(draft.standardFields));
+    }
     setModalOpen(false);
   };
 
@@ -233,7 +241,7 @@ export default function ResearchContentPanel({
   if (!editing) {
     const hasText = String(readonlyData.body || '').trim().length > 0;
     const hasImages = (readonlyData.images || []).length > 0;
-    const hasStandardFields = Object.values(readonlyData.standardFields || {}).some((x) => String(x || '').trim());
+  const hasStandardFields = showStandardFields && Object.values(readonlyData.standardFields || {}).some((x) => String(x || '').trim());
     if (!hasText && !hasImages && !hasStandardFields) {
       return <Empty description="暂无图文研究记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
@@ -337,22 +345,24 @@ export default function ResearchContentPanel({
         destroyOnClose
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <div>
-            <Typography.Text type="secondary">标准字段</Typography.Text>
-            <Row gutter={12} style={{ marginTop: 8 }}>
-              {STANDARD_FIELD_DEFS.map((field) => (
-                <Col key={field.key} span={field.key.includes('evidence') ? 12 : 24}>
-                  <Typography.Text type="secondary">{field.label}</Typography.Text>
-                  <TextArea
-                    rows={2}
-                    placeholder={field.placeholder}
-                    value={draft.standardFields?.[field.key] || ''}
-                    onChange={(e) => updateStandardField(field.key, e.target.value)}
-                  />
-                </Col>
-              ))}
-            </Row>
-          </div>
+          {showStandardFields ? (
+            <div>
+              <Typography.Text type="secondary">标准字段</Typography.Text>
+              <Row gutter={12} style={{ marginTop: 8 }}>
+                {STANDARD_FIELD_DEFS.map((field) => (
+                  <Col key={field.key} span={field.key.includes('evidence') ? 12 : 24}>
+                    <Typography.Text type="secondary">{field.label}</Typography.Text>
+                    <TextArea
+                      rows={2}
+                      placeholder={field.placeholder}
+                      value={draft.standardFields?.[field.key] || ''}
+                      onChange={(e) => updateStandardField(field.key, e.target.value)}
+                    />
+                  </Col>
+                ))}
+              </Row>
+            </div>
+          ) : null}
 
           <div>
             <Typography.Text type="secondary">研究文本</Typography.Text>

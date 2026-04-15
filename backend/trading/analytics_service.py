@@ -137,7 +137,7 @@ def build_trade_analytics(
 ) -> Dict[str, Any]:
     symbols = _split_csv_values(symbol)
 
-    q = db.query(Trade)
+    q = db.query(Trade).filter(Trade.is_deleted == False)  # noqa: E712
     if date_from:
         q = q.filter(Trade.trade_date >= date_from)
     if date_to:

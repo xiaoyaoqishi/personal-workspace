@@ -142,7 +142,7 @@ export default function TradePlanList() {
   const handleDelete = async () => {
     if (!selectedId) return;
     await tradePlanApi.delete(selectedId);
-    message.success('交易计划已删除');
+    message.success('交易计划已移入回收站');
     setEditing(false);
     await loadRows();
   };
@@ -181,7 +181,7 @@ export default function TradePlanList() {
             <Button onClick={() => { setSelectedId(null); resetForm(null); setEditing(true); }}>新建交易计划</Button>
             <ReadEditActions editing={editing} saving={saving} onEdit={() => { if (selected) { resetForm(selected); setEditing(true); } }} onSave={handleSave} onCancel={() => { resetForm(selected); setEditing(false); }} editDisabled={!selectedId} />
             <Button onClick={createFollowupSession} disabled={!selectedId}>创建跟进复盘会话</Button>
-            <Popconfirm title="确认删除当前交易计划？" onConfirm={handleDelete} disabled={!selectedId}><Button danger disabled={!selectedId}>删除</Button></Popconfirm>
+            <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger disabled={!selectedId}>删除</Button></Popconfirm>
           </Space>
         </div>
       </Card>
@@ -312,5 +312,4 @@ export default function TradePlanList() {
     </div>
   );
 }
-
 

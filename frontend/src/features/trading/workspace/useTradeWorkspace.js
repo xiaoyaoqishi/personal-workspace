@@ -216,7 +216,7 @@ export function useTradeWorkspace() {
 
   const handleDeleteTrade = async (id) => {
     await tradeApi.delete(id);
-    message.success('已删除');
+    message.success('已移入回收站');
     if (activeTradeId === id) {
       setDetailOpen(false);
       setActiveTradeId(null);
@@ -341,12 +341,12 @@ export function useTradeWorkspace() {
     }
     try {
       await Promise.all(selectedRowKeys.map((id) => tradeApi.delete(id)));
-      message.success(`已删除 ${selectedRowKeys.length} 条`);
+      message.success(`已移入回收站 ${selectedRowKeys.length} 条`);
       setSelectedRowKeys([]);
       loadTrades();
       loadSymbols();
     } catch {
-      message.error('批量删除失败');
+      message.error('批量移入回收站失败');
     }
   };
 
@@ -585,4 +585,3 @@ export function useTradeWorkspace() {
     createTradePlanFromSelected,
   };
 }
-

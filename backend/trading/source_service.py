@@ -99,18 +99,32 @@ def attach_trade_view_fields(db: Session, rows: List[Trade]) -> List[Trade]:
 
 def list_trade_sources(db: Session) -> List[str]:
     values = set()
-    broker_rows = db.query(TradeBroker).order_by(TradeBroker.name.asc()).all()
+    broker_rows = (
+        db.query(TradeBroker)
+        .filter(TradeBroker.is_deleted == False)  # noqa: E712
+        .order_by(TradeBroker.name.asc())
+        .all()
+    )
     for b in broker_rows:
         if b.name and b.name.strip():
             values.add(b.name.strip())
-    metadata_rows = db.query(TradeSourceMetadata).all()
+    metadata_rows = (
+        db.query(TradeSourceMetadata)
+        .join(Trade, TradeSourceMetadata.trade_id == Trade.id)
+        .filter(Trade.is_deleted == False)  # noqa: E712
+        .all()
+    )
     for row in metadata_rows:
         if row.broker_name and row.broker_name.strip():
             values.add(row.broker_name.strip())
         source_label = normalize_source_label_for_display(row.source_label)
         if source_label:
             values.add(source_label)
-    note_rows = db.query(Trade.notes).filter(Trade.notes.isnot(None)).all()
+    note_rows = (
+        db.query(Trade.notes)
+        .filter(Trade.is_deleted == False, Trade.notes.isnot(None))  # noqa: E712
+        .all()
+    )
     for (note,) in note_rows:
         parsed = extract_source_from_notes(note)
         if parsed["broker_name"]:

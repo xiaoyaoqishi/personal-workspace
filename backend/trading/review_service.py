@@ -56,7 +56,11 @@ def attach_review_link_fields(db: Session, rows: List[Review]) -> List[Review]:
     metadata_by_trade_id: Dict[int, TradeSourceMetadata] = {}
     review_by_trade_id: Dict[int, TradeReview] = {}
     if trade_ids:
-        trade_rows = db.query(Trade).filter(Trade.id.in_(trade_ids)).all()
+        trade_rows = (
+            db.query(Trade)
+            .filter(Trade.id.in_(trade_ids), Trade.is_deleted == False)  # noqa: E712
+            .all()
+        )
         trade_by_id = {t.id: t for t in trade_rows}
         metadata_rows = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id.in_(trade_ids)).all()
         metadata_by_trade_id = {m.trade_id: m for m in metadata_rows}
@@ -118,7 +122,12 @@ def sync_review_trade_links(db: Session, review: Review, links: List[Dict[str, A
 
     requested_trade_ids = [x["trade_id"] for x in final_links]
     existing_trade_ids = {
-        trade_id for (trade_id,) in db.query(Trade.id).filter(Trade.id.in_(requested_trade_ids)).all()
+        trade_id
+        for (trade_id,) in (
+            db.query(Trade.id)
+            .filter(Trade.id.in_(requested_trade_ids), Trade.is_deleted == False)  # noqa: E712
+            .all()
+        )
     }
     missing = [str(tid) for tid in requested_trade_ids if tid not in existing_trade_ids]
     if missing:

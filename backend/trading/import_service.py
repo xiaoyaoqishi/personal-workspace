@@ -25,6 +25,7 @@ def _parse_rows_and_dedup(
             # 开仓行做去重；平仓行必须参与冲销，不能因历史“独立平仓记录”被跳过
             if trade_obj.status == "open":
                 q_exist = db.query(Trade).filter(
+                    Trade.is_deleted == False,  # noqa: E712
                     Trade.trade_date == trade_obj.trade_date,
                     Trade.contract == trade_obj.contract,
                     Trade.direction == trade_obj.direction,
@@ -58,7 +59,11 @@ def _precheck_close_rows(
 ) -> Tuple[List[Dict[str, Any]], List[Any]]:
     errors: List[Any] = []
     hist_pool: Dict[str, float] = {}
-    q_hist = db.query(Trade).filter(Trade.instrument_type == "期货", Trade.status == "open")
+    q_hist = db.query(Trade).filter(
+        Trade.is_deleted == False,  # noqa: E712
+        Trade.instrument_type == "期货",
+        Trade.status == "open",
+    )
     if broker:
         q_hist = q_hist.filter(Trade.notes.contains(f"来源券商: {broker}"))
     for t in q_hist.all():

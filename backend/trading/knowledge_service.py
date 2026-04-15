@@ -46,7 +46,7 @@ def list_knowledge_items(
     page: int,
     size: int,
 ) -> List[KnowledgeItem]:
-    query = db.query(KnowledgeItem)
+    query = db.query(KnowledgeItem).filter(KnowledgeItem.is_deleted == False)  # noqa: E712
     if category:
         query = query.filter(KnowledgeItem.category == category)
     if status:
@@ -76,7 +76,11 @@ def list_knowledge_items(
 
 def list_knowledge_categories(db: Session) -> List[str]:
     values = set(KNOWLEDGE_CATEGORY_VALUES)
-    rows = db.query(KnowledgeItem.category).filter(KnowledgeItem.category.isnot(None)).all()
+    rows = (
+        db.query(KnowledgeItem.category)
+        .filter(KnowledgeItem.is_deleted == False, KnowledgeItem.category.isnot(None))  # noqa: E712
+        .all()
+    )
     for (category,) in rows:
         if category and str(category).strip():
             values.add(str(category).strip())

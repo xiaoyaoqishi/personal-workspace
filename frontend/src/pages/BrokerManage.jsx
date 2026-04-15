@@ -30,6 +30,7 @@ import {
 } from '../features/trading/localization';
 import { formatInstrumentDisplay, getTagColor, normalizeTagList } from '../features/trading/display';
 import ReadEditActions from '../features/trading/components/ReadEditActions';
+import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import './BrokerManage.css';
 
 const { TextArea, Search } = Input;
@@ -395,12 +396,12 @@ export default function InfoMaintain() {
     if (!selectedKnowledgeId) return;
     try {
       await knowledgeApi.delete(selectedKnowledgeId);
-      message.success('知识条目已删除');
+      message.success('知识条目已移入回收站');
       await loadKnowledge();
       setKnowledgeEditing(false);
       await loadKnowledgeCategories();
     } catch {
-      message.error('删除失败');
+      message.error('移入回收站失败');
     }
   };
 
@@ -444,11 +445,11 @@ export default function InfoMaintain() {
     if (!selectedBrokerId) return;
     try {
       await brokerApi.delete(selectedBrokerId);
-      message.success('券商信息已删除');
+      message.success('券商信息已移入回收站');
       await loadBrokers();
       setBrokerEditing(false);
     } catch {
-      message.error('删除失败');
+      message.error('移入回收站失败');
     }
   };
 
@@ -590,7 +591,7 @@ export default function InfoMaintain() {
                 onCancel={cancelKnowledgeEdit}
                 editDisabled={!selectedKnowledgeId}
               />
-              <Popconfirm title="确认删除当前知识条目？" onConfirm={deleteKnowledge} disabled={!selectedKnowledgeId}>
+              <Popconfirm title="确认移入回收站？" onConfirm={deleteKnowledge} disabled={!selectedKnowledgeId}>
                 <Button danger icon={<DeleteOutlined />} disabled={!selectedKnowledgeId}>删除</Button>
               </Popconfirm>
             </Space>
@@ -666,7 +667,20 @@ export default function InfoMaintain() {
                         </Form.Item>
                       </Col>
                       <Col span={24}><Form.Item name="summary" label="摘要"><TextArea rows={2} /></Form.Item></Col>
-                      <Col span={24}><Form.Item name="content" label="正文"><TextArea rows={6} /></Form.Item></Col>
+                      <Form.Item name="content" hidden><Input /></Form.Item>
+                      <Col span={24}>
+                        <Form.Item shouldUpdate noStyle>
+                          {() => (
+                            <ResearchContentPanel
+                              editing
+                              title="正文图文录入"
+                              showStandardFields={false}
+                              value={knowledgeForm.getFieldValue('content') || ''}
+                              onChange={(next) => knowledgeForm.setFieldValue('content', next)}
+                            />
+                          )}
+                        </Form.Item>
+                      </Col>
                       <Col span={12}><Form.Item name="next_action" label="下一步动作"><TextArea rows={2} /></Form.Item></Col>
                       <Col span={6}><Form.Item name="due_date" label="截止日期"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
                       <Col span={6}><Form.Item name="source_ref" label="来源引用"><Input placeholder="链接/来源" /></Form.Item></Col>
@@ -714,12 +728,13 @@ export default function InfoMaintain() {
                         <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.summary}</Typography.Paragraph>
                       </div>
                     ) : null}
-                    {selectedKnowledge.content ? (
-                      <div>
-                        <Typography.Text type="secondary">正文</Typography.Text>
-                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.content}</Typography.Paragraph>
-                      </div>
-                    ) : null}
+                    <div>
+                      <ResearchContentPanel
+                        title="正文图文"
+                        showStandardFields={false}
+                        value={selectedKnowledge.content}
+                      />
+                    </div>
                     {selectedKnowledge.next_action ? (
                       <div>
                         <Typography.Text type="secondary">下一步动作</Typography.Text>
@@ -781,7 +796,7 @@ export default function InfoMaintain() {
                     onCancel={cancelBrokerEdit}
                     editDisabled={!selectedBrokerId}
                   />
-                  <Popconfirm title="确认删除当前券商？" onConfirm={deleteBroker} disabled={!selectedBrokerId}>
+                  <Popconfirm title="确认移入回收站？" onConfirm={deleteBroker} disabled={!selectedBrokerId}>
                     <Button danger icon={<DeleteOutlined />} disabled={!selectedBrokerId}>删除</Button>
                   </Popconfirm>
                 </Space>

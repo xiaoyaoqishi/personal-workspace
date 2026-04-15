@@ -6,6 +6,7 @@ import {
   LogoutOutlined,
   BankOutlined,
   ProjectOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import TradeList from './pages/TradeList';
@@ -13,6 +14,7 @@ import TradeForm from './pages/TradeForm';
 import ReviewList from './pages/ReviewList';
 import InfoMaintain from './pages/BrokerManage';
 import TradePlanList from './pages/TradePlanList';
+import TradingRecycleBin from './pages/TradingRecycleBin';
 import api from './api';
 
 const tabs = [
@@ -21,6 +23,7 @@ const tabs = [
   { key: '/maintain', icon: <BankOutlined />, label: '信息维护' },
   { key: '/reviews', icon: <FileTextOutlined />, label: '复盘会话' },
   { key: '/plans', icon: <ProjectOutlined />, label: '计划' },
+  { key: '/recycle', icon: <DeleteOutlined />, label: '回收站' },
 ];
 
 function IconSidebar() {
@@ -75,6 +78,7 @@ function AppLayout() {
           <Route path="/maintain" element={<InfoMaintain />} />
           <Route path="/reviews" element={<ReviewList />} />
           <Route path="/plans" element={<TradePlanList />} />
+          <Route path="/recycle" element={<TradingRecycleBin />} />
         </Routes>
       </div>
     </div>
