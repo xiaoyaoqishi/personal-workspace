@@ -154,6 +154,7 @@ Frontend modules (`frontend`, `frontend-notes`, `frontend-monitor`):
 Deployment scripts:
 - `deploy/setup.sh`: first-time server setup.
 - `deploy/update.sh`: pull latest code, install/build, update nginx config, restart services.
+- `deploy/remote-update.sh`: trigger remote `deploy/update.sh` from local machine over SSH.
 
 ## 13. Development
 Recommended workflow:
@@ -183,6 +184,9 @@ Current deployment assets are Linux-oriented and expect `/opt/tradingRecords`:
 - `deploy/trading.service` runs `python3 -m uvicorn main:app --host 127.0.0.1 --port 8000` in `/opt/tradingRecords/backend`.
 - `deploy/nginx.conf` exposes portal/apps under `/`, `/trading/`, `/notes/`, `/monitor/`, and proxies `/api/`.
 - `deploy/update.sh` performs `git pull`, installs backend deps, builds all frontends, updates portal files, and restarts `nginx` + `trading` service.
+- When triggered by non-root users (for example `admin`), `deploy/update.sh` uses `sudo` for privileged steps (`nginx`/`systemctl`), so that user must have corresponding sudo permissions.
+- Local one-command trigger (without manually logging into server):
+  - `PROD_HOST=<server_ip> PROD_USER=admin bash deploy/remote-update.sh`
 
 ## 16. Database / Storage
 - Main DB: `backend/data/trading.db` (SQLite).

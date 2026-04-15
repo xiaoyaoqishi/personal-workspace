@@ -2,6 +2,22 @@
 set -e
 cd /opt/tradingRecords
 
+run_privileged() {
+  if [ "$(id -u)" -eq 0 ]; then
+    "$@"
+    return
+  fi
+
+  if command -v sudo >/dev/null 2>&1; then
+    # Non-interactive sudo keeps remote automation predictable.
+    sudo -n "$@"
+    return
+  fi
+
+  echo "缺少管理员权限: 请使用 root 执行，或为当前用户配置 sudo。"
+  exit 1
+}
+
 echo "=== 拉取最新代码 ==="
 git pull
 
@@ -34,8 +50,9 @@ for src in ../portal/*.html; do
 done
 
 echo "=== 重启服务 ==="
-cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-available/trading
-nginx -t && systemctl restart nginx
-systemctl restart trading
+run_privileged cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-available/trading
+run_privileged nginx -t
+run_privileged systemctl restart nginx
+run_privileged systemctl restart trading
 
 echo "=== 更新完成 ==="

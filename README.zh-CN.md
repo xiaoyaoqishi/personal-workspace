@@ -153,6 +153,7 @@ npm install
 部署脚本：
 - `deploy/setup.sh`：服务器首次部署。
 - `deploy/update.sh`：拉取更新、安装/构建、更新 Nginx、重启服务。
+- `deploy/remote-update.sh`：在本地通过 SSH 触发远端 `deploy/update.sh`。
 
 ## 13. 本地开发
 推荐流程：
@@ -182,6 +183,9 @@ cd ../frontend-monitor && npm run build
 - `deploy/trading.service` 在 `/opt/tradingRecords/backend` 启动 `python3 -m uvicorn main:app --host 127.0.0.1 --port 8000`。
 - `deploy/nginx.conf` 暴露门户和三个前端子路径，并将 `/api/` 反向代理到后端。
 - `deploy/update.sh` 会执行 `git pull`、安装后端依赖、构建三套前端、同步门户页面、重启 `nginx` 与 `trading` 服务。
+- 若通过非 root 用户（如 `admin`）触发，`deploy/update.sh` 会在特权步骤（`nginx`/`systemctl`）自动走 `sudo`，因此该用户需具备相应 sudo 权限。
+- 本地一条命令触发远端更新（无需先登录服务器）：
+  - `PROD_HOST=<服务器IP> PROD_USER=admin bash deploy/remote-update.sh`
 
 ## 16. 数据库或存储说明
 - 主数据库：`backend/data/trading.db`（SQLite）。
