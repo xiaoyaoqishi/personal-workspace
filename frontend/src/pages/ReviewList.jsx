@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
-  Card,
   Col,
   Collapse,
   DatePicker,
@@ -20,6 +19,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import InkSection from '../components/InkSection';
 import { DeleteOutlined, FolderOpenOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useSearchParams } from 'react-router-dom';
@@ -126,7 +126,7 @@ function summaryToOption(summary) {
 function LinkedTradeCard({ item }) {
   const s = item?.trade_summary || {};
   return (
-    <Card size="small" className="review-linked-card">
+    <div className="review-linked-card">
       <Space direction="vertical" size={6} style={{ width: '100%' }}>
         <Space wrap>
           <Tag color="blue">{formatReviewRoleLabel(item.role)}</Tag>
@@ -139,7 +139,7 @@ function LinkedTradeCard({ item }) {
         <Typography.Text type="secondary">PnL {s.pnl ?? '-'} / 来源 {s.source_display || '-'}</Typography.Text>
         {(item.note || item.notes) ? <Typography.Text type="secondary">备注: {item.note || item.notes}</Typography.Text> : null}
       </Space>
-    </Card>
+    </div>
   );
 }
 
@@ -478,7 +478,7 @@ export default function ReviewList() {
 
   return (
     <div className="review-workspace">
-      <Card className="review-toolbar" bodyStyle={{ padding: 12 }}>
+      <div className="review-toolbar">
         <div className="review-toolbar-inner">
           <div>
             <Typography.Title level={4} style={{ margin: 0 }}>复盘研究工作台</Typography.Title>
@@ -495,11 +495,11 @@ export default function ReviewList() {
             <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger icon={<DeleteOutlined />} disabled={!selectedId}>删除</Button></Popconfirm>
           </Space>
         </div>
-      </Card>
+      </div>
 
       <Row gutter={12}>
         <Col xs={24} xl={8}>
-          <Card className="review-list-card" loading={loading}>
+          <InkSection className="review-list-card" loading={loading}>
             {groupedRows.length === 0 ? (
               <Empty description="暂无会话" />
             ) : (
@@ -555,11 +555,11 @@ export default function ReviewList() {
                 }))}
               />
             )}
-          </Card>
+          </InkSection>
         </Col>
 
         <Col xs={24} xl={16}>
-          <Card title={selectedId ? `会话 #${selectedId}` : '新建会话'} className="review-editor-card">
+          <InkSection title={selectedId ? `会话 #${selectedId}` : '新建会话'} className="review-editor-card">
             {editing ? (
               <>
                 <Form form={form} layout="vertical" initialValues={{ review_kind: activeKind, review_scope: 'custom', selection_mode: 'manual', tags: [], is_favorite: false }}>
@@ -595,7 +595,7 @@ export default function ReviewList() {
                   </Row>
                 </Form>
 
-                <Card size="small" title="关联交易（搜索 + 样本）" className="review-link-card">
+                <InkSection size="small" title="关联交易（搜索 + 样本）" className="review-link-card">
                   <div className="review-link-search-grid">
                     <Input allowClear value={tradeSearch.q} onChange={(e) => { const v = e.target.value; setTradeSearch((prev) => ({ ...prev, q: v })); scheduleSearchTradeOptions(v); }} placeholder="搜索: ID/合约/品种/来源" />
                     <Select allowClear showSearch optionFilterProp="label" options={FUTURES_SYMBOL_OPTIONS} value={tradeSearch.symbol} placeholder="品种" onChange={(v) => { const next = { ...tradeSearch, symbol: v }; setTradeSearch(next); searchTradeOptions({ query: next.q, searchState: next }); }} />
@@ -625,13 +625,13 @@ export default function ReviewList() {
                       )}
                     />
                   )}
-                </Card>
+                </InkSection>
               </>
             ) : !selected ? (
               <Empty description="请选择左侧会话或新建" />
             ) : (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Card size="small" title="会话概览" className="review-read-card">
+                <InkSection size="small" title="会话概览">
                   <Descriptions size="small" column={2}>
                     <Descriptions.Item label="标题">{selected.title || '-'}</Descriptions.Item>
                     <Descriptions.Item label="类型">{kindLabel(selected.review_kind)}</Descriptions.Item>
@@ -642,14 +642,14 @@ export default function ReviewList() {
                     <Descriptions.Item label="市场环境">{selected.market_regime || '-'}</Descriptions.Item>
                     <Descriptions.Item label="星级"><Rate disabled value={selected.star_rating || 0} /></Descriptions.Item>
                   </Descriptions>
-                </Card>
+                </InkSection>
 
-                {selected.summary ? <Card size="small" title="结论摘要" className="review-read-card"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.summary}</Typography.Paragraph></Card> : null}
-                {selected.action_items ? <Card size="small" title="后续动作" className="review-read-card"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.action_items}</Typography.Paragraph></Card> : null}
-                {selected.content ? <Card size="small" title="详细文本" className="review-read-card"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.content}</Typography.Paragraph></Card> : null}
-                <Card size="small" title="图文研究" className="review-read-card"><ResearchContentPanel value={selected.research_notes} title="图文研究" /></Card>
+                {selected.summary ? <InkSection size="small" title="结论摘要"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.summary}</Typography.Paragraph></InkSection> : null}
+                {selected.action_items ? <InkSection size="small" title="后续动作"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.action_items}</Typography.Paragraph></InkSection> : null}
+                {selected.content ? <InkSection size="small" title="详细文本"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.content}</Typography.Paragraph></InkSection> : null}
+                <InkSection size="small" title="图文研究"><ResearchContentPanel value={selected.research_notes} title="图文研究" /></InkSection>
 
-                <Card size="small" title="关联交易（内容卡片）" className="review-link-card">
+                <InkSection size="small" title="关联交易（内容卡片）">
                   {(selected.trade_links || []).length === 0 ? (
                     <Empty description="暂无关联交易" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
@@ -657,10 +657,10 @@ export default function ReviewList() {
                       {(selected.trade_links || []).map((item) => <LinkedTradeCard key={`${item.id}-${item.trade_id}`} item={item} />)}
                     </div>
                   )}
-                </Card>
+                </InkSection>
               </Space>
             )}
-          </Card>
+          </InkSection>
         </Col>
       </Row>
     </div>

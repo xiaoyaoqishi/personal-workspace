@@ -1,4 +1,4 @@
-﻿import { Card, Col, DatePicker, Row, Select, Space } from 'antd';
+﻿import { Col, DatePicker, Row, Select, Space } from 'antd';
 
 const { RangePicker } = DatePicker;
 
@@ -11,7 +11,7 @@ export default function AnalyticsFilterBar({
   onSetSource,
 }) {
   return (
-    <Card className="analytics-filter-card">
+    <div className="ink-filter-bar">
       <Row justify="space-between" align="middle" gutter={[12, 12]}>
         <Col>
           <Space wrap>
@@ -41,6 +41,6 @@ export default function AnalyticsFilterBar({
           </Space>
         </Col>
       </Row>
-    </Card>
+    </div>
   );
 }

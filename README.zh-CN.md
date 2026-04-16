@@ -125,6 +125,7 @@ Trading Records Workspace
 │  └─ package.json
 ├─ frontend-news/            # 历史遗留目录，当前无 package.json
 ├─ portal/
+│  ├─ dev_server.py
 │  ├─ index.html
 │  └─ login.html
 ├─ deploy/
@@ -148,7 +149,8 @@ Trading Records Workspace
 ./dev.sh up
 ```
 
-该命令会拉起 backend + 自动发现的全部 frontend 开发服务（匹配 `frontend*` 目录且 `package.json` 中含 `dev` 脚本）；有 tmux 则用 tmux，没有则后台运行。
+该命令会拉起 backend + `portal` 本地网关 + 自动发现的全部 frontend 开发服务（匹配 `frontend*` 目录且 `package.json` 中含 `dev` 脚本）；有 tmux 则用 tmux，没有则后台运行。
+门户访问地址：`http://127.0.0.1:5172`（可用 `PORTAL_DEV_PORT` 覆盖）。
 
 ## 9. 前置要求
 - Python 3
@@ -193,13 +195,15 @@ npm install
 
 ## 12. 常用脚本
 仓库级：
-- `./dev.sh up`：启动 backend + 自动发现的全部 `frontend*` 本地开发服务。
-- `./dev.sh down`：停止全部本地服务，并兜底清理仓库内残留调试进程（`vite`/`npm run dev` 及匹配的后端 `uvicorn`）。
+- `./dev.sh up`：启动 backend + `portal` 本地网关 + 自动发现的全部 `frontend*` 本地开发服务。
+- `./dev.sh down`：停止全部本地服务，并兜底清理仓库内残留调试进程（`vite`/`npm run dev`、portal `dev_server.py` 及匹配的后端 `uvicorn`）。
 - `./dev.sh status`：查看 tmux/后台进程状态。
 - `./dev.sh attach`：附着 tmux 或跟随日志。
 - `./dev.sh restart`：重启全部服务。
 - `./dev.sh down`：默认会自动全量清理 `.dev-run` 下全部 `pid/log` 文件（含历史/手工日志）。
 - `DEV_CLEAN_ON_DOWN=0 ./dev.sh down`：停止服务时保留 `.dev-run` 下全部 `pid/log` 文件。
+- `PORTAL_DEV_PORT=5172 ./dev.sh up`：覆盖 portal 本地入口端口。
+- `PORTAL_BACKEND_PORT=8000 PORTAL_TRADING_PORT=5173 PORTAL_NOTES_PORT=5174 PORTAL_MONITOR_PORT=5175 ./dev.sh up`：覆盖 portal 反向代理上游端口。
 
 前端子应用（如 `frontend`、`frontend-notes`、`frontend-monitor`）：
 - `npm run dev`

@@ -5,9 +5,10 @@
 }
 
 .maintain-toolbar {
-  border-radius: 12px;
-  border: 1px solid #d8e1ea;
-  background: linear-gradient(145deg, #ffffff 0%, #f2f6fa 100%);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid rgba(90,75,55,0.2);
+  background: linear-gradient(145deg, #efe9e0 0%, #e5ded4 100%);
+  padding: 12px 14px;
 }
 
 .maintain-toolbar-inner {
@@ -18,12 +19,13 @@
 }
 
 .maintain-filter-card {
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(90,75,55,0.15);
 }
 
 .maintain-list-card,
 .maintain-editor-card {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .maintain-folder-collapse {
@@ -31,12 +33,12 @@
 }
 
 .maintain-folder-collapse .ant-collapse-item {
-  border: 1px solid #e6edf5 !important;
-  border-radius: 12px !important;
+  border: 1px solid rgba(90,75,55,0.2) !important;
+  border-radius: 8px !important;
   margin-bottom: 10px;
   overflow: hidden;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 1px 3px rgba(20, 37, 63, 0.06);
+  background: linear-gradient(180deg, #efe9e0 0%, #e9e3d9 100%);
+  box-shadow: 0 1px 3px rgba(60,50,35,0.06);
 }
 
 .maintain-folder-collapse .ant-collapse-item:last-child {
@@ -44,8 +46,8 @@
 }
 
 .maintain-folder-collapse .ant-collapse-item-active {
-  border-color: #bfd6ff !important;
-  box-shadow: 0 5px 16px rgba(61, 110, 197, 0.14);
+  border-color: rgba(90,75,55,0.35) !important;
+  box-shadow: 0 4px 14px rgba(60,50,35,0.1);
 }
 
 .maintain-folder-collapse .ant-collapse-header {
@@ -53,12 +55,12 @@
 }
 
 .maintain-folder-collapse .ant-collapse-header:hover {
-  background: #f6f9ff;
+  background: #e5ded4;
 }
 
 .maintain-folder-collapse .ant-collapse-content {
-  border-top: 1px solid #eef3fa;
-  background: #ffffff;
+  border-top: 1px solid rgba(90,75,55,0.15);
+  background: #ece6dc;
 }
 
 .maintain-folder-collapse .ant-collapse-content-box {
@@ -82,7 +84,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: #1f2937;
+  color: #3a3530;
 }
 
 .maintain-folder-icon {
@@ -92,13 +94,13 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: #edf4ff;
-  color: #3468cc;
+  background: #e0dbd2;
+  color: #5a4e40;
 }
 
 .maintain-folder-collapse .ant-collapse-item-active .maintain-folder-icon {
-  background: #dfeeff;
-  color: #1d56c5;
+  background: #d5cfc5;
+  color: #4a4035;
 }
 
 .maintain-folder-count {
@@ -109,8 +111,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: #edf4ff;
-  color: #2f63c8;
+  background: #e0dbd2;
+  color: #5a4e40;
   font-size: 12px;
   font-weight: 600;
 }
@@ -118,16 +120,16 @@
 .maintain-list-item {
   cursor: pointer;
   padding: 8px 6px;
-  border-radius: 10px;
+  border-radius: 8px;
   transition: background 0.2s ease;
 }
 
 .maintain-list-item:hover {
-  background: #f7fafc;
+  background: #e2dbd0;
 }
 
 .maintain-list-item.active {
-  background: #edf4ff;
+  background: #d8d1c6;
 }
 
 .maintain-list-child-item {
@@ -137,14 +139,14 @@
 }
 
 .maintain-list-child-item:hover {
-  border-color: #e2ebf8;
-  background: #f8fbff;
+  border-color: rgba(90,75,55,0.18);
+  background: #e5ded4;
 }
 
 .maintain-list-child-item.active {
-  border-color: #bfd6ff;
-  background: #edf4ff;
-  box-shadow: inset 0 0 0 1px rgba(96, 140, 224, 0.08);
+  border-color: rgba(90,75,55,0.3);
+  background: #ddd6cb;
+  box-shadow: inset 0 0 0 1px rgba(90,75,55,0.06);
 }
 
 .maintain-list-main {
@@ -163,7 +165,7 @@
   min-width: 0;
   font-weight: 600;
   font-size: 14px;
-  color: #1f2937;
+  color: #3a3530;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -180,7 +182,7 @@
 
 .maintain-list-summary {
   margin-bottom: 0;
-  color: #5a6575;
+  color: #5a5545;
 }
 
 .maintain-mini-tag {

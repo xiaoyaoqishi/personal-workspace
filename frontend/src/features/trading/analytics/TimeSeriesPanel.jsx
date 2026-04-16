@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Card, Col, Empty, Row, Segmented } from 'antd';
+import { Col, Empty, Row, Segmented } from 'antd';
+import InkSection from '../../../components/InkSection';
 import {
   ResponsiveContainer,
   LineChart,
@@ -23,7 +24,7 @@ export default function TimeSeriesPanel({ series }) {
   };
 
   return (
-    <Card
+    <InkSection
       title="时间维度（盈亏、胜率与频次）"
       extra={
         <Segmented
@@ -75,6 +76,6 @@ export default function TimeSeriesPanel({ series }) {
           </Col>
         </Row>
       )}
-    </Card>
+    </InkSection>
   );
 }

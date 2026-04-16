@@ -1,4 +1,5 @@
-import { Card, Col, Empty, Row } from 'antd';
+import { Col, Empty, Row } from 'antd';
+import InkSection from '../../../components/InkSection';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar } from 'recharts';
 
 const PLANNED_KEY_ZH = {
@@ -15,7 +16,7 @@ const OVERNIGHT_KEY_ZH = {
 function MiniBar({ data, xField = 'key', title, color = '#1677ff' }) {
   if (!data || data.length === 0) return <Empty description="暂无数据" />;
   return (
-    <Card size="small" title={title}>
+    <InkSection size="small" title={title}>
       <div className="analytics-chart-box">
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data.slice(0, 10)}>
@@ -28,7 +29,7 @@ function MiniBar({ data, xField = 'key', title, color = '#1677ff' }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </Card>
+    </InkSection>
   );
 }
 
@@ -43,7 +44,7 @@ export default function BehaviorPanels({ behavior }) {
   }));
 
   return (
-    <Card title="行为与质量维度">
+    <InkSection title="行为与质量维度">
       <Row gutter={[12, 12]}>
         <Col xs={24} xl={12}>
           <MiniBar data={behavior?.error_tags || []} xField="tag" title="错误标签频次" color="#f5222d" />
@@ -64,6 +65,6 @@ export default function BehaviorPanels({ behavior }) {
           <MiniBar data={overnightRows} title="隔夜/日内分布" color="#fa8c16" />
         </Col>
       </Row>
-    </Card>
+    </InkSection>
   );
 }

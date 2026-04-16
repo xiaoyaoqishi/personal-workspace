@@ -1,4 +1,5 @@
-import { Card, Col, Empty, Row } from 'antd';
+import { Col, Empty, Row } from 'antd';
+import InkSection from '../../../components/InkSection';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar } from 'recharts';
 import { getTaxonomyLabel, TAXONOMY_FIELD_ZH } from '../localization';
 
@@ -6,7 +7,7 @@ const FIELDS = ['opportunity_structure', 'edge_source', 'failure_type', 'review_
 
 export default function StructuredReviewPanels({ byReviewField }) {
   return (
-    <Card title="结构化复盘维度">
+    <InkSection title="结构化复盘维度">
       <Row gutter={[12, 12]}>
         {FIELDS.map((field) => {
           const rows = (byReviewField?.[field] || []).map((r) => ({
@@ -15,7 +16,7 @@ export default function StructuredReviewPanels({ byReviewField }) {
           }));
           return (
             <Col key={field} xs={24} xl={12}>
-              <Card size="small" title={TAXONOMY_FIELD_ZH[field]}>
+              <InkSection size="small" title={TAXONOMY_FIELD_ZH[field]}>
                 {rows.length === 0 ? (
                   <Empty description="暂无结构化数据" />
                 ) : (
@@ -33,11 +34,11 @@ export default function StructuredReviewPanels({ byReviewField }) {
                     </ResponsiveContainer>
                   </div>
                 )}
-              </Card>
+              </InkSection>
             </Col>
           );
         })}
       </Row>
-    </Card>
+    </InkSection>
   );
 }

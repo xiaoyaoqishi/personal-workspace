@@ -1,4 +1,4 @@
-﻿import { Button, Card, Col, DatePicker, Popconfirm, Row, Segmented, Select, Space } from 'antd';
+﻿import { Button, Col, DatePicker, Popconfirm, Row, Segmented, Select, Space } from 'antd';
 
 const { RangePicker } = DatePicker;
 
@@ -17,7 +17,7 @@ export default function TradeWorkspaceFilterBar({
   onUpdateFilter,
 }) {
   return (
-    <Card className="trade-filter-card">
+    <div className="ink-filter-bar">
       <Row justify="space-between" align="middle" gutter={[12, 12]}>
         <Col>
           <Segmented
@@ -125,6 +125,6 @@ export default function TradeWorkspaceFilterBar({
           </Col>
         )}
       </Row>
-    </Card>
+    </div>
   );
 }

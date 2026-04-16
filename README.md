@@ -125,6 +125,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 │  └─ package.json
 ├─ frontend-news/            # legacy directory, currently no package.json
 ├─ portal/
+│  ├─ dev_server.py
 │  ├─ index.html
 │  └─ login.html
 ├─ deploy/
@@ -148,7 +149,8 @@ Quick local start uses the repository-level script:
 ./dev.sh up
 ```
 
-This starts backend + all auto-discovered frontend dev servers (directories matching `frontend*` that contain `package.json` with a `dev` script), using tmux when available or background mode otherwise.
+This starts backend + `portal` local dev gateway + all auto-discovered frontend dev servers (directories matching `frontend*` that contain `package.json` with a `dev` script), using tmux when available or background mode otherwise.
+Open the portal at `http://127.0.0.1:5172` (or `PORTAL_DEV_PORT`).
 
 ## 9. Prerequisites
 - Python 3
@@ -193,14 +195,16 @@ Repository ignore rules keep `.env` / `.env.*` out of Git while preserving `.env
 
 ## 12. Available Scripts
 Repository-level:
-- `./dev.sh up`: start backend + all auto-discovered `frontend*` dev services.
-- `./dev.sh down`: stop all local services and force-clean leftover repo-local debug processes (`vite`/`npm run dev` and matching backend `uvicorn`).
+- `./dev.sh up`: start backend + `portal` local dev gateway + all auto-discovered `frontend*` dev services.
+- `./dev.sh down`: stop all local services and force-clean leftover repo-local debug processes (`vite`/`npm run dev`, portal `dev_server.py`, and matching backend `uvicorn`).
 - `./dev.sh status`: check tmux/background service status.
 - `./dev.sh attach`: attach tmux session or tail logs.
 - `./dev.sh restart`: restart all services.
 - `DEV_LOG_MODE=none ./dev.sh up`: disable log files in background mode (`.dev-run/*.log`).
 - `./dev.sh down`: auto-cleans all `.dev-run` pid/log files by default (including legacy/manual logs).
 - `DEV_CLEAN_ON_DOWN=0 ./dev.sh down`: keep all `.dev-run` pid/log files when stopping services.
+- `PORTAL_DEV_PORT=5172 ./dev.sh up`: override portal local entry port.
+- `PORTAL_BACKEND_PORT=8000 PORTAL_TRADING_PORT=5173 PORTAL_NOTES_PORT=5174 PORTAL_MONITOR_PORT=5175 ./dev.sh up`: override portal upstream ports.
 
 Frontend modules (for example `frontend`, `frontend-notes`, `frontend-monitor`):
 - `npm run dev`

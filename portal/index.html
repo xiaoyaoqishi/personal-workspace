@@ -13,42 +13,18 @@
       min-height: 100vh;
       overflow-x: hidden;
       overflow-y: auto;
-      background: radial-gradient(120% 100% at 20% 0%, #ece7dd 0%, #d8d2c4 42%, #c7c0b1 100%);
+      background: #d1cbc0;
     }
 
-    .ink-bg {
+    .video-bg {
       position: fixed;
       inset: 0;
       z-index: 0;
-      background:
-        radial-gradient(52% 40% at 8% 20%, rgba(64, 67, 63, 0.24), transparent 66%),
-        radial-gradient(36% 30% at 78% 12%, rgba(78, 74, 66, 0.21), transparent 70%),
-        radial-gradient(34% 25% at 68% 76%, rgba(60, 73, 74, 0.25), transparent 75%);
-      filter: blur(2px) grayscale(0.2);
-    }
-
-    .mountain-wrap {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-      opacity: 0.82;
-    }
-
-    .mist {
-      position: fixed;
-      width: 180%;
-      height: 160px;
-      left: -35%;
-      z-index: 2;
-      opacity: 0.35;
-      animation: drift 40s linear infinite;
-    }
-    .mist.top { top: 14vh; }
-    .mist.mid { top: 38vh; animation-duration: 56s; animation-direction: reverse; }
-
-    @keyframes drift {
-      from { transform: translateX(0); }
-      to { transform: translateX(-45%); }
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      filter: saturate(0.84) contrast(0.94);
     }
 
     .shell {
@@ -57,9 +33,10 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      padding: 5vh 5vw 4vh;
+      padding: 4vh 6vw 3vh;
     }
 
+    /* ── 顶栏 ── */
     .topbar {
       display: flex;
       justify-content: space-between;
@@ -67,146 +44,231 @@
     }
 
     .brand h1 {
-      font-size: clamp(30px, 4vw, 52px);
-      font-weight: 500;
-      letter-spacing: 0.4rem;
-      color: #3f3a34;
+      font-family: 'KaiTi', 'STKaiti', 'Songti SC', serif;
+      font-size: clamp(36px, 5vw, 64px);
+      font-weight: 400;
+      letter-spacing: 0.6rem;
+      color: #3a3530;
+      text-shadow: 0 2px 14px rgba(245,240,232,0.45);
     }
 
     .brand .slogan {
-      margin-top: 8px;
-      font-size: 13px;
-      letter-spacing: 0.22rem;
+      margin-top: 10px;
+      font-size: clamp(14px, 1.4vw, 17px);
+      letter-spacing: 0.3rem;
       color: #6a6258;
     }
 
     .clock {
       text-align: right;
-      color: #4c463f;
-      margin-top: 6px;
+      color: #4a4440;
+      margin-top: 4px;
     }
-    .clock .date { font-size: 14px; letter-spacing: 0.12rem; }
-    .clock .time { font-size: clamp(24px, 3vw, 34px); font-weight: 300; margin-top: 3px; }
+    .clock .date {
+      font-size: clamp(16px, 1.6vw, 22px);
+      letter-spacing: 0.15rem;
+    }
+    .clock .time {
+      font-family: 'KaiTi', 'STKaiti', 'Songti SC', serif;
+      font-size: clamp(40px, 5.5vw, 60px);
+      font-weight: 300;
+      margin-top: 4px;
+      letter-spacing: 0.15rem;
+    }
 
-    .poem {
-      margin-top: 2.6vh;
-      width: min(720px, 100%);
-      background: rgba(247, 243, 236, 0.55);
-      border: 1px solid rgba(119, 108, 92, 0.2);
-      border-radius: 14px;
-      backdrop-filter: blur(10px);
-      padding: 18px 20px;
-      box-shadow: 0 10px 34px rgba(78, 66, 48, 0.10);
+    /* ── 中部主区域：撑满剩余空间，居中诗词 ── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2vh 0;
     }
+
+    /* ── 诗词区：居中、楷体、大字 ── */
+    .poem {
+      width: min(940px, 94%);
+      padding: 32px 40px;
+      position: relative;
+      background: rgba(245, 240, 232, 0.24);
+      backdrop-filter: blur(10px);
+      text-align: center;
+    }
+    .poem::before,
+    .poem::after {
+      content: '';
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(80,70,55,0.35), transparent);
+    }
+    .poem::before { top: 0; }
+    .poem::after { bottom: 0; }
+
     .poem .title {
-      font-size: 13px;
+      font-size: clamp(14px, 1.2vw, 16px);
       color: #847762;
-      letter-spacing: 0.18rem;
+      letter-spacing: 0.3rem;
     }
     .poem-head {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 20px;
     }
     .poem-refresh-btn {
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      border: 1px solid rgba(126, 114, 97, 0.28);
-      background: rgba(255, 252, 247, 0.45);
+      border: 1px solid rgba(126, 114, 97, 0.25);
+      background: transparent;
       color: #7c7265;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
+      transition: all 0.25s;
     }
     .poem-refresh-btn:hover {
       color: #5f5548;
-      border-color: rgba(126, 114, 97, 0.45);
-      background: rgba(255, 252, 247, 0.75);
+      border-color: rgba(126, 114, 97, 0.5);
+      background: rgba(245, 240, 232, 0.3);
     }
+
     .poem .line {
-      font-size: 20px;
-      line-height: 1.8;
+      font-family: 'KaiTi', 'STKaiti', 'AR PL UKai CN', 'Noto Serif SC', serif;
+      font-size: clamp(24px, 3vw, 32px);
+      line-height: 2.3;
+      letter-spacing: 0.15rem;
       color: #2e2a25;
       white-space: pre-wrap;
     }
     .poem .line.collapsed {
-      max-height: 7.2em;
+      max-height: 10em;
       overflow: hidden;
       position: relative;
     }
     .poem .line.expanded {
-      max-height: 36vh;
+      max-height: 42vh;
       overflow-y: auto;
       padding-right: 6px;
     }
     .poem .line.collapsed::after {
       content: '';
       position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 2.4em;
-      background: linear-gradient(180deg, rgba(247,243,236,0), rgba(247,243,236,0.95));
+      left: 0; right: 0; bottom: 0;
+      height: 3.2em;
+      background: linear-gradient(180deg, rgba(218,213,203,0) 0%, rgba(218,213,203,0.8) 100%);
     }
     .poem .meta {
-      margin-top: 10px;
+      margin-top: 18px;
       color: #756a5b;
-      font-size: 13px;
+      font-size: clamp(14px, 1.2vw, 16px);
+      letter-spacing: 0.18rem;
     }
     .poem-toggle {
-      margin-top: 8px;
-      border: 1px solid rgba(126, 114, 97, 0.35);
-      background: rgba(255, 252, 247, 0.72);
-      color: #5f5548;
-      border-radius: 6px;
-      padding: 4px 10px;
+      margin-top: 14px;
+      border: 1px solid rgba(126, 114, 97, 0.3);
+      background: transparent;
+      color: #6a6258;
+      border-radius: 2px;
+      padding: 5px 16px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 13px;
+      font-family: inherit;
+      letter-spacing: 0.1rem;
+      transition: all 0.25s;
     }
     .poem-toggle:hover {
-      background: rgba(255, 252, 247, 0.92);
+      background: rgba(245, 240, 232, 0.3);
+      border-color: rgba(126, 114, 97, 0.5);
     }
 
-    .grid {
-      margin-top: 4vh;
-      display: grid;
-      grid-template-columns: repeat(4, minmax(190px, 1fr));
-      gap: 16px;
-      width: min(1100px, 100%);
+    /* ── 导航区：印章 + 墨线 ── */
+    .nav-row {
+      padding-top: 2vh;
+      padding-bottom: 1vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .card {
+    .nav-item {
+      flex: 0 1 300px;
       text-decoration: none;
-      color: #3b342c;
-      background: rgba(252, 249, 244, 0.62);
-      border: 1px solid rgba(128, 115, 95, 0.22);
-      border-radius: 12px;
-      padding: 18px 16px;
-      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
-      box-shadow: 0 8px 22px rgba(73, 61, 45, 0.08);
-      min-height: 122px;
+      color: #3a3530;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
-      gap: 6px;
+      padding: 30px 24px;
+      position: relative;
+      transition: all 0.4s ease;
+    }
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border-radius: 8px;
+      background: radial-gradient(ellipse at center, rgba(245,240,232,0.5) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 0;
+    }
+    .nav-item:hover::before { opacity: 1; }
+
+    .nav-separator {
+      width: 1px;
+      height: 72px;
+      background: linear-gradient(180deg, transparent, rgba(100,90,75,0.3), transparent);
+      flex-shrink: 0;
     }
 
-    .card:hover {
-      transform: translateY(-4px);
-      background: rgba(255, 252, 247, 0.82);
-      box-shadow: 0 16px 30px rgba(73, 61, 45, 0.15);
+    .nav-item .seal {
+      width: 60px;
+      height: 60px;
+      border: 1.5px solid rgba(175, 75, 55, 0.4);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 27px;
+      color: rgba(175, 75, 55, 0.55);
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+      transition: all 0.35s ease;
+    }
+    .nav-item:hover .seal {
+      color: rgba(175, 75, 55, 0.8);
+      border-color: rgba(175, 75, 55, 0.65);
+      transform: scale(1.06);
     }
 
-    .card .icon { font-size: 24px; }
-    .card .name { font-size: 18px; letter-spacing: 0.12rem; }
-    .card .desc { font-size: 12px; color: #7d7367; line-height: 1.6; }
+    .nav-item .name {
+      font-size: clamp(20px, 2.2vw, 28px);
+      letter-spacing: 0.35rem;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
+    }
 
+    .nav-item .desc {
+      font-size: 13px;
+      color: #7d7367;
+      margin-top: 10px;
+      letter-spacing: 0.08rem;
+      text-align: center;
+      line-height: 1.6;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── 退出 ── */
     .logout-btn {
       position: fixed;
       right: 24px;
@@ -214,54 +276,55 @@
       width: 42px;
       height: 42px;
       border-radius: 50%;
-      border: 1px solid rgba(120, 107, 89, 0.35);
-      background: rgba(252, 248, 242, 0.8);
+      border: 1px solid rgba(120, 107, 89, 0.3);
+      background: rgba(245, 240, 232, 0.2);
+      backdrop-filter: blur(8px);
       color: #6a6258;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 20;
-      transition: all 0.2s;
+      transition: all 0.25s;
     }
     .logout-btn:hover {
       color: #a24b42;
-      background: rgba(255, 252, 247, 0.95);
+      background: rgba(245, 240, 232, 0.4);
     }
 
+    /* ── 响应式 ── */
     @media (max-width: 980px) {
       body { overflow: auto; }
-      .shell { padding: 20px 16px 22px; min-height: auto; }
+      .shell { padding: 20px 16px 16px; min-height: auto; }
       .topbar { flex-direction: column; gap: 12px; }
       .clock { text-align: left; }
-      .grid { margin-top: 20px; grid-template-columns: 1fr 1fr; }
-      .poem .line { font-size: 18px; }
+      .main-area { padding: 2vh 0; }
+      .nav-row {
+        flex-direction: column;
+        gap: 0;
+        align-items: stretch;
+      }
+      .nav-separator {
+        width: 60px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(100,90,75,0.3), transparent);
+        align-self: center;
+      }
+      .nav-item { flex: none; padding: 22px 20px; }
+      .poem .line { font-size: clamp(20px, 4.5vw, 26px); }
     }
 
     @media (max-width: 600px) {
-      .grid { grid-template-columns: 1fr; }
+      .nav-item .seal { width: 48px; height: 48px; font-size: 20px; }
+      .nav-item .name { letter-spacing: 0.2rem; }
+      .poem { padding: 24px 20px; }
     }
   </style>
 </head>
 <body>
-<div class="ink-bg"></div>
-
-<svg class="mountain-wrap" viewBox="0 0 1440 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M0,430 Q180,220 360,380 Q520,220 700,370 Q860,210 1040,350 Q1220,240 1440,420 L1440,900 L0,900 Z" fill="rgba(66, 71, 67, 0.33)" />
-  <path d="M0,520 Q160,330 350,500 Q520,320 760,520 Q970,330 1180,510 Q1320,390 1440,540 L1440,900 L0,900 Z" fill="rgba(56, 60, 57, 0.36)" />
-  <path d="M0,620 Q220,470 430,610 Q640,470 890,620 Q1140,470 1440,640 L1440,900 L0,900 Z" fill="rgba(46, 50, 47, 0.40)" />
-</svg>
-
-<svg class="mist top" viewBox="0 0 2880 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="500" cy="80" rx="540" ry="58" fill="rgba(234,230,220,0.58)" />
-  <ellipse cx="1450" cy="72" rx="600" ry="52" fill="rgba(234,230,220,0.45)" />
-  <ellipse cx="2380" cy="88" rx="500" ry="56" fill="rgba(234,230,220,0.48)" />
-</svg>
-<svg class="mist mid" viewBox="0 0 2880 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="420" cy="76" rx="560" ry="54" fill="rgba(226,220,208,0.45)" />
-  <ellipse cx="1300" cy="82" rx="620" ry="50" fill="rgba(226,220,208,0.38)" />
-  <ellipse cx="2260" cy="74" rx="520" ry="52" fill="rgba(226,220,208,0.40)" />
-</svg>
+<video class="video-bg" autoplay muted loop playsinline preload="auto" aria-hidden="true">
+  <source src="/assets/ink-bg-loop.mp4" type="video/mp4">
+</video>
 
 <div class="shell">
   <div class="topbar">
@@ -275,29 +338,33 @@
     </div>
   </div>
 
-  <div class="poem">
-    <div class="poem-head">
-      <div class="title">每日一诗</div>
-      <button class="poem-refresh-btn" id="poemRefreshBtn" title="换一首">↻</button>
+  <div class="main-area">
+    <div class="poem">
+      <div class="poem-head">
+        <div class="title">每日一诗</div>
+        <button class="poem-refresh-btn" id="poemRefreshBtn" title="换一首">↻</button>
+      </div>
+      <div class="line" id="poemLine"></div>
+      <div class="meta" id="poemMeta"></div>
+      <button class="poem-toggle" id="poemToggle" style="display:none;">展开全文</button>
     </div>
-    <div class="line" id="poemLine"></div>
-    <div class="meta" id="poemMeta"></div>
-    <button class="poem-toggle" id="poemToggle" style="display:none;">展开全文</button>
   </div>
 
-  <div class="grid">
-    <a class="card" href="/trading/">
-      <div class="icon">📊</div>
+  <div class="nav-row">
+    <a class="nav-item" href="/trading/">
+      <div class="seal">易</div>
       <div class="name">交易记录</div>
       <div class="desc">交易流水 · 统计分析 · 复盘改进</div>
     </a>
-    <a class="card" href="/notes/">
-      <div class="icon">📝</div>
+    <div class="nav-separator"></div>
+    <a class="nav-item" href="/notes/">
+      <div class="seal">笔</div>
       <div class="name">知识笔记</div>
       <div class="desc">日记文档 · 待办管理 · 回收站</div>
     </a>
-    <a class="card" href="/monitor/">
-      <div class="icon">🖥</div>
+    <div class="nav-separator"></div>
+    <a class="nav-item" href="/monitor/">
+      <div class="seal">监</div>
       <div class="name">服务器监控</div>
       <div class="desc">CPU 内存 磁盘 网络 · 实时监控</div>
     </a>
@@ -313,6 +380,11 @@
 </button>
 
 <script>
+  const bgVideo = document.querySelector('.video-bg');
+  if (bgVideo) {
+    bgVideo.play().catch(() => {});
+  }
+
   const POEMS = [
     { text: '岱宗夫如何？齐鲁青未了。\n造化钟神秀，阴阳割昏晓。\n荡胸生曾云，决眦入归鸟。\n会当凌绝顶，一览众山小。', title: '望岳', author: '杜甫' },
     { text: '君不见黄河之水天上来，奔流到海不复回。\n君不见高堂明镜悲白发，朝如青丝暮成雪。\n人生得意须尽欢，莫使金樽空对月。\n天生我材必有用，千金散尽还复来。\n烹羊宰牛且为乐，会须一饮三百杯。\n岑夫子，丹丘生，将进酒，杯莫停。\n与君歌一曲，请君为我倾耳听。\n钟鼓馔玉不足贵，但愿长醉不愿醒。\n古来圣贤皆寂寞，惟有饮者留其名。\n陈王昔时宴平乐，斗酒十千恣欢谑。\n主人何为言少钱，径须沽取对君酌。\n五花马，千金裘，呼儿将出换美酒，与尔同销万古愁。', title: '将进酒', author: '李白' },

@@ -1,4 +1,5 @@
-import { Card, Col, Progress, Row, Statistic, Table, Tag } from 'antd';
+import { Col, Progress, Row, Statistic, Table, Tag } from 'antd';
+import InkSection from '../../../components/InkSection';
 import { formatInstrumentDisplay } from '../display';
 
 export default function CoverageAndPositions({ coverage, positions }) {
@@ -25,7 +26,7 @@ export default function CoverageAndPositions({ coverage, positions }) {
   return (
     <Row gutter={[12, 12]}>
       <Col xs={24} xl={8}>
-        <Card title="数据覆盖率">
+        <InkSection title="数据覆盖率">
           <Statistic title="结构化复盘覆盖率" value={coverage?.trade_review_rate || 0} suffix="%" precision={2} />
           <Progress percent={coverage?.trade_review_rate || 0} showInfo={false} />
           <Statistic style={{ marginTop: 12 }} title="来源元数据覆盖率" value={coverage?.source_metadata_rate || 0} suffix="%" precision={2} />
@@ -36,10 +37,10 @@ export default function CoverageAndPositions({ coverage, positions }) {
             <div>仅旧备注回退来源: {coverage?.legacy_source_only_count || 0}</div>
             <div>来源缺失: {coverage?.source_missing_count || 0}</div>
           </div>
-        </Card>
+        </InkSection>
       </Col>
       <Col xs={24} xl={16}>
-        <Card title="当前持仓视角">
+        <InkSection title="当前持仓视角">
           <Table
             rowKey="key"
             columns={positionColumns}
@@ -48,7 +49,7 @@ export default function CoverageAndPositions({ coverage, positions }) {
             size="small"
             locale={{ emptyText: '当前无持仓' }}
           />
-        </Card>
+        </InkSection>
       </Col>
     </Row>
   );

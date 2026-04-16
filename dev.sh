@@ -94,7 +94,10 @@ next_unique_service_name() {
 }
 
 build_services() {
-  SERVICES=("backend|$ROOT_DIR/backend|DEV_MODE=1 $PYTHON_CMD -m uvicorn main:app --host 127.0.0.1 --port 8000")
+  SERVICES=(
+    "backend|$ROOT_DIR/backend|DEV_MODE=1 $PYTHON_CMD -m uvicorn main:app --host 127.0.0.1 --port 8000"
+    "portal|$ROOT_DIR/portal|PORTAL_DEV_PORT=${PORTAL_DEV_PORT:-5172} PORTAL_BACKEND_PORT=${PORTAL_BACKEND_PORT:-8000} PORTAL_TRADING_PORT=${PORTAL_TRADING_PORT:-5173} PORTAL_NOTES_PORT=${PORTAL_NOTES_PORT:-5174} PORTAL_MONITOR_PORT=${PORTAL_MONITOR_PORT:-5175} $PYTHON_CMD dev_server.py"
+  )
 
   local dir
   for dir in "$ROOT_DIR"/frontend*; do
@@ -145,6 +148,14 @@ collect_orphan_pids() {
   done < <(
     ps -eo pid=,command= | awk '
       index($0, "uvicorn main:app --host 127.0.0.1 --port 8000") { print $1 }
+    '
+  )
+
+  while read -r pid; do
+    append_orphan_pid "$pid"
+  done < <(
+    ps -eo pid=,command= | awk '
+      index($0, "dev_server.py") && index($0, "PORTAL_DEV_PORT=") { print $1 }
     '
   )
 }

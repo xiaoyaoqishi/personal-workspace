@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Col, DatePicker, Descriptions, Empty, Form, Input, List, Popconfirm, Row, Select, Space, Tag, Typography, message } from 'antd';
+import { Button, Col, DatePicker, Descriptions, Empty, Form, Input, List, Popconfirm, Row, Select, Space, Tag, Typography, message } from 'antd';
+import InkSection from '../components/InkSection';
 import dayjs from 'dayjs';
 import { reviewSessionApi, tradeApi, tradePlanApi } from '../api';
 import ReadEditActions from '../features/trading/components/ReadEditActions';
@@ -171,7 +172,7 @@ export default function TradePlanList() {
 
   return (
     <div className="review-workspace">
-      <Card className="review-toolbar" bodyStyle={{ padding: 12 }}>
+      <div className="review-toolbar">
         <div className="review-toolbar-inner">
           <div>
             <Typography.Title level={4} style={{ margin: 0 }}>交易计划工作台</Typography.Title>
@@ -184,11 +185,11 @@ export default function TradePlanList() {
             <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger disabled={!selectedId}>删除</Button></Popconfirm>
           </Space>
         </div>
-      </Card>
+      </div>
 
       <Row gutter={12}>
         <Col xs={24} xl={8}>
-          <Card title="交易计划列表" className="review-list-card" loading={loading}>
+          <InkSection title="交易计划列表" className="review-list-card" loading={loading}>
             <List
               dataSource={rows}
               locale={{ emptyText: <Empty description="暂无交易计划" /> }}
@@ -208,11 +209,11 @@ export default function TradePlanList() {
                 </List.Item>
               )}
             />
-          </Card>
+          </InkSection>
         </Col>
 
         <Col xs={24} xl={16}>
-          <Card title={selectedId ? `交易计划 #${selectedId}` : '新建交易计划'} className="review-editor-card">
+          <InkSection title={selectedId ? `交易计划 #${selectedId}` : '新建交易计划'} className="review-editor-card">
             {editing ? (
               <>
                 <Form form={form} layout="vertical" initialValues={{ status: 'draft', plan_date: dayjs(), tags: [] }}>
@@ -252,7 +253,7 @@ export default function TradePlanList() {
                   </Row>
                 </Form>
 
-                <Card size="small" title="关联交易" className="review-link-card">
+                <InkSection size="small" title="关联交易" className="review-link-card">
                   <Space wrap style={{ marginBottom: 10 }}>
                     <Select showSearch filterOption={false} value={quickTradeId} onSearch={searchTradeOptions} onFocus={() => searchTradeOptions('')} onChange={setQuickTradeId} options={tradeSearchOptions} style={{ width: 520, maxWidth: '100%' }} />
                     <Button onClick={addTradeLink}>添加关联</Button>
@@ -270,13 +271,13 @@ export default function TradePlanList() {
                       )}
                     />
                   )}
-                </Card>
+                </InkSection>
               </>
             ) : !selected ? (
               <Empty description="请选择左侧交易计划或新建" />
             ) : (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Card size="small" title="计划概览" className="review-read-card">
+                <InkSection size="small" title="计划概览">
                   <Descriptions size="small" column={2}>
                     <Descriptions.Item label="标题">{selected.title || '-'}</Descriptions.Item>
                     <Descriptions.Item label="日期">{selected.plan_date || '-'}</Descriptions.Item>
@@ -287,26 +288,26 @@ export default function TradePlanList() {
                     <Descriptions.Item label="交易论点">{selected.thesis || '-'}</Descriptions.Item>
                     <Descriptions.Item label="执行清单">{selected.execution_checklist || '-'}</Descriptions.Item>
                   </Descriptions>
-                </Card>
-                <Card size="small" title="计划图文研究" className="review-read-card">
+                </InkSection>
+                <InkSection size="small" title="计划图文研究">
                   <ResearchContentPanel value={selected.research_notes} title="计划图文研究" />
-                </Card>
-                <Card size="small" title="关联交易（内容卡片）" className="review-link-card">
+                </InkSection>
+                <InkSection size="small" title="关联交易（内容卡片）">
                   {(selected.trade_links || []).length === 0 ? <Empty description="暂无关联交易" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
                     <div className="review-linked-grid">
                       {(selected.trade_links || []).map((item) => (
-                        <Card key={`${item.id}-${item.trade_id}`} size="small" className="review-linked-card">
+                        <div key={`${item.id}-${item.trade_id}`} className="review-linked-card">
                           <Typography.Text strong>{item.trade_summary?.trade_date || '-'} / {formatInstrumentDisplay(item.trade_summary?.symbol, item.trade_summary?.contract)}</Typography.Text>
                           <br />
                           <Typography.Text type="secondary">{item.trade_summary?.direction || '-'} / 手数 {item.trade_summary?.quantity ?? '-'} / 价格 {item.trade_summary?.open_price ?? '-'} {'->'} {item.trade_summary?.close_price ?? '-'} / PnL {item.trade_summary?.pnl ?? '-'} / 来源 {item.trade_summary?.source_display || '-'}</Typography.Text>
-                        </Card>
+                        </div>
                       ))}
                     </div>
                   )}
-                </Card>
+                </InkSection>
               </Space>
             )}
-          </Card>
+          </InkSection>
         </Col>
       </Row>
     </div>

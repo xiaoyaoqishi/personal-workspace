@@ -1,6 +1,7 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Noto Serif', 'Georgia', serif;
+  color: #3a3530;
 }
 
 .app-layout {
@@ -13,12 +14,12 @@ body {
   flex: 1;
   height: 100vh;
   padding: 16px 24px;
-  background: #f5f5f5;
+  background: #e0dbd2;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-/* ── Icon Sidebar (same as notes) ── */
+/* ── Icon Sidebar ── */
 .icon-sidebar {
   width: 56px;
   min-width: 56px;
@@ -39,7 +40,7 @@ body {
   justify-content: center;
   width: 40px;
   height: 40px;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.45);
   margin-bottom: 12px;
   border-radius: 8px;
   transition: all 0.2s;
@@ -63,7 +64,7 @@ body {
   align-items: center;
   padding: 10px 0;
   cursor: pointer;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.5);
   transition: all 0.2s;
   text-decoration: none;
   position: relative;
@@ -97,4 +98,57 @@ body {
   border-top: 1px solid rgba(255,255,255,0.1);
   padding-top: 8px;
   width: 100%;
+}
+
+/* ── Shared ink utilities ── */
+.ink-toolbar {
+  padding: 12px 14px;
+  background: linear-gradient(145deg, #efe9e0 0%, #e5ded4 100%);
+  border-bottom: 1px solid rgba(90,75,55,0.18);
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 2px;
+}
+
+.ink-toolbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ink-filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 12px 14px;
+  background: #e5ded4;
+  border-bottom: 1px solid rgba(90,75,55,0.15);
+  border-radius: 6px;
+}
+
+.ink-table-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(90,75,55,0.18);
+}
+
+.ink-kpi-item {
+  padding: 14px 16px;
+  border: 1px solid rgba(90,75,55,0.15);
+  border-radius: 6px;
+  background: #e8e3da;
+}
+
+.ink-linked-card {
+  padding: 10px 12px;
+  border: 1px solid rgba(90,75,55,0.18);
+  border-radius: 6px;
+  background: #e8e3da;
+}
+
+.ink-content-wrap {
+  border-radius: 8px;
+  background: #e8e3da;
+  border: 1px solid rgba(90,75,55,0.15);
+  padding: 16px;
 }

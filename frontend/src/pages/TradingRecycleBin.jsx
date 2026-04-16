@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Empty, List, Popconfirm, Space, Tabs, Tag, Typography, message } from 'antd';
+import { Button, Empty, List, Popconfirm, Space, Tabs, Tag, Typography, message } from 'antd';
 import dayjs from 'dayjs';
 import { recycleApi } from '../api';
 import './ReviewList.css';
@@ -97,16 +97,16 @@ export default function TradingRecycleBin() {
 
   return (
     <div className="review-workspace">
-      <Card className="review-toolbar" bodyStyle={{ padding: 12 }}>
+      <div className="review-toolbar">
         <div className="review-toolbar-inner">
           <div>
             <Typography.Title level={4} style={{ margin: 0 }}>交易回收站</Typography.Title>
             <Typography.Text type="secondary">删除后会先进入回收站，可恢复或彻底删除。</Typography.Text>
           </div>
         </div>
-      </Card>
+      </div>
 
-      <Card className="review-editor-card">
+      <div className="ink-content-wrap">
         <Tabs activeKey={tabKey} onChange={setTabKey} items={RECYCLE_TABS.map((item) => ({ key: item.key, label: item.label }))} />
         <List
           loading={loading}
@@ -136,7 +136,7 @@ export default function TradingRecycleBin() {
             </List.Item>
           )}
         />
-      </Card>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { Card } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import './TradeList.css';
 import TradeWorkspaceHeader from '../features/trading/workspace/TradeWorkspaceHeader';
@@ -43,7 +42,7 @@ export default function TradeList() {
         onUpdateFilter={ws.updateFilter}
       />
 
-      <Card className="trade-table-card" bodyStyle={{ padding: 0 }}>
+      <div className="trade-table-card">
         {ws.viewMode === 'fills' ? (
           <TradeFillsTable
             rows={ws.trades}
@@ -59,7 +58,7 @@ export default function TradeList() {
         ) : (
           <TradePositionsTable rows={ws.positions} loading={ws.loading} />
         )}
-      </Card>
+      </div>
 
       <TradeDetailDrawer
         open={ws.detailOpen}

@@ -9,21 +9,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid #e8edf3;
-  border-radius: 10px;
-  background: linear-gradient(160deg, #ffffff 0%, #f7fafc 100%);
+  padding: 14px 2px;
+  border-bottom: 1px solid rgba(90,75,55,0.2);
 }
 
 .trade-filter-card {
   position: sticky;
   top: 0;
   z-index: 20;
-  border-radius: 10px;
-}
-
-.trade-filter-card .ant-card-body {
-  padding: 12px 14px;
 }
 
 .trade-filter-controls {
@@ -32,11 +25,9 @@
 }
 
 .trade-table-card {
-  border-radius: 10px;
-}
-
-.trade-table-card .ant-table-wrapper {
-  border-radius: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(90,75,55,0.18);
 }
 
 .trade-drawer-loading {

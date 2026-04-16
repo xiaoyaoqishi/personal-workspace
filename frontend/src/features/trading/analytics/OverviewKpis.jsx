@@ -1,4 +1,4 @@
-import { Card, Col, Row, Statistic } from 'antd';
+import { Col, Row, Statistic } from 'antd';
 import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 
 export default function OverviewKpis({ overview }) {
@@ -30,7 +30,7 @@ export default function OverviewKpis({ overview }) {
         const displayValue = isNumber ? c.value : '-';
         return (
           <Col key={c.title} xs={12} sm={8} md={6} xl={4}>
-            <Card className="analytics-kpi-card">
+            <div className="ink-kpi-item">
               <Statistic
                 title={c.title}
                 value={displayValue}
@@ -49,7 +49,7 @@ export default function OverviewKpis({ overview }) {
                     : undefined
                 }
               />
-            </Card>
+            </div>
           </Col>
         );
       })}

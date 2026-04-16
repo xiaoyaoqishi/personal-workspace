@@ -1,4 +1,5 @@
-﻿import { Card, Empty, Table } from 'antd';
+﻿import { Empty, Table } from 'antd';
+import InkSection from '../../../components/InkSection';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar } from 'recharts';
 
 export default function DimensionPanel({
@@ -25,7 +26,7 @@ export default function DimensionPanel({
   ];
 
   return (
-    <Card title={title}>
+    <InkSection title={title}>
       {allRows.length === 0 ? (
         <Empty description="暂无数据" />
       ) : (
@@ -58,6 +59,6 @@ export default function DimensionPanel({
           />
         </>
       )}
-    </Card>
+    </InkSection>
   );
 }

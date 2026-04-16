@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
-  Card,
   Col,
   Descriptions,
   Divider,
@@ -16,6 +15,7 @@ import {
   Typography,
   Select,
 } from 'antd';
+import InkSection from '../../../components/InkSection';
 import { ReloadOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { formatInstrumentDisplay, normalizeTagList } from '../display';
 import { getTaxonomyLabel, taxonomyOptionsWithZh } from '../localization';
@@ -144,7 +144,7 @@ export default function TradeDetailDrawer({
         <Typography.Text type="secondary">未找到交易详情</Typography.Text>
       ) : (
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Card size="small" title="成交流水信息">
+          <InkSection size="small" title="成交流水信息">
             <Descriptions size="small" column={2}>
               <Descriptions.Item label="交易日期">{trade.trade_date || '-'}</Descriptions.Item>
               <Descriptions.Item label="品种">{formatInstrumentDisplay(trade.symbol, trade.contract)}</Descriptions.Item>
@@ -181,9 +181,9 @@ export default function TradeDetailDrawer({
                 />
               </Descriptions.Item>
             </Descriptions>
-          </Card>
+          </InkSection>
 
-          <Card
+          <InkSection
             size="small"
             title="结构化复盘（主工作流）"
             extra={
@@ -310,9 +310,9 @@ export default function TradeDetailDrawer({
                 />
               </div>
             )}
-          </Card>
+          </InkSection>
 
-          <Card
+          <InkSection
             size="small"
             title="来源元数据（主工作流）"
             extra={
@@ -360,9 +360,9 @@ export default function TradeDetailDrawer({
                 <Descriptions.Item label="来源快照" span={2}>{source.source_note_snapshot || '-'}</Descriptions.Item>
               </Descriptions>
             )}
-          </Card>
+          </InkSection>
 
-          <Card
+          <InkSection
             size="small"
             title="兼容字段（次级）"
             extra={
@@ -389,7 +389,7 @@ export default function TradeDetailDrawer({
                 <ReadonlyParagraph label="legacy notes" value={legacy.notes} />
               </>
             )}
-          </Card>
+          </InkSection>
         </Space>
       )}
     </Drawer>

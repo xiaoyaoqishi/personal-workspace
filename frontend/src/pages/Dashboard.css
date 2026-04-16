@@ -5,20 +5,14 @@
 }
 
 .analytics-header {
-  border: 1px solid #e8edf3;
-  border-radius: 10px;
-  background: linear-gradient(165deg, #fff 0%, #f7fafc 100%);
-  padding: 14px 16px;
+  border-bottom: 1px solid rgba(90,75,55,0.2);
+  padding: 14px 2px;
 }
 
 .analytics-filter-card {
   position: sticky;
   top: 0;
   z-index: 2;
-}
-
-.analytics-filter-card .ant-card-body {
-  padding: 12px 14px;
 }
 
 .analytics-kpi-card .ant-statistic-title {
@@ -30,7 +24,7 @@
 }
 
 .analytics-note-list {
-  color: #555;
+  color: #5a5545;
   font-size: 13px;
   line-height: 1.75;
 }

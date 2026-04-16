@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
-  Card,
   Col,
   Collapse,
   DatePicker,
@@ -19,6 +18,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import InkSection from '../components/InkSection';
 import { DeleteOutlined, FolderOpenOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { brokerApi, knowledgeApi, noteApi, notebookApi } from '../api';
@@ -584,7 +584,7 @@ export default function InfoMaintain() {
 
   return (
     <div className="maintain-workspace">
-      <Card className="maintain-toolbar" bodyStyle={{ padding: 12 }}>
+      <div className="maintain-toolbar">
         <div className="maintain-toolbar-inner">
           <div>
             <Typography.Title level={4} style={{ margin: 0 }}>信息维护工作台</Typography.Title>
@@ -599,11 +599,11 @@ export default function InfoMaintain() {
             ]}
           />
         </div>
-      </Card>
+      </div>
 
       {moduleKey === 'knowledge' && (
         <>
-          <Card className="maintain-filter-card" bodyStyle={{ padding: 12 }}>
+          <div className="maintain-filter-card">
             <Space wrap>
               <Select
                 allowClear
@@ -648,11 +648,11 @@ export default function InfoMaintain() {
                 <Button danger icon={<DeleteOutlined />} disabled={!selectedKnowledgeId}>删除</Button>
               </Popconfirm>
             </Space>
-          </Card>
+          </div>
 
           <Row gutter={12}>
             <Col xs={24} xl={8}>
-              <Card className="maintain-list-card" loading={knowledgeLoading}>
+              <InkSection className="maintain-list-card" loading={knowledgeLoading}>
                 {knowledgeGroupedRows.length === 0 ? (
                   <Empty description="暂无知识条目" />
                 ) : (
@@ -713,11 +713,11 @@ export default function InfoMaintain() {
                     }))}
                   />
                 )}
-              </Card>
+              </InkSection>
             </Col>
 
             <Col xs={24} xl={16}>
-              <Card title={selectedKnowledgeId ? `知识 #${selectedKnowledgeId}` : '新建知识条目'} className="maintain-editor-card">
+              <InkSection title={selectedKnowledgeId ? `知识 #${selectedKnowledgeId}` : '新建知识条目'} className="maintain-editor-card">
                 {knowledgeEditing ? (
                   <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', status: 'active', priority: 'medium', tags: [], related_note_ids: [] }}>
                     <Row gutter={12}>
@@ -836,7 +836,7 @@ export default function InfoMaintain() {
                     ) : null}
                   </Space>
                 )}
-              </Card>
+              </InkSection>
             </Col>
           </Row>
         </>
@@ -845,7 +845,7 @@ export default function InfoMaintain() {
       {moduleKey === 'broker' && (
         <Row gutter={12}>
           <Col xs={24} xl={8}>
-            <Card
+            <InkSection
               title="券商来源"
               className="maintain-list-card"
               loading={brokerLoading}
@@ -866,11 +866,11 @@ export default function InfoMaintain() {
                   </List.Item>
                 )}
               />
-            </Card>
+            </InkSection>
           </Col>
 
           <Col xs={24} xl={16}>
-            <Card
+            <InkSection
               title={selectedBrokerId ? `券商 #${selectedBrokerId}` : '新建券商'}
               className="maintain-editor-card"
               extra={(
@@ -914,7 +914,7 @@ export default function InfoMaintain() {
                   </Descriptions.Item>
                 </Descriptions>
               )}
-            </Card>
+            </InkSection>
           </Col>
         </Row>
       )}

@@ -8,42 +8,22 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'Georgia', 'Noto Serif SC', 'SimSun', serif;
+      font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
       min-height: 100vh;
       overflow: hidden;
       color: #3a3a3a;
+      background: #d1cbc0;
     }
 
-    .bg {
+    .video-bg {
       position: fixed;
       inset: 0;
       z-index: 0;
-      background: linear-gradient(180deg, #e8dfd0 0%, #d4c8b0 30%, #c2b89e 50%, #b8c4b0 70%, #9ab09a 100%);
-    }
-
-    .mountains {
-      position: fixed;
-      bottom: 0;
-      left: 0;
       width: 100%;
-      height: 60vh;
-      z-index: 1;
-    }
-
-    .mist {
-      position: fixed;
-      width: 200%;
-      height: 120px;
-      z-index: 2;
-      opacity: 0.4;
-      animation: drift 30s linear infinite;
-    }
-    .mist-1 { bottom: 25vh; }
-    .mist-2 { bottom: 40vh; animation-duration: 45s; animation-direction: reverse; opacity: 0.25; }
-
-    @keyframes drift {
-      from { transform: translateX(0); }
-      to { transform: translateX(-50%); }
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      filter: saturate(0.86) contrast(0.95);
     }
 
     .content {
@@ -56,52 +36,71 @@
       justify-content: center;
     }
 
-    .login-box {
-      background: rgba(255, 252, 245, 0.7);
+    .login-panel {
+      width: 460px;
+      max-width: 92vw;
+      padding: 56px 52px 52px;
+      position: relative;
+      background: rgba(245, 240, 232, 0.22);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(160, 145, 120, 0.3);
-      border-radius: 16px;
-      padding: 48px 40px 40px;
-      width: 380px;
-      max-width: 90vw;
+    }
+    .login-panel::before,
+    .login-panel::after {
+      content: '';
+      position: absolute;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(100, 85, 60, 0.35), transparent);
+    }
+    .login-panel::before { top: 0; }
+    .login-panel::after { bottom: 0; }
+
+    .login-seal {
+      width: 84px;
+      height: 84px;
+      border: 2px solid rgba(175, 75, 55, 0.45);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'KaiTi', 'STKaiti', 'Songti SC', serif;
+      font-size: 36px;
+      color: rgba(175, 75, 55, 0.6);
+      margin: 0 auto 24px;
     }
 
     .login-header {
       text-align: center;
-      margin-bottom: 36px;
+      margin-bottom: 40px;
     }
 
     .login-header h1 {
-      font-size: 1.8rem;
+      font-family: 'KaiTi', 'STKaiti', 'Songti SC', serif;
+      font-size: 2.4rem;
       font-weight: 400;
-      letter-spacing: 0.4rem;
-      color: #4a4035;
-      margin-bottom: 8px;
-    }
-
-    .login-header .line {
-      width: 40px;
-      height: 1px;
-      background: #8a7d6b;
-      margin: 0 auto 10px;
+      letter-spacing: 0.5rem;
+      color: #3a3530;
+      margin-bottom: 12px;
+      text-shadow: 0 2px 10px rgba(245,240,232,0.35);
     }
 
     .login-header .subtitle {
-      font-size: 0.85rem;
+      font-size: 0.95rem;
       color: #8a7d6b;
-      letter-spacing: 0.2rem;
+      letter-spacing: 0.25rem;
     }
 
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 28px;
     }
 
     .form-group label {
       display: block;
-      font-size: 0.85rem;
-      color: #6a6050;
-      margin-bottom: 6px;
-      letter-spacing: 0.1rem;
+      font-size: 0.9rem;
+      color: #7a7060;
+      margin-bottom: 10px;
+      letter-spacing: 0.12rem;
     }
 
     .input-wrap {
@@ -110,20 +109,20 @@
 
     .input-wrap input {
       width: 100%;
-      padding: 12px 16px;
-      border: 1px solid rgba(160, 145, 120, 0.35);
-      border-radius: 8px;
-      background: rgba(255, 255, 250, 0.6);
-      font-size: 0.95rem;
+      padding: 14px 6px;
+      border: none;
+      border-bottom: 1px solid rgba(120, 105, 85, 0.35);
+      background: rgba(250, 245, 238, 0.15);
+      font-size: 1.05rem;
       font-family: inherit;
       color: #3a3a3a;
       outline: none;
-      transition: border-color 0.3s, box-shadow 0.3s;
+      transition: border-color 0.3s, background 0.3s;
     }
 
     .input-wrap input:focus {
-      border-color: rgba(120, 110, 90, 0.6);
-      box-shadow: 0 0 0 3px rgba(120, 110, 90, 0.08);
+      border-bottom-color: rgba(100, 85, 60, 0.7);
+      background: rgba(250, 245, 238, 0.25);
     }
 
     .input-wrap input::placeholder {
@@ -132,7 +131,7 @@
 
     .input-wrap .toggle-pwd {
       position: absolute;
-      right: 12px;
+      right: 6px;
       top: 50%;
       transform: translateY(-50%);
       cursor: pointer;
@@ -153,28 +152,28 @@
     }
 
     .input-wrap .toggle-pwd svg {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
     }
 
     .btn-login {
       width: 100%;
-      padding: 13px;
+      padding: 15px;
       border: none;
-      border-radius: 8px;
+      border-radius: 2px;
       background: linear-gradient(135deg, #7a7060, #5a5040);
       color: #f0ebe0;
       font-family: inherit;
-      font-size: 1rem;
-      letter-spacing: 0.2rem;
+      font-size: 1.1rem;
+      letter-spacing: 0.3rem;
       cursor: pointer;
       transition: all 0.3s;
-      margin-top: 8px;
+      margin-top: 16px;
     }
 
     .btn-login:hover {
       background: linear-gradient(135deg, #6a6050, #4a4030);
-      box-shadow: 0 6px 20px rgba(80, 60, 30, 0.2);
+      box-shadow: 0 4px 16px rgba(80, 60, 30, 0.25);
       transform: translateY(-1px);
     }
 
@@ -190,9 +189,9 @@
 
     .error-msg {
       color: #a05040;
-      font-size: 0.82rem;
+      font-size: 0.88rem;
       text-align: center;
-      margin-top: 14px;
+      margin-top: 16px;
       min-height: 1.2em;
       letter-spacing: 0.05rem;
     }
@@ -205,47 +204,29 @@
       text-align: center;
       z-index: 10;
       color: #8a7d6b;
-      font-size: 0.85rem;
-      letter-spacing: 0.3rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.35rem;
       font-style: italic;
     }
 
-    @media (max-width: 480px) {
-      .login-box { padding: 36px 24px 30px; }
-      .login-header h1 { font-size: 1.5rem; }
+    @media (max-width: 520px) {
+      .login-panel { padding: 40px 28px 34px; }
+      .login-header h1 { font-size: 1.8rem; }
+      .login-seal { width: 68px; height: 68px; font-size: 28px; }
     }
   </style>
 </head>
 <body>
 
-<div class="bg"></div>
-
-<svg class="mountains" viewBox="0 0 1440 600" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M0,300 Q180,120 360,280 Q540,100 720,260 Q900,80 1080,240 Q1260,120 1440,300 L1440,600 L0,600 Z" fill="rgba(120,130,110,0.25)" />
-  <path d="M0,380 Q120,220 300,350 Q420,180 600,320 Q780,160 960,300 Q1140,200 1320,340 Q1380,310 1440,380 L1440,600 L0,600 Z" fill="rgba(100,115,95,0.35)" />
-  <path d="M0,440 Q200,300 400,420 Q500,340 700,400 Q850,300 1000,380 Q1150,320 1300,410 Q1370,380 1440,440 L1440,600 L0,600 Z" fill="rgba(80,95,75,0.4)" />
-  <path d="M0,500 Q360,480 720,500 Q1080,480 1440,500 L1440,600 L0,600 Z" fill="rgba(140,160,150,0.3)" />
-  <path d="M0,530 Q360,520 720,535 Q1080,520 1440,530 L1440,600 L0,600 Z" fill="rgba(130,150,140,0.2)" />
-</svg>
-
-<svg class="mist mist-1" viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="400" cy="60" rx="500" ry="40" fill="rgba(220,215,200,0.5)" />
-  <ellipse cx="1200" cy="50" rx="600" ry="35" fill="rgba(220,215,200,0.4)" />
-  <ellipse cx="2000" cy="65" rx="450" ry="38" fill="rgba(220,215,200,0.45)" />
-  <ellipse cx="2800" cy="55" rx="500" ry="42" fill="rgba(220,215,200,0.4)" />
-</svg>
-<svg class="mist mist-2" viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="300" cy="55" rx="450" ry="35" fill="rgba(210,205,190,0.4)" />
-  <ellipse cx="1000" cy="60" rx="550" ry="30" fill="rgba(210,205,190,0.35)" />
-  <ellipse cx="1800" cy="50" rx="400" ry="38" fill="rgba(210,205,190,0.4)" />
-  <ellipse cx="2600" cy="58" rx="480" ry="32" fill="rgba(210,205,190,0.35)" />
-</svg>
+<video class="video-bg" autoplay muted loop playsinline preload="auto" aria-hidden="true">
+  <source src="/assets/ink-bg-loop.mp4" type="video/mp4">
+</video>
 
 <div class="content">
-  <div class="login-box">
+  <div class="login-panel">
+    <div class="login-seal">骁</div>
     <div class="login-header">
       <h1>骁遥骑士</h1>
-      <div class="line"></div>
       <div class="subtitle">请登录以继续</div>
     </div>
 
@@ -285,6 +266,11 @@
 <div class="footer">行到水穷处 坐看云起时</div>
 
 <script>
+  const bgVideo = document.querySelector('.video-bg');
+  if (bgVideo) {
+    bgVideo.play().catch(() => {});
+  }
+
   const pwdInput = document.getElementById('password');
   const toggleBtn = document.getElementById('togglePwd');
   const eyeOff = document.getElementById('eyeOff');
