@@ -201,6 +201,7 @@ npm install
 仓库级：
 - `./dev.sh up`：启动 backend + `portal` 本地网关 + 自动发现的全部 `frontend*` 本地开发服务。
 - `./dev.sh down`：停止全部本地服务，并兜底清理仓库内残留调试进程（`vite`/`npm run dev`、portal `dev_server.py` 及匹配的后端 `uvicorn`）。
+- Windows bash（`Git Bash`/`MSYS`/`Cygwin`）下，`./dev.sh down` 会额外触发一轮 PowerShell 兜底清理，避免原生 `node/vite` 残留进程。
 - `./dev.sh status`：查看 tmux/后台进程状态。
 - `./dev.sh attach`：附着 tmux 或跟随日志。
 - `./dev.sh restart`：重启全部服务。

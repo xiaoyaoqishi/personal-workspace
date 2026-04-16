@@ -24,6 +24,15 @@ has_tmux() {
   command -v tmux >/dev/null 2>&1
 }
 
+is_windows_shell() {
+  local uname_s
+  uname_s="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  case "$uname_s" in
+    msys*|mingw*|cygwin*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 ensure_base_deps() {
   require_cmd npm
   require_cmd node
@@ -228,6 +237,20 @@ stop_orphan_dev_processes() {
   echo "已清理残留调试进程: ${ORPHAN_PIDS[*]}"
 }
 
+stop_orphan_dev_processes_windows() {
+  if ! is_windows_shell || ! command -v powershell.exe >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local repo_name ps_out
+  repo_name="$(basename "$ROOT_DIR")"
+  ps_out="$(powershell.exe -NoProfile -Command "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; \$repo='${repo_name}'; \$procs=Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -and \$_.CommandLine -like \"*\$repo*\" -and ((\$_.CommandLine -like '*node_modules*' -and \$_.CommandLine -like '*vite*') -or \$_.CommandLine -like '*npm run dev*' -or \$_.CommandLine -like '*uvicorn main:app*' -or \$_.CommandLine -like '*dev_server.py*') }; if (-not \$procs) { Write-Output '__NONE__'; exit 0 }; \$ids = \$procs | Select-Object -ExpandProperty ProcessId -Unique; Stop-Process -Id \$ids -Force -ErrorAction SilentlyContinue; Write-Output (\$ids -join ' ')" 2>/dev/null | tr -d '\r')"
+
+  if [[ -n "$ps_out" && "$ps_out" != "__NONE__" ]]; then
+    echo "Windows fallback cleaned dev processes: $ps_out"
+  fi
+}
+
 cleanup_run_artifacts() {
   [[ -d "$RUN_DIR" ]] || return 0
 
@@ -350,6 +373,7 @@ stop_session() {
   fi
   stop_bg
   stop_orphan_dev_processes
+  stop_orphan_dev_processes_windows
   if [[ "$DEV_CLEAN_ON_DOWN" == "1" ]]; then
     cleanup_run_artifacts
     echo "已全量清理调试产物: .dev-run/{*.pid,*.log}"

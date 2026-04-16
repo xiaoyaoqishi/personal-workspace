@@ -201,6 +201,7 @@ Repository ignore rules keep `.env` / `.env.*` out of Git while preserving `.env
 Repository-level:
 - `./dev.sh up`: start backend + `portal` local dev gateway + all auto-discovered `frontend*` dev services.
 - `./dev.sh down`: stop all local services and force-clean leftover repo-local debug processes (`vite`/`npm run dev`, portal `dev_server.py`, and matching backend `uvicorn`).
+- `./dev.sh down` on Windows bash (`Git Bash`/`MSYS`/`Cygwin`) includes an extra PowerShell fallback sweep to stop residual native `node/vite` dev processes.
 - `./dev.sh status`: check tmux/background service status.
 - `./dev.sh attach`: attach tmux session or tail logs.
 - `./dev.sh restart`: restart all services.
