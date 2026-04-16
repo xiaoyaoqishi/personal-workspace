@@ -127,8 +127,56 @@ append_orphan_pid() {
   ORPHAN_PIDS+=("$pid")
 }
 
+collect_descendant_pids() {
+  local parent_pid="$1"
+  [[ -n "$parent_pid" ]] || return 0
+  [[ "$parent_pid" =~ ^[0-9]+$ ]] || return 0
+
+  local child_pid
+  while read -r child_pid; do
+    [[ -n "$child_pid" ]] || continue
+    echo "$child_pid"
+    collect_descendant_pids "$child_pid"
+  done < <(
+    ps -eo pid=,ppid= | awk -v parent="$parent_pid" '$2 == parent { print $1 }'
+  )
+}
+
+terminate_pid_tree() {
+  local root_pid="$1"
+  [[ -n "$root_pid" ]] || return 0
+  [[ "$root_pid" =~ ^[0-9]+$ ]] || return 0
+  [[ "$root_pid" -eq $$ ]] && return 0
+
+  local descendants=()
+  local pid
+  while read -r pid; do
+    [[ -n "$pid" ]] || continue
+    descendants+=("$pid")
+  done < <(collect_descendant_pids "$root_pid")
+
+  if [[ ${#descendants[@]} -gt 0 ]]; then
+    kill "${descendants[@]}" 2>/dev/null || true
+  fi
+  kill "$root_pid" 2>/dev/null || true
+  sleep 1
+
+  local survivors=()
+  for pid in "${descendants[@]}" "$root_pid"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      survivors+=("$pid")
+    fi
+  done
+
+  if [[ ${#survivors[@]} -gt 0 ]]; then
+    kill -9 "${survivors[@]}" 2>/dev/null || true
+  fi
+}
+
 collect_orphan_pids() {
   ORPHAN_PIDS=()
+  local repo_name
+  repo_name="$(basename "$ROOT_DIR" | tr '[:upper:]' '[:lower:]')"
 
   while read -r pid ppid; do
     append_orphan_pid "$pid"
@@ -138,24 +186,29 @@ collect_orphan_pids() {
       append_orphan_pid "$ppid"
     fi
   done < <(
-    ps -eo pid=,ppid=,command= | awk -v root="$ROOT_DIR/" '
-      index($0, root) && index($0, "/node_modules/.bin/vite") { print $1 " " $2 }
+    ps -eo pid=,ppid=,command= | awk -v repo="$repo_name" '
+      {
+        line=tolower($0)
+        if (index(line, "node_modules") && index(line, "vite") && index(line, repo)) {
+          print $1 " " $2
+        }
+      }
     '
   )
 
   while read -r pid; do
     append_orphan_pid "$pid"
   done < <(
-    ps -eo pid=,command= | awk '
-      index($0, "uvicorn main:app --host 127.0.0.1 --port 8000") { print $1 }
+    ps -eo pid=,command= | awk -v root="$ROOT_DIR/" '
+      index($0, root) && index($0, "uvicorn main:app --host 127.0.0.1 --port 8000") { print $1 }
     '
   )
 
   while read -r pid; do
     append_orphan_pid "$pid"
   done < <(
-    ps -eo pid=,command= | awk '
-      index($0, "dev_server.py") && index($0, "PORTAL_DEV_PORT=") { print $1 }
+    ps -eo pid=,command= | awk -v root="$ROOT_DIR/" '
+      index($0, root) && index($0, "dev_server.py") { print $1 }
     '
   )
 }
@@ -167,20 +220,10 @@ stop_orphan_dev_processes() {
     return 0
   fi
 
-  kill "${ORPHAN_PIDS[@]}" 2>/dev/null || true
-  sleep 1
-
-  local survivors=()
   local pid
   for pid in "${ORPHAN_PIDS[@]}"; do
-    if kill -0 "$pid" 2>/dev/null; then
-      survivors+=("$pid")
-    fi
+    terminate_pid_tree "$pid"
   done
-
-  if [[ ${#survivors[@]} -gt 0 ]]; then
-    kill -9 "${survivors[@]}" 2>/dev/null || true
-  fi
 
   echo "已清理残留调试进程: ${ORPHAN_PIDS[*]}"
 }
@@ -288,7 +331,7 @@ stop_bg() {
     local pid
     pid="$(cat "$pid_file")"
     if kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null || true
+      terminate_pid_tree "$pid"
       echo "已停止: $name (pid=$pid)"
     else
       echo "已退出: $name"

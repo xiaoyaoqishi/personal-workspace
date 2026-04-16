@@ -31,11 +31,14 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - Structured trade review taxonomy + per-trade review metadata.
 - Research content modal now includes standard review fields (entry thesis, evidence, boundary, management, exit reason) by default.
 - Research content editor supports WYSIWYG text styling (bold/italic/highlight background) with image paste/upload.
+- Fixed issue where pasting/uploading images in the research editor could clear unsaved text in the current session.
 - Trade source metadata layer and source fallback parsing from legacy notes.
 - Review sessions as first-class objects (`/api/review-sessions`) with linked trades and filtered-slice generation.
 - Trade plans (`/api/trade-plans`) with enforced status transitions and links to trades/review sessions.
 - Knowledge base (`/api/knowledge-items`) with category/tag/status filtering and multi-doc note links.
 - Knowledge/review workspaces use folder-style grouped sidebars with single-expand behavior and compact item cards.
+- Trading / review / plan / maintenance workspaces now use a narrower grouped left panel (desktop `xl`), with more room for the main editor/content area.
+- UI readability pass: lighter non-white workspace background and stronger visual emphasis for key fields (stat titles, labels, dropdowns, action buttons, workspace headers, and trade-detail metadata sections).
 - Sidebar ordering supports priority-first + maintenance-time ordering (same priority sorted by earlier update time first).
 - Trading recycle bin for five domains: trades, knowledge items, brokers, review sessions, trade plans (`/api/recycle/*` restore/purge endpoints).
 - Notebook/notes/todo system with recycle bin and backlinks/search/calendar endpoints.
@@ -43,6 +46,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - Daily poem endpoint with remote fetch + local fallback cache (`/api/poem/daily`).
 - Server monitor APIs (`/api/monitor/realtime`, `/api/monitor/history`) backed by `psutil`.
 - Cookie-based authentication middleware for `/api/*` in non-dev mode.
+- `./dev.sh down` orphan cleanup is hardened for mixed shell/Windows scenarios (broader Vite process matching + process-tree termination).
 
 ## 5. Tech Stack
 - Backend: Python, FastAPI, SQLAlchemy, Pydantic, Uvicorn

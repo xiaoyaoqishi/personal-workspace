@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Card,
@@ -268,10 +268,18 @@ export default function ResearchContentPanel({
   const [editorSeed, setEditorSeed] = useState(0);
   const [editorInitialHtml, setEditorInitialHtml] = useState('');
 
+  useEffect(() => {
+    if (!modalOpen) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.innerHTML = editorInitialHtml;
+    editorBodyRef.current = editor.innerHTML;
+  }, [modalOpen, editorSeed, editorInitialHtml]);
   const openModal = () => {
     const latest = parseResearchValue(value);
-    editorBodyRef.current = String(latest.body || '');
-    setEditorInitialHtml(normalizeBodyForEditor(latest.body));
+    const initialHtml = normalizeBodyForEditor(latest.body);
+    editorBodyRef.current = initialHtml;
+    setEditorInitialHtml(initialHtml);
     setEditorSeed((n) => n + 1);
     setDraft({
       ...latest,
@@ -528,7 +536,6 @@ export default function ResearchContentPanel({
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
-              dangerouslySetInnerHTML={{ __html: editorInitialHtml }}
               onInput={(e) => { editorBodyRef.current = e.currentTarget.innerHTML; }}
               onPaste={handlePasteImage}
               style={{

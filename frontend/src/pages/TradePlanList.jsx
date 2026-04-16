@@ -188,7 +188,7 @@ export default function TradePlanList() {
       </div>
 
       <Row gutter={12}>
-        <Col xs={24} xl={8}>
+        <Col xs={24} xl={4}>
           <InkSection title="交易计划列表" className="review-list-card" loading={loading}>
             <List
               dataSource={rows}
@@ -212,7 +212,7 @@ export default function TradePlanList() {
           </InkSection>
         </Col>
 
-        <Col xs={24} xl={16}>
+        <Col xs={24} xl={20}>
           <InkSection title={selectedId ? `交易计划 #${selectedId}` : '新建交易计划'} className="review-editor-card">
             {editing ? (
               <>

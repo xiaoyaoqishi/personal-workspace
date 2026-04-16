@@ -9,7 +9,7 @@ const inkTheme = {
   token: {
     colorPrimary: '#5a4e40',
     colorBgContainer: '#efe9e0',
-    colorBgLayout: '#e0dbd2',
+    colorBgLayout: '#f3efe7',
     colorBorder: 'rgba(90,75,55,0.3)',
     colorBorderSecondary: 'rgba(90,75,55,0.2)',
     borderRadius: 6,

@@ -2,6 +2,7 @@ body {
   margin: 0;
   font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Noto Serif', 'Georgia', serif;
   color: #3a3530;
+  background: #f3efe7;
 }
 
 .app-layout {
@@ -14,7 +15,7 @@ body {
   flex: 1;
   height: 100vh;
   padding: 16px 24px;
-  background: #e0dbd2;
+  background: #f3efe7;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -151,4 +152,180 @@ body {
   background: #e8e3da;
   border: 1px solid rgba(90,75,55,0.15);
   padding: 16px;
+}
+
+/* Key field emphasis across modules */
+.app-content .ant-statistic-title,
+.app-content .ant-form-item .ant-form-item-label > label,
+.app-content .ant-descriptions .ant-descriptions-item-label,
+.app-content .ant-table-thead > tr > th,
+.app-content .ant-card .ant-card-head-title {
+  color: #2f2923 !important;
+  font-weight: 700;
+}
+
+.app-content .ant-descriptions .ant-descriptions-item-content,
+.app-content .ant-statistic .ant-statistic-content {
+  color: #3a3530;
+  font-weight: 600;
+}
+
+.ink-kpi-item .ant-statistic-title {
+  letter-spacing: 0.2px;
+}
+
+/* Functional button emphasis */
+.app-content .ant-btn {
+  font-weight: 700;
+  border-color: rgba(90, 75, 55, 0.45);
+  color: #2f2923;
+  background: #f7f2ea;
+  box-shadow: 0 1px 3px rgba(60, 50, 35, 0.1);
+}
+
+.app-content .ant-btn:hover,
+.app-content .ant-btn:focus {
+  border-color: rgba(90, 75, 55, 0.7);
+  color: #2f2923;
+  background: #f0e8dc;
+}
+
+.app-content .ant-btn:active {
+  background: #e9dfd1;
+}
+
+.app-content .ant-btn.ant-btn-primary {
+  color: #fff;
+  border-color: #4e4338;
+  background: linear-gradient(180deg, #5f5244 0%, #4e4338 100%);
+  box-shadow: 0 2px 6px rgba(60, 50, 35, 0.22);
+}
+
+.app-content .ant-btn.ant-btn-primary:hover,
+.app-content .ant-btn.ant-btn-primary:focus {
+  border-color: #43392f;
+  background: linear-gradient(180deg, #55493d 0%, #43392f 100%);
+}
+
+.app-content .ant-btn.ant-btn-primary:active {
+  background: #3d342b;
+}
+
+.app-content .ant-btn.ant-btn-dangerous {
+  border-color: rgba(196, 52, 52, 0.7);
+  color: #9f2f2f;
+  background: #fff0f0;
+}
+
+.app-content .ant-btn.ant-btn-dangerous:hover,
+.app-content .ant-btn.ant-btn-dangerous:focus {
+  border-color: #c43434;
+  color: #8d2828;
+  background: #ffe7e7;
+}
+
+/* Select + dropdown emphasis */
+.app-content .ant-select .ant-select-selector {
+  border-color: rgba(90, 75, 55, 0.45) !important;
+  background: #f7f2ea !important;
+}
+
+.app-content .ant-select .ant-select-selection-item {
+  color: #2f2923;
+  font-weight: 700;
+}
+
+.app-content .ant-select .ant-select-selection-placeholder {
+  color: #665f54;
+  font-weight: 600;
+}
+
+.app-content .ant-select .ant-select-arrow {
+  color: #4e4338;
+}
+
+.ant-select-dropdown .ant-select-item-option-content {
+  color: #2f2923;
+  font-weight: 600;
+}
+
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: #ece3d7;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: #e2d7ca;
+}
+
+/* Workspace title emphasis */
+.review-toolbar .ant-typography,
+.maintain-toolbar .ant-typography,
+.analytics-header .ant-typography,
+.trade-page-header .ant-typography,
+.ink-toolbar .ant-typography {
+  color: #2f2923 !important;
+}
+
+.review-toolbar .ant-typography.ant-typography-secondary,
+.maintain-toolbar .ant-typography.ant-typography-secondary,
+.analytics-header .ant-typography.ant-typography-secondary,
+.trade-page-header .ant-typography.ant-typography-secondary,
+.ink-toolbar .ant-typography.ant-typography-secondary {
+  color: #4a433a !important;
+  font-weight: 600;
+}
+
+.review-toolbar h1.ant-typography,
+.review-toolbar h2.ant-typography,
+.review-toolbar h3.ant-typography,
+.review-toolbar h4.ant-typography,
+.review-toolbar h5.ant-typography,
+.maintain-toolbar h1.ant-typography,
+.maintain-toolbar h2.ant-typography,
+.maintain-toolbar h3.ant-typography,
+.maintain-toolbar h4.ant-typography,
+.maintain-toolbar h5.ant-typography,
+.analytics-header h1.ant-typography,
+.analytics-header h2.ant-typography,
+.analytics-header h3.ant-typography,
+.analytics-header h4.ant-typography,
+.analytics-header h5.ant-typography,
+.trade-page-header h1.ant-typography,
+.trade-page-header h2.ant-typography,
+.trade-page-header h3.ant-typography,
+.trade-page-header h4.ant-typography,
+.trade-page-header h5.ant-typography,
+.ink-toolbar h1.ant-typography,
+.ink-toolbar h2.ant-typography,
+.ink-toolbar h3.ant-typography,
+.ink-toolbar h4.ant-typography,
+.ink-toolbar h5.ant-typography {
+  font-weight: 700;
+}
+
+/* Trade detail drawer emphasis */
+.ant-drawer .ant-drawer-title {
+  color: #2f2923;
+  font-weight: 700;
+}
+
+.ant-drawer .ink-section-title {
+  color: #2f2923;
+  font-weight: 700;
+  letter-spacing: 0.04rem;
+}
+
+.ant-drawer .ant-descriptions .ant-descriptions-item-label {
+  color: #2f2923 !important;
+  font-weight: 700;
+}
+
+.ant-drawer .ant-descriptions .ant-descriptions-item-content {
+  color: #3a3530;
+  font-weight: 600;
+}
+
+.ant-drawer .ant-typography.ant-typography-secondary {
+  color: #4a433a;
+  font-weight: 600;
 }

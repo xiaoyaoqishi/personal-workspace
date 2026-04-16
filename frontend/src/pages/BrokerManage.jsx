@@ -651,7 +651,7 @@ export default function InfoMaintain() {
           </div>
 
           <Row gutter={12}>
-            <Col xs={24} xl={8}>
+            <Col xs={24} xl={4}>
               <InkSection className="maintain-list-card" loading={knowledgeLoading}>
                 {knowledgeGroupedRows.length === 0 ? (
                   <Empty description="暂无知识条目" />
@@ -716,7 +716,7 @@ export default function InfoMaintain() {
               </InkSection>
             </Col>
 
-            <Col xs={24} xl={16}>
+            <Col xs={24} xl={20}>
               <InkSection title={selectedKnowledgeId ? `知识 #${selectedKnowledgeId}` : '新建知识条目'} className="maintain-editor-card">
                 {knowledgeEditing ? (
                   <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', status: 'active', priority: 'medium', tags: [], related_note_ids: [] }}>
@@ -844,7 +844,7 @@ export default function InfoMaintain() {
 
       {moduleKey === 'broker' && (
         <Row gutter={12}>
-          <Col xs={24} xl={8}>
+          <Col xs={24} xl={4}>
             <InkSection
               title="券商来源"
               className="maintain-list-card"
@@ -869,7 +869,7 @@ export default function InfoMaintain() {
             </InkSection>
           </Col>
 
-          <Col xs={24} xl={16}>
+          <Col xs={24} xl={20}>
             <InkSection
               title={selectedBrokerId ? `券商 #${selectedBrokerId}` : '新建券商'}
               className="maintain-editor-card"

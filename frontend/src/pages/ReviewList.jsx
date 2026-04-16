@@ -498,7 +498,7 @@ export default function ReviewList() {
       </div>
 
       <Row gutter={12}>
-        <Col xs={24} xl={8}>
+        <Col xs={24} xl={4}>
           <InkSection className="review-list-card" loading={loading}>
             {groupedRows.length === 0 ? (
               <Empty description="暂无会话" />
@@ -558,7 +558,7 @@ export default function ReviewList() {
           </InkSection>
         </Col>
 
-        <Col xs={24} xl={16}>
+        <Col xs={24} xl={20}>
           <InkSection title={selectedId ? `会话 #${selectedId}` : '新建会话'} className="review-editor-card">
             {editing ? (
               <>

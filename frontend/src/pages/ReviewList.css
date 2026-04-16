@@ -158,9 +158,9 @@
 .review-list-title {
   flex: 1;
   min-width: 0;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
-  color: #3a3530;
+  color: #2f2923;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
