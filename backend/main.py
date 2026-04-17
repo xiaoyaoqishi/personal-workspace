@@ -193,6 +193,25 @@ def _ensure_sqlite_column(db: Session, table: str, column: str, ddl_fragment: st
 def _migrate_legacy_schema():
     db = SessionLocal()
     try:
+        if _table_exists(db, "users"):
+            user_cols = _column_names(db, "users")
+            if "password_hash" not in user_cols:
+                db.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+                if "password" in user_cols:
+                    db.execute(
+                        text(
+                            "UPDATE users SET password_hash = password "
+                            "WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL"
+                        )
+                    )
+            _ensure_sqlite_column(db, "users", "role", "VARCHAR(20) DEFAULT 'user'")
+            _ensure_sqlite_column(db, "users", "is_active", "BOOLEAN DEFAULT 1")
+            _ensure_sqlite_column(db, "users", "created_at", "DATETIME")
+            _ensure_sqlite_column(db, "users", "updated_at", "DATETIME")
+            db.execute(text("UPDATE users SET role='user' WHERE role IS NULL OR role=''"))
+            db.execute(text("UPDATE users SET is_active=1 WHERE is_active IS NULL"))
+            db.execute(text("UPDATE users SET role='admin' WHERE username='xiaoyao'"))
+
         notebook_cols = _column_names(db, "notebooks")
         if "parent_id" not in notebook_cols:
             db.execute(text("ALTER TABLE notebooks ADD COLUMN parent_id INTEGER"))
@@ -616,21 +635,31 @@ def auth_login(body: LoginBody, response: Response, request: Request):
             raise HTTPException(401, "用户名或密码错误")
         if not bool(user.is_active):
             raise HTTPException(403, "账号已停用")
-        if not verify_password(user.password_hash, body.password):
+        password_ok = verify_password(user.password_hash, body.password)
+        if (not password_ok) and (":" not in str(user.password_hash or "")):
+            # tolerate legacy plaintext password from older deployments
+            if str(user.password_hash or "") == body.password:
+                user.password_hash = hash_password(body.password)
+                password_ok = True
+        if not password_ok:
             raise HTTPException(401, "用户名或密码错误")
         token = create_token(user.username)
-        _write_browse_log(
-            db,
-            username=user.username,
-            role=user.role or "user",
-            event_type="action",
-            path="/api/auth/login",
-            module="auth",
-            ip=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
-            detail="login success",
-        )
         db.commit()
+        try:
+            _write_browse_log(
+                db,
+                username=user.username,
+                role=user.role or "user",
+                event_type="action",
+                path="/api/auth/login",
+                module="auth",
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+                detail="login success",
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
     finally:
         db.close()
     response.set_cookie(

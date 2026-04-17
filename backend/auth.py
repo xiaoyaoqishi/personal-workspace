@@ -32,8 +32,13 @@ def _hash(password):
 
 
 def _verify(stored, password):
-    salt, h = stored.split(":")
-    return hashlib.sha256((salt + password).encode()).hexdigest() == h
+    try:
+        salt, h = str(stored or "").split(":", 1)
+        if not salt or not h:
+            return False
+        return hashlib.sha256((salt + password).encode()).hexdigest() == h
+    except Exception:
+        return False
 
 
 def hash_password(password: str) -> str:
