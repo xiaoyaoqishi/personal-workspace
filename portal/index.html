@@ -25,6 +25,12 @@
       pointer-events: none;
       background: rgba(255, 255, 255, 0.38);
     }
+    body.auth-pending .shell,
+    body.auth-pending .logout-btn {
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
 
     .video-bg {
       position: fixed;
@@ -391,7 +397,7 @@
     }
   </style>
 </head>
-<body>
+<body class="auth-pending">
 <video class="video-bg" autoplay muted loop playsinline preload="auto" aria-hidden="true">
   <source src="/assets/ink-bg-loop.mp4" type="video/mp4">
 </video>
@@ -476,6 +482,7 @@
         location.href = '/login';
         return;
       }
+      document.body.classList.remove('auth-pending');
       if (!data.is_admin) {
         const monitorNav = document.getElementById('monitorNavItem');
         if (monitorNav) {
@@ -487,7 +494,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '/', module: 'portal', detail: 'portal home' }),
       }).catch(() => {});
-    } catch {}
+    } catch {
+      location.href = '/login';
+    }
   })();
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
