@@ -190,6 +190,21 @@ export default function Dashboard() {
           <Table rowKey="id" size="small" dataSource={data.recent_transactions} columns={recentColumns} pagination={false} />
         )}
       </Card>
+
+      <Card className="page-card" title="周期提醒摘要" loading={loading}>
+        {!data?.recurring_summary ? (
+          <EmptyBlock description="暂无周期提醒数据" />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <div>即将到期：{Number(data.recurring_summary?.upcoming_count || 0)}</div>
+            <div>已逾期：{Number(data.recurring_summary?.overdue_count || 0)}</div>
+            <div>金额异常：{Number(data.recurring_summary?.anomaly_count || 0)}</div>
+            <Button type="link" style={{ padding: 0, width: 'fit-content' }} onClick={() => navigate('/recurring')}>
+              查看周期账单详情
+            </Button>
+          </Space>
+        )}
+      </Card>
     </Space>
   )
 }

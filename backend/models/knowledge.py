@@ -34,6 +34,18 @@ class KnowledgeItem(Base):
     note_links = relationship("KnowledgeItemNoteLink", back_populates="knowledge_item", cascade="all, delete-orphan")
 
 
+class KnowledgeCategory(Base):
+    __tablename__ = "knowledge_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False, index=True)
+    owner_role = Column(String(20), default="admin", index=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class KnowledgeItemTagLink(Base):
     __tablename__ = "knowledge_item_tag_links"
     __table_args__ = (

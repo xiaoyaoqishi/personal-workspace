@@ -33,7 +33,7 @@ if ! rg -n '/ledger/assets/' "$ROOT_DIR/frontend-ledger/dist/index.html" >/dev/n
   exit 1
 fi
 
-echo "[4/5] 检查 /ledger/import 与 /ledger/rules 路由入口"
+echo "[4/5] 检查 /ledger/import /ledger/rules /ledger/recurring 路由入口"
 if ! rg -n 'path=\"/import\"' "$ROOT_DIR/frontend-ledger/src/App.jsx" >/dev/null; then
   echo "FAIL: frontend-ledger 缺少 /ledger/import 路由"
   exit 1
@@ -42,12 +42,20 @@ if ! rg -n 'path=\"/rules\"' "$ROOT_DIR/frontend-ledger/src/App.jsx" >/dev/null;
   echo "FAIL: frontend-ledger 缺少 /ledger/rules 路由"
   exit 1
 fi
+if ! rg -n 'path=\"/recurring\"' "$ROOT_DIR/frontend-ledger/src/App.jsx" >/dev/null; then
+  echo "FAIL: frontend-ledger 缺少 /ledger/recurring 路由"
+  exit 1
+fi
 if ! rg -n "key: '/import'" "$ROOT_DIR/frontend-ledger/src/components/IconSidebar.jsx" >/dev/null; then
   echo "FAIL: frontend-ledger 侧边栏缺少导入入口"
   exit 1
 fi
 if ! rg -n "key: '/rules'" "$ROOT_DIR/frontend-ledger/src/components/IconSidebar.jsx" >/dev/null; then
   echo "FAIL: frontend-ledger 侧边栏缺少规则入口"
+  exit 1
+fi
+if ! rg -n "key: '/recurring'" "$ROOT_DIR/frontend-ledger/src/components/IconSidebar.jsx" >/dev/null; then
+  echo "FAIL: frontend-ledger 侧边栏缺少周期账单入口"
   exit 1
 fi
 

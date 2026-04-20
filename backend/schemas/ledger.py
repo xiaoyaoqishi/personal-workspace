@@ -162,6 +162,8 @@ class LedgerTransactionItem(BaseModel):
     external_ref: Optional[str] = None
     source: str
     linked_transaction_id: Optional[int] = None
+    recurring_rule_id: Optional[int] = None
+    recurring_rule_name: Optional[str] = None
     is_cleared: bool
     owner_role: str
     created_at: Optional[datetime] = None
@@ -326,3 +328,181 @@ class LedgerDashboardResponse(BaseModel):
     accounts_summary: list[LedgerAccountItem]
     top_expense_categories: list[dict]
     recent_transactions: list[LedgerTransactionItem]
+    recurring_summary: Optional[dict[str, int]] = None
+    recurring_next_due_items: Optional[list[dict[str, Any]]] = None
+
+
+class LedgerRecurringRuleType(str, Enum):
+    expense = "expense"
+    income = "income"
+    transfer = "transfer"
+    repayment = "repayment"
+    subscription = "subscription"
+
+
+class LedgerRecurringFrequency(str, Enum):
+    monthly = "monthly"
+    weekly = "weekly"
+    yearly = "yearly"
+
+
+class LedgerRecurringRuleCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    is_active: bool = True
+    rule_type: LedgerRecurringRuleType
+    frequency: LedgerRecurringFrequency
+    interval_count: int = Field(default=1, ge=1, le=36)
+    day_of_month: Optional[int] = Field(default=None, ge=1, le=31)
+    weekday: Optional[int] = Field(default=None, ge=0, le=6)
+    start_date: date
+    end_date: Optional[date] = None
+    expected_amount: Optional[float] = Field(default=None, gt=0)
+    amount_tolerance: Optional[float] = Field(default=None, ge=0)
+    currency: str = Field(default="CNY", min_length=1, max_length=10)
+    account_id: int = Field(ge=1)
+    counterparty_account_id: Optional[int] = Field(default=None, ge=1)
+    category_id: Optional[int] = Field(default=None, ge=1)
+    transaction_type: LedgerTransactionType
+    direction: LedgerDirection
+    merchant: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = None
+    note: Optional[str] = None
+    source_hint: Optional[str] = Field(default=None, max_length=30)
+
+    @model_validator(mode="after")
+    def validate_recurring_rule(self):
+        if self.frequency == LedgerRecurringFrequency.monthly and self.day_of_month is None:
+            raise ValueError("monthly 必须提供 day_of_month")
+        if self.frequency == LedgerRecurringFrequency.weekly and self.weekday is None:
+            raise ValueError("weekly 必须提供 weekday")
+        if self.frequency == LedgerRecurringFrequency.yearly and self.day_of_month is None:
+            raise ValueError("yearly 必须提供 day_of_month")
+        if self.end_date and self.end_date < self.start_date:
+            raise ValueError("end_date 必须大于等于 start_date")
+        if self.transaction_type == LedgerTransactionType.transfer and self.direction != LedgerDirection.neutral:
+            raise ValueError("transfer direction must be neutral")
+        if self.transaction_type == LedgerTransactionType.refund and self.direction != LedgerDirection.income:
+            raise ValueError("refund direction must be income")
+        return self
+
+
+class LedgerRecurringRuleUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    is_active: Optional[bool] = None
+    rule_type: Optional[LedgerRecurringRuleType] = None
+    frequency: Optional[LedgerRecurringFrequency] = None
+    interval_count: Optional[int] = Field(default=None, ge=1, le=36)
+    day_of_month: Optional[int] = Field(default=None, ge=1, le=31)
+    weekday: Optional[int] = Field(default=None, ge=0, le=6)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    expected_amount: Optional[float] = Field(default=None, gt=0)
+    amount_tolerance: Optional[float] = Field(default=None, ge=0)
+    currency: Optional[str] = Field(default=None, min_length=1, max_length=10)
+    account_id: Optional[int] = Field(default=None, ge=1)
+    counterparty_account_id: Optional[int] = Field(default=None, ge=1)
+    category_id: Optional[int] = Field(default=None, ge=1)
+    transaction_type: Optional[LedgerTransactionType] = None
+    direction: Optional[LedgerDirection] = None
+    merchant: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = None
+    note: Optional[str] = None
+    source_hint: Optional[str] = Field(default=None, max_length=30)
+
+
+class LedgerRecurringRuleItem(BaseModel):
+    id: int
+    name: str
+    is_active: bool
+    rule_type: LedgerRecurringRuleType
+    frequency: LedgerRecurringFrequency
+    interval_count: int
+    day_of_month: Optional[int] = None
+    weekday: Optional[int] = None
+    start_date: date
+    end_date: Optional[date] = None
+    expected_amount: Optional[float] = None
+    amount_tolerance: Optional[float] = None
+    currency: str
+    account_id: int
+    account_name: Optional[str] = None
+    counterparty_account_id: Optional[int] = None
+    counterparty_account_name: Optional[str] = None
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    transaction_type: LedgerTransactionType
+    direction: LedgerDirection
+    merchant: Optional[str] = None
+    description: Optional[str] = None
+    note: Optional[str] = None
+    source_hint: Optional[str] = None
+    last_matched_transaction_id: Optional[int] = None
+    last_matched_at: Optional[datetime] = None
+    next_due_date: Optional[date] = None
+    owner_role: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class LedgerRecurringReminderItem(BaseModel):
+    reminder_type: str
+    rule_id: int
+    rule_name: str
+    frequency: LedgerRecurringFrequency
+    due_date: date
+    account_id: int
+    account_name: Optional[str] = None
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    expected_amount: Optional[float] = None
+    actual_amount: Optional[float] = None
+    amount_deviation: Optional[float] = None
+    currency: str
+    merchant: Optional[str] = None
+    last_matched_transaction_id: Optional[int] = None
+    last_matched_at: Optional[datetime] = None
+
+
+class LedgerRecurringDetectRequest(BaseModel):
+    lookback_days: int = Field(default=180, ge=30, le=730)
+    min_occurrences: int = Field(default=3, ge=2, le=20)
+    account_id: Optional[int] = Field(default=None, ge=1)
+    direction: Optional[LedgerDirection] = None
+    transaction_type: Optional[LedgerTransactionType] = None
+
+
+class LedgerRecurringDetectItem(BaseModel):
+    merchant: str
+    amount: float
+    account_id: int
+    transaction_type: LedgerTransactionType
+    direction: LedgerDirection
+    estimated_frequency: LedgerRecurringFrequency
+    occurrences: int
+    last_seen_at: datetime
+    suggested_day_of_month: Optional[int] = None
+    suggested_weekday: Optional[int] = None
+    suggested_category_id: Optional[int] = None
+
+
+class LedgerRecurringDetectResponse(BaseModel):
+    candidates: list[LedgerRecurringDetectItem]
+
+
+class LedgerRecurringApplyDraftRequest(BaseModel):
+    occurred_at: Optional[datetime] = None
+
+
+class LedgerRecurringApplyDraftResponse(BaseModel):
+    occurred_at: datetime
+    account_id: int
+    counterparty_account_id: Optional[int] = None
+    category_id: Optional[int] = None
+    transaction_type: LedgerTransactionType
+    direction: LedgerDirection
+    amount: Optional[float] = None
+    currency: str
+    merchant: Optional[str] = None
+    description: Optional[str] = None
+    note: Optional[str] = None
+    source: str

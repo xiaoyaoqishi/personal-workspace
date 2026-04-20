@@ -12,6 +12,7 @@ from services.ledger.transaction_service import (
     summarize_income_expense,
     top_expense_categories,
 )
+from services.ledger import recurring_service
 
 
 def _account_to_summary(account: LedgerAccount, balance_delta: float) -> dict:
@@ -49,6 +50,8 @@ def get_dashboard(
     deltas = calculate_account_balance_deltas(db, role=role, owner_role=owner_role, date_from=date_from, date_to=date_to)
     account_items = [_account_to_summary(account, deltas.get(account.id, 0.0)) for account in accounts]
 
+    recurring_overview = recurring_service.get_recurring_overview(db, role=role)
+
     return {
         "income_total": totals["income_total"],
         "expense_total": totals["expense_total"],
@@ -73,4 +76,10 @@ def get_dashboard(
             date_to=date_to,
             limit=10,
         ),
+        "recurring_summary": {
+            "upcoming_count": int(recurring_overview.get("upcoming_count", 0)),
+            "overdue_count": int(recurring_overview.get("overdue_count", 0)),
+            "anomaly_count": int(recurring_overview.get("anomaly_count", 0)),
+        },
+        "recurring_next_due_items": recurring_overview.get("next_due_items", []),
     }

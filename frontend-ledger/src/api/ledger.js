@@ -37,3 +37,14 @@ export const updateRule = (id, payload) => apiClient.put(`/ledger/rules/${id}`, 
 export const deleteRule = (id) => apiClient.delete(`/ledger/rules/${id}`)
 export const previewRules = (payload) => apiClient.post('/ledger/rules/preview', payload)
 export const reapplyRules = (payload) => apiClient.post('/ledger/rules/reapply', payload)
+
+export const listRecurringRules = (params) => apiClient.get('/ledger/recurring/rules', { params })
+export const createRecurringRule = (payload) => apiClient.post('/ledger/recurring/rules', payload)
+export const updateRecurringRule = (id, payload) => apiClient.put(`/ledger/recurring/rules/${id}`, payload)
+export const deleteRecurringRule = (id) => apiClient.delete(`/ledger/recurring/rules/${id}`)
+export const detectRecurring = (payload) => apiClient.post('/ledger/recurring/detect', payload)
+export const getRecurringReminders = (params) => apiClient.get('/ledger/recurring/reminders', { params })
+export const getRecurringOverview = () => apiClient.get('/ledger/recurring/overview')
+export const generateRecurringDraft = (ruleId, payload = {}) => apiClient.post(`/ledger/recurring/${ruleId}/draft`, payload)
+export const matchRecurringTransaction = (ruleId, transactionId) =>
+  apiClient.post(`/ledger/recurring/${ruleId}/match/${transactionId}`)

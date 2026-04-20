@@ -1,4 +1,5 @@
 from typing import Optional
+from typing import Dict, List
 
 from pydantic import BaseModel
 
@@ -15,3 +16,5 @@ class UserResetPasswordBody(BaseModel):
 class UserUpdateBody(BaseModel):
     role: Optional[str] = None
     password: Optional[str] = None
+    module_permissions: Optional[List[str]] = None
+    data_permissions: Optional[Dict[str, str]] = None

@@ -10,6 +10,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Transactions = lazy(() => import('./pages/Transactions'))
 const ImportTransactions = lazy(() => import('./pages/ImportTransactions'))
 const Rules = lazy(() => import('./pages/Rules'))
+const Recurring = lazy(() => import('./pages/Recurring'))
 const Accounts = lazy(() => import('./pages/Accounts'))
 const Categories = lazy(() => import('./pages/Categories'))
 
@@ -27,6 +28,7 @@ function AppLayout() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/import" element={<ImportTransactions />} />
             <Route path="/rules" element={<Rules />} />
+            <Route path="/recurring" element={<Recurring />} />
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="*" element={<Alert type="warning" showIcon message="页面不存在" />} />

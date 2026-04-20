@@ -1,5 +1,7 @@
 import {
   ACCOUNT_TYPE_OPTIONS,
+  RECURRING_FREQUENCY_OPTIONS,
+  RECURRING_RULE_TYPE_OPTIONS,
   DIRECTION_OPTIONS,
   TRANSACTION_TYPE_OPTIONS,
 } from './enums'
@@ -11,6 +13,8 @@ export const transactionTypeLabel = (value) => optionLabel(TRANSACTION_TYPE_OPTI
 export const directionLabel = (value) => optionLabel(DIRECTION_OPTIONS, value)
 
 export const accountTypeLabel = (value) => optionLabel(ACCOUNT_TYPE_OPTIONS, value)
+export const recurringRuleTypeLabel = (value) => optionLabel(RECURRING_RULE_TYPE_OPTIONS, value)
+export const recurringFrequencyLabel = (value) => optionLabel(RECURRING_FREQUENCY_OPTIONS, value)
 
 export const inferDirectionByTransactionType = (txType) => {
   if (txType === 'transfer') return 'neutral'

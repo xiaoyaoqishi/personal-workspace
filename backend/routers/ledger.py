@@ -18,6 +18,10 @@ from schemas.ledger import (
     LedgerRuleBulkApplyRequest,
     LedgerRuleCreate,
     LedgerRuleUpdate,
+    LedgerRecurringApplyDraftRequest,
+    LedgerRecurringDetectRequest,
+    LedgerRecurringRuleCreate,
+    LedgerRecurringRuleUpdate,
     LedgerImportTemplateCreate,
     LedgerImportPreviewRequest,
     LedgerTransactionCreate,
@@ -26,7 +30,15 @@ from schemas.ledger import (
     LedgerDirection,
     LedgerTransactionUpdate,
 )
-from services.ledger import account_service, category_service, dashboard_service, import_service, rule_service, transaction_service
+from services.ledger import (
+    account_service,
+    category_service,
+    dashboard_service,
+    import_service,
+    recurring_service,
+    rule_service,
+    transaction_service,
+)
 
 router = APIRouter(prefix="/api/ledger", tags=["ledger"])
 
@@ -314,3 +326,92 @@ def reapply_rules(
     role: str = Depends(get_current_role),
 ):
     return rule_service.bulk_apply_rules(db, role=role, payload=payload)
+
+
+@router.get("/recurring/rules")
+def list_recurring_rules(
+    active_only: Optional[bool] = Query(default=None),
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.list_recurring_rules(db, role=role, active_only=active_only)
+
+
+@router.post("/recurring/rules")
+def create_recurring_rule(
+    payload: LedgerRecurringRuleCreate,
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.create_recurring_rule(db, role=role, payload=payload)
+
+
+@router.put("/recurring/rules/{rule_id}")
+def update_recurring_rule(
+    rule_id: int,
+    payload: LedgerRecurringRuleUpdate,
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.update_recurring_rule(db, role=role, rule_id=rule_id, payload=payload)
+
+
+@router.delete("/recurring/rules/{rule_id}")
+def delete_recurring_rule(
+    rule_id: int,
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.delete_recurring_rule(db, role=role, rule_id=rule_id)
+
+
+@router.post("/recurring/detect")
+def detect_recurring(
+    payload: LedgerRecurringDetectRequest,
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.detect_recurring_candidates(db, role=role, payload=payload)
+
+
+@router.get("/recurring/reminders")
+def recurring_reminders(
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.list_recurring_reminders(db, role=role, date_from=date_from, date_to=date_to)
+
+
+@router.get("/recurring/overview")
+def recurring_overview(
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.get_recurring_overview(db, role=role)
+
+
+@router.post("/recurring/{rule_id}/draft")
+def recurring_draft(
+    rule_id: int,
+    payload: LedgerRecurringApplyDraftRequest,
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.generate_recurring_draft(
+        db,
+        role=role,
+        rule_id=rule_id,
+        occurred_at=payload.occurred_at,
+    )
+
+
+@router.post("/recurring/{rule_id}/match/{transaction_id}")
+def recurring_match(
+    rule_id: int,
+    transaction_id: int,
+    db: Session = Depends(db_session),
+    role: str = Depends(get_current_role),
+):
+    return recurring_service.mark_recurring_match(db, role=role, rule_id=rule_id, transaction_id=transaction_id)

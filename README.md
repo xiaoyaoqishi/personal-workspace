@@ -20,7 +20,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - `frontend`: Trading app (records, analytics, review sessions, trade plans, knowledge items, broker maintenance).
 - `frontend-notes`: Notes app (diary/doc notes, rich-text editor, wiki links, recycle bin, to-do).
 - `frontend-monitor`: Website monitoring app (server monitor, site availability checks, user admin, audit logs).
-- `frontend-ledger`: Standalone ledger app (dashboard, transactions, accounts, categories), served under `/ledger/`.
+- `frontend-ledger`: Standalone ledger app (dashboard, transactions, import, rules, recurring bills, accounts, categories), served under `/ledger/`.
 - `portal`: Static homepage and login page.
 - `deploy`: Production scripts (`setup.sh`, `update.sh`), `nginx` config, `systemd` service.
 - `dev.sh`: Unified local development orchestration script.
@@ -37,7 +37,8 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - Review sessions as first-class objects (`/api/review-sessions`) with linked trades and filtered-slice generation.
 - Trade plans (`/api/trade-plans`) with enforced status transitions and links to trades/review sessions.
 - Knowledge base (`/api/knowledge-items`) with category/tag/status filtering and multi-doc note links.
-- Ledger backend domain (`/api/ledger/*`) with accounts, categories, transaction CRUD/filtering, dashboard aggregation, CSV import, and auto-classification rules.
+- Knowledge categories now support manual extension and deletion (built-in categories protected; categories in use cannot be deleted).
+- Ledger backend domain (`/api/ledger/*`) with accounts, categories, transaction CRUD/filtering, dashboard aggregation, CSV import, auto-classification rules, and recurring bill management/reminders.
 - Knowledge/review workspaces use folder-style grouped sidebars with single-expand behavior and compact item cards.
 - Trading / review / plan / maintenance workspaces now use a narrower grouped left panel (desktop `xl`), with more room for the main editor/content area.
 - UI readability pass: lighter non-white workspace background and stronger visual emphasis for key fields (stat titles, labels, dropdowns, action buttons, workspace headers, and trade-detail metadata sections).
@@ -56,6 +57,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
 - Website monitor app with submodules: server monitor, site availability checks, user management, and browse/audit logs.
 - Monitor access control is enforced both in frontend visibility and backend authorization (`user` gets `403` on monitor/admin APIs).
 - User management supports editing role/password and deleting user accounts (reserved admin account protected).
+- User management supports per-user module visibility (`trading/notes/ledger`) and per-module data mode (`read_write` / `read_only`) for non-admin users; admin always keeps full access.
 - Site monitor target CRUD + polling result history APIs (`/api/monitor/sites*`).
 - Browse tracking APIs (`/api/audit/track`, `/api/audit/logs`) with 180-day retention, excluding admin records; logs support pagination/filtering/deletion and return CN time + Chinese labels.
 - Server monitor APIs (`/api/monitor/realtime`, `/api/monitor/history`) backed by `psutil` and restricted to admin.
@@ -363,6 +365,7 @@ Frontend monitor app (`frontend-monitor`) polls these endpoints and renders dash
   - `DELETE /api/admin/users/{id}`
   - `POST /api/admin/users/{id}/toggle-active`
   - `POST /api/admin/users/{id}/reset-password`
+  - `PUT /api/admin/users/{id}` also accepts `module_permissions` and `data_permissions` for non-admin users.
 - Monitor APIs:
   - `GET /api/monitor/realtime`, `GET /api/monitor/history` (admin-only)
   - `GET/POST /api/monitor/sites`, `PUT/DELETE /api/monitor/sites/{id}`
@@ -381,9 +384,15 @@ Frontend monitor app (`frontend-monitor`) polls these endpoints and renders dash
   - `GET/POST /api/ledger/import/templates`, `DELETE /api/ledger/import/templates/{template_id}`
   - `GET/POST /api/ledger/rules`, `PUT/DELETE /api/ledger/rules/{rule_id}`
   - `POST /api/ledger/rules/preview`, `POST /api/ledger/rules/reapply`
+  - `GET/POST /api/ledger/recurring/rules`, `PUT/DELETE /api/ledger/recurring/rules/{rule_id}`
+  - `POST /api/ledger/recurring/detect`
+  - `GET /api/ledger/recurring/reminders`, `GET /api/ledger/recurring/overview`
+  - `POST /api/ledger/recurring/{rule_id}/draft`
+  - `POST /api/ledger/recurring/{rule_id}/match/{transaction_id}`
 - Knowledge item API fields:
   - `POST/PUT /api/knowledge-items`: optional `related_note_ids: number[]` for linked doc notes (`note_type=doc` only).
   - `GET /api/knowledge-items*`: returns `related_notes` (`id`, `title`, `note_type`, `updated_at`, `notebook_id`) for each item.
+  - `GET/POST /api/knowledge-items/categories`, `DELETE /api/knowledge-items/categories/{category_name}`
 - Trading recycle APIs:
   - `GET /api/recycle/{trades|knowledge-items|trade-brokers|review-sessions|trade-plans}`
   - `POST /api/recycle/<resource>/{id}/restore`
@@ -394,7 +403,7 @@ Frontend monitor app (`frontend-monitor`) polls these endpoints and renders dash
   - `anchor=<optional>`
 - Ledger frontend routes (`/ledger/` base):
   - `/ledger/` redirects to `/ledger/dashboard`
-  - `/ledger/dashboard`, `/ledger/transactions`, `/ledger/import`, `/ledger/rules`, `/ledger/accounts`, `/ledger/categories`
+  - `/ledger/dashboard`, `/ledger/transactions`, `/ledger/import`, `/ledger/rules`, `/ledger/recurring`, `/ledger/accounts`, `/ledger/categories`
 - Ledger smoke validation assets:
   - Checklist: `docs/ledger-smoke-checklist.md`
   - Script: `scripts/ledger-smoke.sh` (set `BASE_URL` to run online checks)

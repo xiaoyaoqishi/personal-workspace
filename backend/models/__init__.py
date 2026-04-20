@@ -1,7 +1,7 @@
 from models.auth import User
 from models.audit import BrowseLog
-from models.knowledge import KnowledgeItem, KnowledgeItemNoteLink, KnowledgeItemTagLink
-from models.ledger import LedgerAccount, LedgerCategory, LedgerImportTemplate, LedgerRule, LedgerTransaction
+from models.knowledge import KnowledgeCategory, KnowledgeItem, KnowledgeItemNoteLink, KnowledgeItemTagLink
+from models.ledger import LedgerAccount, LedgerCategory, LedgerImportTemplate, LedgerRecurringRule, LedgerRule, LedgerTransaction
 from models.monitor import MonitorSite, MonitorSiteResult
 from models.notes import Note, NoteLink, Notebook, TodoItem
 from models.review import (
@@ -18,12 +18,14 @@ from models.trading import Trade, TradeBroker, TradeReview, TradeReviewTagLink, 
 
 __all__ = [
     "BrowseLog",
+    "KnowledgeCategory",
     "KnowledgeItem",
     "KnowledgeItemNoteLink",
     "KnowledgeItemTagLink",
     "LedgerAccount",
     "LedgerCategory",
     "LedgerImportTemplate",
+    "LedgerRecurringRule",
     "LedgerRule",
     "LedgerTransaction",
     "MonitorSite",

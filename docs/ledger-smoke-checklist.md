@@ -23,13 +23,19 @@
 14. 打开 `/ledger/rules`，新建一条规则（如 `merchant_contains=coffee`，动作设置支出分类）。
 15. 在 `/ledger/import` 导入一条命中该规则的记录，预览页需显示命中规则摘要。
 16. 提交后到 `/ledger/transactions`，确认分类已自动补全。
-17. 返回门户 `/`，再次点击“账务管理”，页面应正常打开。
+17. 打开 `/ledger/recurring`，新增一条 monthly 周期规则，确认列表出现且有 `next_due_date`。
+18. 点击“识别候选”，使用 `lookback_days=180`、`min_occurrences=3` 执行识别，确认返回候选列表。
+19. 将任一候选“转为规则”，确认规则表单自动预填 merchant/amount/frequency 等字段。
+20. 在提醒区对某条规则执行“生成草案”，应跳转 `/ledger/transactions` 并自动打开预填新增表单。
+21. 保存该草案为真实流水后，返回 `/ledger/recurring`，确认 overview/reminders 计数有更新。
+22. 返回门户 `/`，再次点击“账务管理”，页面应正常打开。
 
 ## 3. 期望结果
 - 所有页面可访问且刷新不 404（重点验证 `/ledger/dashboard`）。
 - 新增/编辑/删除流水可成功落库并反映在 Dashboard。
 - 交易筛选可稳定返回结果，URL 参数刷新后可保留关键筛选。
 - CSV 导入支持字段映射、预览状态（有效/重复/无效）与提交统计反馈。
+- 周期账单支持规则 CRUD、候选识别、提醒分组（即将到期/已逾期/金额异常）与草案生成。
 - 未登录访问 `/ledger/*` 会跳转 `/login`，登录后可回到原目标页。
 
 ## 4. 常见失败排查

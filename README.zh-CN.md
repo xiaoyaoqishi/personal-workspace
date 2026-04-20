@@ -20,7 +20,7 @@ Trading Records Workspace
 - `frontend`：交易前端（记录、分析、复盘会话、交易计划、知识库、券商维护）。
 - `frontend-notes`：笔记前端（日记/文档、富文本编辑、Wiki 链接、回收站、待办）。
 - `frontend-monitor`：网站监控前端（服务器监控、站点可用性巡检、用户管理、浏览记录）。
-- `frontend-ledger`：独立记账前端（Dashboard、流水、账户、分类），部署子路径 `/ledger/`。
+- `frontend-ledger`：独立记账前端（Dashboard、流水、导入、规则、周期账单、账户、分类），部署子路径 `/ledger/`。
 - `portal`：门户首页与登录页。
 - `deploy`：生产脚本（`setup.sh`、`update.sh`）、Nginx 配置、systemd 服务文件。
 - `dev.sh`：本地联调统一编排脚本。
@@ -37,7 +37,8 @@ Trading Records Workspace
 - 复盘会话（`/api/review-sessions`）作为一等对象，支持关联交易和按筛选条件生成样本。
 - 交易计划（`/api/trade-plans`）及状态流转校验，可关联交易与复盘会话。
 - 知识库（`/api/knowledge-items`），支持分类/标签/状态筛选。
-- 记账后端域（`/api/ledger/*`）：账户/分类管理、流水增删改查与筛选、dashboard 汇总、CSV 导入、自动分类规则能力。
+- 知识分类支持手工扩展与删除（内置分类受保护；仍有条目使用的分类不可删除）。
+- 记账后端域（`/api/ledger/*`）：账户/分类管理、流水增删改查与筛选、dashboard 汇总、CSV 导入、自动分类规则、周期账单管理与提醒能力。
 - 信息维护/复盘会话工作台左侧改为文件夹分组视图，支持单分类展开与紧凑条目展示。
 - 交易/复盘/计划/信息维护工作台在桌面端（`xl`）进一步缩窄左侧分组栏，主编辑区可用宽度更大。
 - 界面可读性增强：在保持非白背景的前提下整体提亮，并强化关键字段视觉层级（统计标题、表单标签、下拉项、功能按钮、工作台标题、交易详情关键信息）。
@@ -56,6 +57,7 @@ Trading Records Workspace
 - 网站监控应用升级为子模块结构：服务器监控、站点巡检、用户管理、浏览记录。
 - 监控权限双保险：前端隐藏 + 后端鉴权拦截（普通用户访问监控/管理接口返回 `403`）。
 - 用户管理支持编辑角色/密码与删除用户账号（保留管理员账号受保护）。
+- 用户管理支持对普通用户配置模块可见范围（`trading/notes/ledger`）与数据权限（`read_write` / `read_only`）；管理员始终保持全权限。
 - 站点巡检目标管理与结果历史接口（`/api/monitor/sites*`）。
 - 浏览/操作记录接口（`/api/audit/track`、`/api/audit/logs`）：不记录管理员、保留 180 天，支持分页/筛选/删除，并返回中国时间与中文标签字段。
 - 服务器监控接口（`/api/monitor/realtime`、`/api/monitor/history`）基于 `psutil` 且仅管理员可用。
@@ -362,6 +364,7 @@ cd ../frontend-ledger && npm run build
   - `DELETE /api/admin/users/{id}`
   - `POST /api/admin/users/{id}/toggle-active`
   - `POST /api/admin/users/{id}/reset-password`
+  - `PUT /api/admin/users/{id}` 可为普通用户额外设置 `module_permissions` 与 `data_permissions`。
 - 监控接口：
   - `GET /api/monitor/realtime`、`GET /api/monitor/history`（仅管理员）
   - `GET/POST /api/monitor/sites`、`PUT/DELETE /api/monitor/sites/{id}`
@@ -380,13 +383,21 @@ cd ../frontend-ledger && npm run build
   - `GET/POST /api/ledger/import/templates`、`DELETE /api/ledger/import/templates/{template_id}`
   - `GET/POST /api/ledger/rules`、`PUT/DELETE /api/ledger/rules/{rule_id}`
   - `POST /api/ledger/rules/preview`、`POST /api/ledger/rules/reapply`
+  - `GET/POST /api/ledger/recurring/rules`、`PUT/DELETE /api/ledger/recurring/rules/{rule_id}`
+  - `POST /api/ledger/recurring/detect`
+  - `GET /api/ledger/recurring/reminders`、`GET /api/ledger/recurring/overview`
+  - `POST /api/ledger/recurring/{rule_id}/draft`
+  - `POST /api/ledger/recurring/{rule_id}/match/{transaction_id}`
 - 交易模块回收站接口：
   - `GET /api/recycle/{trades|knowledge-items|trade-brokers|review-sessions|trade-plans}`
   - `POST /api/recycle/<resource>/{id}/restore`
   - `DELETE /api/recycle/<resource>/{id}/purge`
+- 知识分类接口：
+  - `GET/POST /api/knowledge-items/categories`
+  - `DELETE /api/knowledge-items/categories/{category_name}`
 - 记账前端路由（`/ledger/` 基路径）：
   - `/ledger/` 会重定向到 `/ledger/dashboard`
-  - `/ledger/dashboard`、`/ledger/transactions`、`/ledger/import`、`/ledger/rules`、`/ledger/accounts`、`/ledger/categories`
+  - `/ledger/dashboard`、`/ledger/transactions`、`/ledger/import`、`/ledger/rules`、`/ledger/recurring`、`/ledger/accounts`、`/ledger/categories`
 - 记账 smoke 验证资料：
   - 验收清单：`docs/ledger-smoke-checklist.md`
   - 脚本：`scripts/ledger-smoke.sh`（可通过 `BASE_URL` 做在线检查）

@@ -38,6 +38,7 @@ const { TextArea, Search } = Input;
 
 const KNOWLEDGE_STATUS_OPTIONS = dictToOptions(KNOWLEDGE_STATUS_ZH);
 const KNOWLEDGE_PRIORITY_OPTIONS = dictToOptions(KNOWLEDGE_PRIORITY_ZH);
+const BUILTIN_KNOWLEDGE_CATEGORIES = new Set(Object.keys(KNOWLEDGE_CATEGORY_ZH));
 
 function knowledgePriorityColor(priority) {
   const key = String(priority || '').trim().toLowerCase();
@@ -409,6 +410,43 @@ export default function InfoMaintain() {
     setKnowledgeEditing(true);
   };
 
+  const createKnowledgeCategory = async () => {
+    const raw = window.prompt('输入新分类名称：');
+    const name = (raw || '').trim();
+    if (!name) return;
+    try {
+      await knowledgeApi.createCategory(name);
+      message.success('分类已创建');
+      await loadKnowledgeCategories();
+      setKnowledgeFilters((prev) => ({ ...prev, category: name }));
+      if (knowledgeEditing) {
+        knowledgeForm.setFieldValue('category', name);
+      }
+    } catch (e) {
+      message.error(e?.response?.data?.detail || '分类创建失败');
+    }
+  };
+
+  const deleteKnowledgeCategory = async () => {
+    const category = (knowledgeFilters.category || '').trim();
+    if (!category) {
+      message.warning('请先在筛选栏选择要删除的分类');
+      return;
+    }
+    if (BUILTIN_KNOWLEDGE_CATEGORIES.has(category)) {
+      message.warning('内置分类不支持删除');
+      return;
+    }
+    try {
+      await knowledgeApi.deleteCategory(category);
+      message.success('分类已删除');
+      setKnowledgeFilters((prev) => ({ ...prev, category: undefined }));
+      await loadKnowledgeCategories();
+    } catch (e) {
+      message.error(e?.response?.data?.detail || '分类删除失败');
+    }
+  };
+
   const saveKnowledge = async () => {
     try {
       const values = await knowledgeForm.validateFields();
@@ -635,6 +673,16 @@ export default function InfoMaintain() {
                 style={{ width: 280 }}
                 onSearch={(v) => setKnowledgeFilters((p) => ({ ...p, q: v }))}
               />
+              <Button onClick={createKnowledgeCategory}>新增分类</Button>
+              <Popconfirm
+                title={knowledgeFilters.category ? `确认删除分类「${knowledgeFilters.category}」？` : '请先选择分类'}
+                onConfirm={deleteKnowledgeCategory}
+                disabled={!knowledgeFilters.category || BUILTIN_KNOWLEDGE_CATEGORIES.has(knowledgeFilters.category)}
+              >
+                <Button danger disabled={!knowledgeFilters.category || BUILTIN_KNOWLEDGE_CATEGORIES.has(knowledgeFilters.category)}>
+                  删除分类
+                </Button>
+              </Popconfirm>
               <Button onClick={createKnowledge} icon={<PlusOutlined />}>新建知识</Button>
               <ReadEditActions
                 editing={knowledgeEditing}
@@ -722,7 +770,7 @@ export default function InfoMaintain() {
                   <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', status: 'active', priority: 'medium', tags: [], related_note_ids: [] }}>
                     <Row gutter={12}>
                       <Col span={10}><Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}><Input placeholder="例如：趋势启动回调判定" /></Form.Item></Col>
-                      <Col span={7}><Form.Item name="category" label="分类"><Select options={knowledgeCategoryOptions} /></Form.Item></Col>
+                      <Col span={7}><Form.Item name="category" label="分类"><Select showSearch options={knowledgeCategoryOptions} /></Form.Item></Col>
                       <Col span={7}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
                       <Col span={8}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
                       <Col span={8}><Form.Item name="related_symbol" label="关联品种"><Input placeholder="IF / AU" /></Form.Item></Col>

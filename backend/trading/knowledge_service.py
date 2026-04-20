@@ -3,7 +3,8 @@ from typing import Any, Dict, Iterable, List, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from models import KnowledgeItem, KnowledgeItemNoteLink, Note
+from core.errors import AppError
+from models import KnowledgeCategory, KnowledgeItem, KnowledgeItemNoteLink, Note
 
 
 KNOWLEDGE_CATEGORY_VALUES = [
@@ -17,6 +18,15 @@ KNOWLEDGE_CATEGORY_VALUES = [
     "risk_rule",
     "infrastructure_note",
 ]
+
+
+def normalize_knowledge_category_name(value: Any) -> str:
+    name = str(value or "").strip()
+    if not name:
+        raise AppError("invalid_knowledge_category", "分类名称不能为空", status_code=400)
+    if len(name) > 50:
+        raise AppError("invalid_knowledge_category", "分类名称长度不能超过 50", status_code=400)
+    return name
 
 
 def normalize_knowledge_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -79,6 +89,14 @@ def list_knowledge_items(
 
 def list_knowledge_categories(db: Session, owner_role: Optional[str] = None) -> List[str]:
     values = set(KNOWLEDGE_CATEGORY_VALUES)
+    custom_query = db.query(KnowledgeCategory.name).filter(KnowledgeCategory.is_deleted == False)  # noqa: E712
+    if owner_role in {"admin", "user"}:
+        custom_query = custom_query.filter(KnowledgeCategory.owner_role == owner_role)
+    custom_rows = custom_query.all()
+    for (name,) in custom_rows:
+        if name and str(name).strip():
+            values.add(str(name).strip())
+
     query = db.query(KnowledgeItem.category).filter(
         KnowledgeItem.is_deleted == False, KnowledgeItem.category.isnot(None)  # noqa: E712
     )
@@ -89,6 +107,49 @@ def list_knowledge_categories(db: Session, owner_role: Optional[str] = None) -> 
         if category and str(category).strip():
             values.add(str(category).strip())
     return sorted(values)
+
+
+def create_knowledge_category(db: Session, name: str, owner_role: str) -> str:
+    normalized_name = normalize_knowledge_category_name(name)
+    row = db.query(KnowledgeCategory).filter(
+        KnowledgeCategory.name == normalized_name,
+        KnowledgeCategory.owner_role == owner_role,
+    ).first()
+    if row and not row.is_deleted:
+        return normalized_name
+    if row and row.is_deleted:
+        row.is_deleted = False
+        row.deleted_at = None
+        db.commit()
+        return normalized_name
+
+    db.add(KnowledgeCategory(name=normalized_name, owner_role=owner_role))
+    db.commit()
+    return normalized_name
+
+
+def delete_knowledge_category(db: Session, name: str, owner_role: str) -> None:
+    normalized_name = normalize_knowledge_category_name(name)
+    if normalized_name in KNOWLEDGE_CATEGORY_VALUES:
+        raise AppError("knowledge_category_builtin", "内置分类不支持删除", status_code=400)
+
+    in_use = db.query(KnowledgeItem.id).filter(
+        KnowledgeItem.is_deleted == False,  # noqa: E712
+        KnowledgeItem.owner_role == owner_role,
+        KnowledgeItem.category == normalized_name,
+    ).first()
+    if in_use:
+        raise AppError("knowledge_category_in_use", "分类仍有知识条目在使用，无法删除", status_code=400)
+
+    row = db.query(KnowledgeCategory).filter(
+        KnowledgeCategory.name == normalized_name,
+        KnowledgeCategory.owner_role == owner_role,
+        KnowledgeCategory.is_deleted == False,  # noqa: E712
+    ).first()
+    if not row:
+        raise AppError("knowledge_category_not_found", "分类不存在", status_code=404)
+    row.is_deleted = True
+    db.commit()
 
 
 def normalize_related_note_ids(raw: Optional[Iterable[Any]]) -> List[int]:

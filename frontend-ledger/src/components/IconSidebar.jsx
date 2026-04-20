@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import {
   BankOutlined,
+  CalendarOutlined,
   DashboardOutlined,
   ImportOutlined,
   LogoutOutlined,
@@ -16,6 +17,7 @@ const navs = [
   { key: '/transactions', label: '流水', icon: <WalletOutlined /> },
   { key: '/import', label: '导入', icon: <ImportOutlined /> },
   { key: '/rules', label: '规则', icon: <SettingOutlined /> },
+  { key: '/recurring', label: '周期账单', icon: <CalendarOutlined /> },
   { key: '/accounts', label: '账户', icon: <BankOutlined /> },
   { key: '/categories', label: '分类', icon: <TagsOutlined /> },
 ]

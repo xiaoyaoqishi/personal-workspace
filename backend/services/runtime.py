@@ -39,7 +39,7 @@ DEV_MODE = settings.dev_mode
 from core.db import engine, get_db, Base, SessionLocal
 from models import (
     Trade, TradeReview, TradeSourceMetadata, Review, ReviewTradeLink, ReviewSession, ReviewSessionTradeLink,
-    TradePlan, TradePlanTradeLink, TradePlanReviewSessionLink, KnowledgeItem,
+    TradePlan, TradePlanTradeLink, TradePlanReviewSessionLink, KnowledgeCategory, KnowledgeItem,
     Notebook, Note, NoteLink, TodoItem, TradeBroker, User, BrowseLog, MonitorSite, MonitorSiteResult,
 )
 from schemas import (
@@ -95,6 +95,9 @@ from trading.trade_plan_service import (
 from trading.knowledge_service import (
     list_knowledge_items as _knowledge_list_knowledge_items,
     list_knowledge_categories as _knowledge_list_categories,
+    create_knowledge_category as _knowledge_create_category,
+    delete_knowledge_category as _knowledge_delete_category,
+    normalize_knowledge_category_name as _knowledge_normalize_category_name,
     normalize_knowledge_payload as _knowledge_normalize_payload,
     normalize_related_note_ids as _knowledge_normalize_related_note_ids,
     sync_knowledge_item_note_links as _knowledge_sync_note_links,
@@ -113,6 +116,7 @@ ROLE_SCOPED_MODELS = (
     Trade,
     ReviewSession,
     TradePlan,
+    KnowledgeCategory,
     KnowledgeItem,
     Notebook,
     Note,
@@ -199,6 +203,8 @@ def _migrate_legacy_schema():
                     )
             _ensure_sqlite_column(db, "users", "role", "VARCHAR(20) DEFAULT 'user'")
             _ensure_sqlite_column(db, "users", "is_active", "BOOLEAN DEFAULT 1")
+            _ensure_sqlite_column(db, "users", "module_permissions", "TEXT")
+            _ensure_sqlite_column(db, "users", "data_permissions", "TEXT")
             _ensure_sqlite_column(db, "users", "created_at", "DATETIME")
             _ensure_sqlite_column(db, "users", "updated_at", "DATETIME")
             db.execute(text("UPDATE users SET role='user' WHERE role IS NULL OR role=''"))
@@ -304,6 +310,8 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "trade_plans", "is_deleted", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "trade_plans", "deleted_at", "DATETIME")
             _ensure_sqlite_column(db, "trade_plans", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+        if _table_exists(db, "ledger_transactions"):
+            _ensure_sqlite_column(db, "ledger_transactions", "recurring_rule_id", "INTEGER")
         for table in (
             "trades",
             "review_sessions",
@@ -453,6 +461,69 @@ MODULE_ZH_MAP = {
     "trading": "交易记录",
 }
 
+ALL_USER_MODULES = {"trading", "notes", "ledger"}
+READ_WRITE_VALUES = {"read_write", "read_only"}
+
+
+def _safe_json_load(raw: Any, fallback: Any):
+    try:
+        parsed = json.loads(raw or "")
+        return parsed if isinstance(parsed, type(fallback)) else fallback
+    except Exception:
+        return fallback
+
+
+def _normalize_module_permissions(value: Any) -> list[str]:
+    if value is None:
+        return sorted(ALL_USER_MODULES)
+    source = value if isinstance(value, list) else []
+    out: list[str] = []
+    seen = set()
+    for item in source:
+        key = str(item or "").strip().lower()
+        if key in ALL_USER_MODULES and key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out or sorted(ALL_USER_MODULES)
+
+
+def _normalize_data_permissions(value: Any) -> dict[str, str]:
+    out: dict[str, str] = {module: "read_write" for module in ALL_USER_MODULES}
+    if not isinstance(value, dict):
+        return out
+    for module, mode in value.items():
+        m = str(module or "").strip().lower()
+        v = str(mode or "").strip().lower()
+        if m in ALL_USER_MODULES and v in READ_WRITE_VALUES:
+            out[m] = v
+    return out
+
+
+def _serialize_user_permissions(user: User) -> tuple[list[str], dict[str, str]]:
+    modules = _normalize_module_permissions(_safe_json_load(user.module_permissions, []))
+    data_perms = _normalize_data_permissions(_safe_json_load(user.data_permissions, {}))
+    return modules, data_perms
+
+
+def _api_module_from_path(path: str) -> Optional[str]:
+    if path.startswith("/api/ledger"):
+        return "ledger"
+    if path.startswith("/api/notebooks") or path.startswith("/api/notes") or path.startswith("/api/todos"):
+        return "notes"
+    trading_prefixes = (
+        "/api/trades",
+        "/api/reviews",
+        "/api/review-sessions",
+        "/api/trade-plans",
+        "/api/knowledge-items",
+        "/api/trade-brokers",
+        "/api/trade-review-taxonomy",
+        "/api/recycle",
+    )
+    if path.startswith(trading_prefixes):
+        return "trading"
+    return None
+
 
 def _to_cn_datetime_text(value: Optional[datetime]) -> Optional[str]:
     if not value:
@@ -569,10 +640,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token_username = "xiaoyao"
         token_role = "admin"
         token_is_admin = True
+        token_modules = sorted(ALL_USER_MODULES)
+        token_data_permissions = {module: "read_write" for module in ALL_USER_MODULES}
         if DEV_MODE:
             request.state.username = token_username
             request.state.role = token_role
             request.state.is_admin = token_is_admin
+            request.state.module_permissions = token_modules
+            request.state.data_permissions = token_data_permissions
         elif request.url.path.startswith("/api/"):
             token = request.cookies.get(AUTH_COOKIE)
             parsed_username = verify_token(token) if token else None
@@ -590,9 +665,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     token_username = user.username
                     token_role = (user.role or "user").strip().lower()
                     token_is_admin = token_role == "admin"
+                    token_modules, token_data_permissions = _serialize_user_permissions(user)
+
+            if not token_is_admin and request.url.path not in AUTH_WHITELIST:
+                module_key = _api_module_from_path(request.url.path)
+                if module_key and module_key not in token_modules:
+                    return JSONResponse(status_code=403, content={"detail": "该模块对当前用户不可见"})
+                if module_key and request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+                    if token_data_permissions.get(module_key, "read_write") == "read_only":
+                        return JSONResponse(status_code=403, content={"detail": "该模块为只读权限，禁止写入"})
             request.state.username = token_username
             request.state.role = token_role
             request.state.is_admin = token_is_admin
+            request.state.module_permissions = token_modules
+            request.state.data_permissions = token_data_permissions
         username_token = context.current_username.set(token_username)
         role_token = context.current_role.set(token_role)
         is_admin_token = context.current_is_admin.set(token_is_admin)
@@ -623,6 +709,8 @@ class UserResetPasswordBody(BaseModel):
 class UserUpdateBody(BaseModel):
     role: Optional[str] = None
     password: Optional[str] = None
+    module_permissions: Optional[List[str]] = None
+    data_permissions: Optional[Dict[str, str]] = None
 
 
 class BrowseTrackBody(BaseModel):
@@ -649,7 +737,14 @@ class MonitorSiteUpdateBody(BaseModel):
 
 def auth_check(request: Request):
     if DEV_MODE:
-        return {"authenticated": True, "username": "xiaoyao", "role": "admin", "is_admin": True}
+        return {
+            "authenticated": True,
+            "username": "xiaoyao",
+            "role": "admin",
+            "is_admin": True,
+            "module_permissions": sorted(ALL_USER_MODULES),
+            "data_permissions": {module: "read_write" for module in ALL_USER_MODULES},
+        }
     token = request.cookies.get(AUTH_COOKIE)
     parsed_username = verify_token(token) if token else None
     if not parsed_username:
@@ -660,7 +755,18 @@ def auth_check(request: Request):
         if not user:
             return {"authenticated": False}
         role = (user.role or "user").strip().lower()
-        return {"authenticated": True, "username": user.username, "role": role, "is_admin": role == "admin"}
+        module_permissions, data_permissions = _serialize_user_permissions(user)
+        if role == "admin":
+            module_permissions = sorted(ALL_USER_MODULES)
+            data_permissions = {module: "read_write" for module in ALL_USER_MODULES}
+        return {
+            "authenticated": True,
+            "username": user.username,
+            "role": role,
+            "is_admin": role == "admin",
+            "module_permissions": module_permissions,
+            "data_permissions": data_permissions,
+        }
     finally:
         db.close()
 
@@ -749,17 +855,25 @@ def auth_logout(response: Response, request: Request):
 def admin_list_users(db: Session = Depends(get_db)):
     _require_admin()
     rows = db.query(User).order_by(User.created_at.desc(), User.id.desc()).all()
-    return [
-        {
-            "id": x.id,
-            "username": x.username,
-            "role": x.role,
-            "is_active": bool(x.is_active),
-            "created_at": x.created_at,
-            "updated_at": x.updated_at,
-        }
-        for x in rows
-    ]
+    out = []
+    for x in rows:
+        module_permissions, data_permissions = _serialize_user_permissions(x)
+        if (x.role or "user").strip().lower() == "admin":
+            module_permissions = sorted(ALL_USER_MODULES)
+            data_permissions = {module: "read_write" for module in ALL_USER_MODULES}
+        out.append(
+            {
+                "id": x.id,
+                "username": x.username,
+                "role": x.role,
+                "is_active": bool(x.is_active),
+                "module_permissions": module_permissions,
+                "data_permissions": data_permissions,
+                "created_at": x.created_at,
+                "updated_at": x.updated_at,
+            }
+        )
+    return out
 
 
 def admin_create_user(body: UserCreateBody, request: Request, db: Session = Depends(get_db)):
@@ -775,7 +889,14 @@ def admin_create_user(body: UserCreateBody, request: Request, db: Session = Depe
     existed = db.query(User).filter(User.username == username).first()
     if existed:
         raise HTTPException(400, "用户名已存在")
-    obj = User(username=username, password_hash=hash_password(password), role="user", is_active=True)
+    obj = User(
+        username=username,
+        password_hash=hash_password(password),
+        role="user",
+        is_active=True,
+        module_permissions=json.dumps(sorted(ALL_USER_MODULES), ensure_ascii=False),
+        data_permissions=json.dumps({module: "read_write" for module in ALL_USER_MODULES}, ensure_ascii=False),
+    )
     db.add(obj)
     _write_browse_log(
         db,
@@ -790,7 +911,14 @@ def admin_create_user(body: UserCreateBody, request: Request, db: Session = Depe
     )
     db.commit()
     db.refresh(obj)
-    return {"id": obj.id, "username": obj.username, "role": obj.role, "is_active": bool(obj.is_active)}
+    return {
+        "id": obj.id,
+        "username": obj.username,
+        "role": obj.role,
+        "is_active": bool(obj.is_active),
+        "module_permissions": sorted(ALL_USER_MODULES),
+        "data_permissions": {module: "read_write" for module in ALL_USER_MODULES},
+    }
 
 
 def admin_toggle_user_active(user_id: int, request: Request, db: Session = Depends(get_db)):
@@ -860,6 +988,18 @@ def admin_update_user(user_id: int, body: UserUpdateBody, request: Request, db: 
             raise HTTPException(400, "password 至少 4 位")
         row.password_hash = hash_password(next_pwd)
         changes.append("password=updated")
+    if (row.role or "user").strip().lower() != "admin":
+        if body.module_permissions is not None:
+            normalized_modules = _normalize_module_permissions(body.module_permissions)
+            row.module_permissions = json.dumps(normalized_modules, ensure_ascii=False)
+            changes.append(f"module_permissions={','.join(normalized_modules)}")
+        if body.data_permissions is not None:
+            normalized_data = _normalize_data_permissions(body.data_permissions)
+            row.data_permissions = json.dumps(normalized_data, ensure_ascii=False)
+            changes.append(
+                "data_permissions="
+                + ",".join(f"{k}:{v}" for k, v in sorted(normalized_data.items()))
+            )
     if not changes:
         raise HTTPException(400, "无可更新字段")
     _write_browse_log(
@@ -874,7 +1014,19 @@ def admin_update_user(user_id: int, body: UserUpdateBody, request: Request, db: 
         detail=f"update user {row.username}: {'; '.join(changes)}",
     )
     db.commit()
-    return {"ok": True, "id": row.id, "username": row.username, "role": row.role, "is_active": bool(row.is_active)}
+    module_permissions, data_permissions = _serialize_user_permissions(row)
+    if (row.role or "user").strip().lower() == "admin":
+        module_permissions = sorted(ALL_USER_MODULES)
+        data_permissions = {module: "read_write" for module in ALL_USER_MODULES}
+    return {
+        "ok": True,
+        "id": row.id,
+        "username": row.username,
+        "role": row.role,
+        "is_active": bool(row.is_active),
+        "module_permissions": module_permissions,
+        "data_permissions": data_permissions,
+    }
 
 
 def admin_delete_user(user_id: int, request: Request, db: Session = Depends(get_db)):
@@ -2107,8 +2259,20 @@ def list_knowledge_items(
 
 
 def list_knowledge_item_categories(owner_role: Optional[str] = None, db: Session = Depends(get_db)):
-    _owner_role_filter_for_admin(KnowledgeItem, owner_role)
+    _owner_role_filter_for_admin(KnowledgeCategory, owner_role)
     return {"items": _knowledge_list_categories(db, owner_role=owner_role if owner_role in {"admin", "user"} else None)}
+
+
+def create_knowledge_item_category(payload: Dict[str, Any], db: Session = Depends(get_db)):
+    name = _knowledge_normalize_category_name((payload or {}).get("name"))
+    created = _knowledge_create_category(db, name=name, owner_role=_owner_role_value_for_create())
+    return {"name": created}
+
+
+def delete_knowledge_item_category(category_name: str, db: Session = Depends(get_db)):
+    name = _knowledge_normalize_category_name(category_name)
+    _knowledge_delete_category(db, name=name, owner_role=_owner_role_value_for_create())
+    return {"ok": True}
 
 
 def create_knowledge_item(data: KnowledgeItemCreate, db: Session = Depends(get_db)):

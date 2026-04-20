@@ -5,11 +5,11 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.errors import AppError
-from models import LedgerAccount, LedgerCategory, LedgerTransaction
+from models import LedgerAccount, LedgerCategory, LedgerRecurringRule, LedgerTransaction
 from services.ledger import apply_owner_scope, ensure_row_visible, is_admin_role, owner_role_for_create
 
 
-def transaction_to_item(row: LedgerTransaction) -> dict:
+def transaction_to_item(row: LedgerTransaction, recurring_rule_name: Optional[str] = None) -> dict:
     return {
         "id": row.id,
         "occurred_at": row.occurred_at,
@@ -27,6 +27,8 @@ def transaction_to_item(row: LedgerTransaction) -> dict:
         "external_ref": row.external_ref,
         "source": row.source,
         "linked_transaction_id": row.linked_transaction_id,
+        "recurring_rule_id": row.recurring_rule_id,
+        "recurring_rule_name": recurring_rule_name,
         "is_cleared": bool(row.is_cleared),
         "owner_role": row.owner_role,
         "created_at": row.created_at,
@@ -152,15 +154,31 @@ def list_transactions(db: Session, role: str, query, owner_role: Optional[str] =
     q = _apply_date_range(q, query.date_from, query.date_to)
 
     rows = q.order_by(LedgerTransaction.occurred_at.desc(), LedgerTransaction.id.desc()).all()
+    recurring_ids = {int(row.recurring_rule_id) for row in rows if row.recurring_rule_id}
+    recurring_name_map: dict[int, str] = {}
+    if recurring_ids:
+        recurring_rows = db.query(LedgerRecurringRule).filter(
+            LedgerRecurringRule.id.in_(recurring_ids),
+            LedgerRecurringRule.is_deleted == False,  # noqa: E712
+        ).all()
+        recurring_name_map = {int(item.id): item.name for item in recurring_rows}
+
     return {
-        "items": [transaction_to_item(row) for row in rows],
+        "items": [transaction_to_item(row, recurring_rule_name=recurring_name_map.get(int(row.recurring_rule_id or 0))) for row in rows],
         "total": len(rows),
     }
 
 
 def get_transaction(db: Session, transaction_id: int, role: str) -> dict:
     row = _get_transaction_or_404(db, transaction_id, role)
-    return transaction_to_item(row)
+    recurring_rule_name = None
+    if row.recurring_rule_id:
+        recurring = db.query(LedgerRecurringRule).filter(
+            LedgerRecurringRule.id == row.recurring_rule_id,
+            LedgerRecurringRule.is_deleted == False,  # noqa: E712
+        ).first()
+        recurring_rule_name = recurring.name if recurring else None
+    return transaction_to_item(row, recurring_rule_name=recurring_rule_name)
 
 
 def create_transaction(db: Session, payload, role: str, apply_rules: bool = True) -> dict:

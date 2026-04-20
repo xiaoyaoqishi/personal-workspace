@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, DatePicker, Input, message, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd';
 import {
-  ArrowLeftOutlined,
   DesktopOutlined,
   FileSearchOutlined,
   GlobalOutlined,
@@ -11,6 +10,13 @@ import {
 import { authApi, monitorApi, userAdminApi, auditApi } from './api';
 
 const POLL_MS = 3000;
+const MODULE_OPTIONS = [
+  { label: '交易模块', value: 'trading' },
+  { label: '笔记模块', value: 'notes' },
+  { label: '账务模块', value: 'ledger' },
+];
+const DEFAULT_MODULES = MODULE_OPTIONS.map((x) => x.value);
+const DEFAULT_DATA_PERMISSIONS = { trading: 'read_write', notes: 'read_write', ledger: 'read_write' };
 
 function useAdminGuard() {
   const [ready, setReady] = useState(false);
@@ -251,7 +257,15 @@ function SitePanel() {
 function UserPanel() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ username: '', password: '' });
-  const [editModal, setEditModal] = useState({ open: false, userId: null, username: '', role: 'user', password: '' });
+  const [editModal, setEditModal] = useState({
+    open: false,
+    userId: null,
+    username: '',
+    role: 'user',
+    password: '',
+    module_permissions: [...DEFAULT_MODULES],
+    data_permissions: { ...DEFAULT_DATA_PERMISSIONS },
+  });
 
   const load = async () => {
     const res = await userAdminApi.list();
@@ -298,6 +312,29 @@ function UserPanel() {
             { title: '用户名', dataIndex: 'username', key: 'username' },
             { title: '角色', dataIndex: 'role', key: 'role' },
             {
+              title: '模块可见',
+              key: 'module_permissions',
+              render: (_, r) => {
+                if ((r.role || 'user') === 'admin') return '全部';
+                const modules = Array.isArray(r.module_permissions) ? r.module_permissions : [];
+                if (!modules.length) return '-';
+                return modules.map((m) => MODULE_OPTIONS.find((x) => x.value === m)?.label || m).join(' / ');
+              },
+            },
+            {
+              title: '数据权限',
+              key: 'data_permissions',
+              render: (_, r) => {
+                if ((r.role || 'user') === 'admin') return '可读写';
+                const perms = r.data_permissions || {};
+                return DEFAULT_MODULES.map((m) => {
+                  const mode = perms[m] || 'read_write';
+                  const label = MODULE_OPTIONS.find((x) => x.value === m)?.label || m;
+                  return `${label}:${mode === 'read_only' ? '只读' : '可读写'}`;
+                }).join('；');
+              },
+            },
+            {
               title: '状态',
               key: 'status',
               render: (_, r) => <Tag color={r.is_active ? 'green' : 'red'}>{r.is_active ? '启用' : '停用'}</Tag>,
@@ -326,6 +363,13 @@ function UserPanel() {
                         username: r.username,
                         role: r.role || 'user',
                         password: '',
+                        module_permissions: Array.isArray(r.module_permissions) && r.module_permissions.length
+                          ? r.module_permissions
+                          : [...DEFAULT_MODULES],
+                        data_permissions: {
+                          ...DEFAULT_DATA_PERMISSIONS,
+                          ...(r.data_permissions || {}),
+                        },
                       })
                     }
                   >
@@ -353,14 +397,36 @@ function UserPanel() {
       <Modal
         title="编辑用户"
         open={editModal.open}
-        onCancel={() => setEditModal({ open: false, userId: null, username: '', role: 'user', password: '' })}
+        onCancel={() =>
+          setEditModal({
+            open: false,
+            userId: null,
+            username: '',
+            role: 'user',
+            password: '',
+            module_permissions: [...DEFAULT_MODULES],
+            data_permissions: { ...DEFAULT_DATA_PERMISSIONS },
+          })
+        }
         onOk={async () => {
           if (!editModal.userId) return;
           const payload = { role: editModal.role };
           if (editModal.password.trim()) payload.password = editModal.password.trim();
+          if (editModal.role !== 'admin') {
+            payload.module_permissions = editModal.module_permissions;
+            payload.data_permissions = editModal.data_permissions;
+          }
           await userAdminApi.update(editModal.userId, payload);
           message.success('更新成功');
-          setEditModal({ open: false, userId: null, username: '', role: 'user', password: '' });
+          setEditModal({
+            open: false,
+            userId: null,
+            username: '',
+            role: 'user',
+            password: '',
+            module_permissions: [...DEFAULT_MODULES],
+            data_permissions: { ...DEFAULT_DATA_PERMISSIONS },
+          });
           await load();
         }}
       >
@@ -379,6 +445,37 @@ function UserPanel() {
             value={editModal.password}
             onChange={(e) => setEditModal((s) => ({ ...s, password: e.target.value }))}
           />
+          <Select
+            mode="multiple"
+            value={editModal.module_permissions}
+            onChange={(vals) => setEditModal((s) => ({ ...s, module_permissions: vals }))}
+            options={MODULE_OPTIONS}
+            disabled={editModal.role === 'admin'}
+            placeholder="模块可见权限"
+          />
+          <Space direction="vertical" style={{ width: '100%' }} size={6}>
+            <div>数据权限</div>
+            {DEFAULT_MODULES.map((moduleKey) => (
+              <Space key={moduleKey} style={{ width: '100%', justifyContent: 'space-between' }}>
+                <span>{MODULE_OPTIONS.find((x) => x.value === moduleKey)?.label || moduleKey}</span>
+                <Select
+                  value={editModal.data_permissions?.[moduleKey] || 'read_write'}
+                  onChange={(v) =>
+                    setEditModal((s) => ({
+                      ...s,
+                      data_permissions: { ...s.data_permissions, [moduleKey]: v },
+                    }))
+                  }
+                  options={[
+                    { label: '可读写', value: 'read_write' },
+                    { label: '只读', value: 'read_only' },
+                  ]}
+                  disabled={editModal.role === 'admin'}
+                  style={{ width: 160 }}
+                />
+              </Space>
+            ))}
+          </Space>
         </Space>
       </Modal>
     </Space>
@@ -588,7 +685,10 @@ export default function App() {
     <div className="monitor-layout">
       <aside className="icon-sidebar monitor-icon-sidebar">
         <a href="/" className="icon-sidebar-back" title="返回首页">
-          <ArrowLeftOutlined />
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8l-4 4 4 4M8 12h8" />
+          </svg>
         </a>
         <div className="icon-sidebar-tabs">
           {moduleItems.map((item) => (

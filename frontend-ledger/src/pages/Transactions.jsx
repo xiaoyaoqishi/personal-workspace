@@ -8,6 +8,7 @@ import {
   listAccounts,
   listCategories,
   listTransactions,
+  matchRecurringTransaction,
   reapplyRules,
   updateTransaction,
 } from '../api/ledger'
@@ -49,6 +50,7 @@ export default function Transactions() {
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState('create')
   const [editing, setEditing] = useState(null)
+  const [draftHandledKey, setDraftHandledKey] = useState('')
 
   const accountMap = useMemo(() => {
     const map = new Map()
@@ -98,6 +100,32 @@ export default function Transactions() {
     setFilters(merged)
     loadTransactions(merged)
   }, [location.search])
+
+  useEffect(() => {
+    const parsed = parseSearchParams(location.search)
+    if (parsed.draft_from_recurring !== '1') return
+    const key = JSON.stringify(parsed)
+    if (draftHandledKey === key) return
+    setDraftHandledKey(key)
+
+    setFormMode('create')
+    setEditing({
+      occurred_at: parsed.occurred_at || undefined,
+      posted_date: parsed.occurred_at ? `${parsed.occurred_at}`.slice(0, 10) : undefined,
+      account_id: parsed.account_id ? Number(parsed.account_id) : undefined,
+      counterparty_account_id: parsed.counterparty_account_id ? Number(parsed.counterparty_account_id) : undefined,
+      category_id: parsed.category_id ? Number(parsed.category_id) : undefined,
+      transaction_type: parsed.transaction_type || 'expense',
+      direction: parsed.direction || 'expense',
+      amount: parsed.amount ? Number(parsed.amount) : undefined,
+      currency: parsed.currency || 'CNY',
+      merchant: parsed.merchant || '',
+      description: parsed.description || '',
+      note: parsed.note || '',
+      source: parsed.source || 'manual',
+    })
+    setFormOpen(true)
+  }, [location.search, draftHandledKey])
 
   const applyQueryFilters = (nextFilters) => {
     const queryPayload = QUERY_KEYS.reduce((acc, key) => {
@@ -165,6 +193,12 @@ export default function Transactions() {
               { title: '方向', dataIndex: 'direction', width: 90, render: (value) => directionLabel(value) },
               { title: '来源', dataIndex: 'source', width: 110, render: (value) => (value === 'import_csv' ? 'CSV 导入' : value || '-') },
               {
+                title: '周期',
+                key: 'recurring',
+                width: 140,
+                render: (_, row) => (row.recurring_rule_id ? <Tag color="geekblue">{row.recurring_rule_name || `规则#${row.recurring_rule_id}`}</Tag> : '-'),
+              },
+              {
                 title: '金额',
                 key: 'amount',
                 width: 150,
@@ -185,7 +219,7 @@ export default function Transactions() {
                 title: '操作',
                 key: 'op',
                 fixed: 'right',
-                width: 240,
+                width: 340,
                 render: (_, row) => (
                   <Space>
                     <Button
@@ -213,6 +247,19 @@ export default function Transactions() {
                     >
                       重应用规则
                     </Button>
+                    <Button
+                      type="link"
+                      onClick={async () => {
+                        const raw = window.prompt('输入周期规则 ID：')
+                        const ruleId = Number(raw)
+                        if (!ruleId || ruleId <= 0) return
+                        await matchRecurringTransaction(ruleId, row.id)
+                        message.success('已标记为周期匹配')
+                        await loadTransactions(filters)
+                      }}
+                    >
+                      设为周期匹配
+                    </Button>
                     <Popconfirm
                       title="确认删除该流水？"
                       onConfirm={async () => {
@@ -228,7 +275,7 @@ export default function Transactions() {
                 ),
               },
             ]}
-            scroll={{ x: 1600 }}
+            scroll={{ x: 1900 }}
           />
         )}
       </Card>
