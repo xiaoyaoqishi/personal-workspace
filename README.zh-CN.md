@@ -1,428 +1,160 @@
-﻿[English README](./README.md)
+[English README](./README.md)
 
-# Trading Records Workspace
+# tradingRecords：个人自托管工作台
 
-## 1. 项目名称
-Trading Records Workspace
+## 一句话定位
+`tradingRecords` 是一个个人自托管的多应用工作台仓库，把交易记录与复盘、知识笔记、服务器监控、个人记账、统一登录和门户入口放在同一个工作区里。
 
-## 2. 项目简介
-这是一个自托管的多应用交易工作区仓库，包含：
-- 交易记录与分析系统
-- 笔记与待办系统
-- 服务器监控面板
-- 门户与登录静态页面
-- 统一 FastAPI 后端
+## 模块地图
+- `Trading`：负责交易记录、分析、复盘会话、交易计划，以及研究/知识工作流。
+- `Notes`：负责笔记本、日记/文档笔记、反向链接、待办和回收流程。
+- `Monitor`：负责管理员侧的服务器指标、站点巡检、用户管理和审计日志。
+- `Ledger`：独立的个人账务应用，覆盖账户、流水、规则、导入和周期账单。
+- `Portal`：工作台的静态首页与登录入口。
+- `Backend`：统一 FastAPI API、鉴权、数据权限、上传能力，以及基于 SQLite 的后端服务。
 
-后端使用 SQLite，运行期数据默认落在 `backend/data`。
+## 当前能力概览
+### Trading
+- 交易记录的增删改查、筛选、搜索选项和持仓视图。
+- 面向交易记录的统计与分析接口。
+- 基于粘贴文本的交易导入与分阶段解析。
+- 结构化单笔复盘数据与复盘分类体系。
+- 可关联交易的复盘会话，以及基于筛选结果生成会话。
+- 交易计划，以及与交易、复盘会话之间的关联流转。
+- 知识条目、分类、标签、状态和笔记链接。
+- 交易侧回收站，覆盖交易、券商、复盘会话、计划和知识条目。
 
-## 3. 核心模块
-- `backend`：FastAPI 应用、领域模型、接口、鉴权、数据迁移、监控采样。
-- `frontend`：交易前端（记录、分析、复盘会话、交易计划、知识库、券商维护）。
-- `frontend-notes`：笔记前端（日记/文档、富文本编辑、Wiki 链接、回收站、待办）。
-- `frontend-monitor`：网站监控前端（服务器监控、站点可用性巡检、用户管理、浏览记录）。
-- `frontend-ledger`：独立记账前端（Dashboard、流水、导入、规则、周期账单、账户、分类），部署子路径 `/ledger/`。
-- `portal`：门户首页与登录页。
-- `deploy`：生产脚本（`setup.sh`、`update.sh`）、Nginx 配置、systemd 服务文件。
-- `dev.sh`：本地联调统一编排脚本。
+### Notes / Knowledge
+- 日记与文档两类笔记本管理。
+- 日记/文档笔记的增删改查与统一编辑流程。
+- 搜索、日历、日记树和历史回看能力。
+- Wiki 链接解析与反向链接。
+- 笔记工作台内的待办管理。
+- 笔记回收站的恢复与清理流程。
 
-## 4. 主要功能
-- 交易 CRUD 与筛选（`/api/trades`）、计数/统计/分析接口。
-- 粘贴导入交易（`/api/trades/import-paste`），带分阶段校验与开平仓匹配。
-- 持仓视图（`/api/trades/positions`）。
-- 结构化交易复盘分类体系与单笔复盘元数据。
-- 图文研究录入默认包含标准复盘字段（入场论点、证据、边界、管理动作、离场原因）。
-- 图文研究编辑支持所见即所得文字样式（加粗/斜体/背景高亮）与图片粘贴上传。
-- 修复图文研究编辑中“已输入文本在粘贴/上传图片后被清空”的问题。
-- 交易来源元数据层，并兼容从旧 notes 文本回退提取来源。
-- 复盘会话（`/api/review-sessions`）作为一等对象，支持关联交易和按筛选条件生成样本。
-- 交易计划（`/api/trade-plans`）及状态流转校验，可关联交易与复盘会话。
-- 知识库（`/api/knowledge-items`），支持分类/标签/状态筛选。
-- 知识分类支持手工扩展与删除（内置分类受保护；仍有条目使用的分类不可删除）。
-- 记账后端域（`/api/ledger/*`）：账户/分类管理、流水增删改查与筛选、dashboard 汇总、CSV 导入、自动分类规则、周期账单管理与提醒能力。
-- 信息维护/复盘会话工作台左侧改为文件夹分组视图，支持单分类展开与紧凑条目展示。
-- 交易/复盘/计划/信息维护工作台在桌面端（`xl`）进一步缩窄左侧分组栏，主编辑区可用宽度更大。
-- 界面可读性增强：在保持非白背景的前提下整体提亮，并强化关键字段视觉层级（统计标题、表单标签、下拉项、功能按钮、工作台标题、交易详情关键信息）。
-- 门户首页可读性优化：增加全局轻薄白色遮罩、统一文字柔和提亮阴影、“每日一诗”改为传统竖排并移除白色模糊底，同时增强底部导航副标题对比度与字号。
-- 每日诗词排版细化：按传统从右向左改为“标题列（右）- 正文列（中）- 落款列（左）”，将出处作者移至最左侧作为落款，并提升正文 `letter-spacing`/`line-height` 以增强长短句呼吸感。
-- 交易前端默认落地页调整为首页仪表盘（`/trading/` 默认跳转 `/trading/dashboard`），不再默认进入交易记录列表。
-- 门户首页提供四个工作台入口：交易、笔记、监控、账务管理（跳转 `/ledger/`）。
-- 门户首页会基于 `module_permissions` 自动隐藏无权限模块入口（`trading/notes/ledger`）；监控入口仍仅管理员可见。
-- 门户首页“每日一诗”的展开/收起改为小图标按钮，放在“换一首”下方并保持同列竖排交互。
-- 文件夹内支持“优先级优先 + 维护时间”排序（同优先级按维护时间更早优先）。
-- 交易模块回收站：成交记录、知识、券商、复盘会话、交易计划支持删除后恢复（`/api/recycle/*`）。
-- 笔记本/笔记/待办系统，含回收站、反向链接、搜索、日历接口。
-- 图片上传与访问（`/api/upload`、`/api/uploads/{filename}`）。
-- 每日诗词接口，支持远程获取 + 本地兜底缓存（`/api/poem/daily`）。
-- 多用户鉴权（固定角色 `admin` / `user`），迁移后 `xiaoyao` 为管理员账号。
-- 业务数据按 `owner_role` 角色域隔离（`admin` 可看全量；`user` 仅看 `user` 域）。
-- 网站监控应用升级为子模块结构：服务器监控、站点巡检、用户管理、浏览记录。
-- 监控权限双保险：前端隐藏 + 后端鉴权拦截（普通用户访问监控/管理接口返回 `403`）。
-- 用户管理支持编辑角色/密码与删除用户账号（保留管理员账号受保护）。
-- 用户管理支持对普通用户配置模块可见范围（`trading/notes/ledger`）与数据权限（`read_write` / `read_only`）；管理员始终保持全权限。
-- 站点巡检目标管理与结果历史接口（`/api/monitor/sites*`）。
-- 浏览/操作记录接口（`/api/audit/track`、`/api/audit/logs`）：不记录管理员、保留 180 天，支持分页/筛选/删除，并返回中国时间与中文标签字段。
-- 服务器监控接口（`/api/monitor/realtime`、`/api/monitor/history`）基于 `psutil` 且仅管理员可用。
-- 非开发模式下 `/api/*` 的 Cookie 鉴权中间件。
-- `./dev.sh down` 的残留进程清理已增强，兼容混合 shell/Windows 场景（更宽松的 Vite 识别 + 进程树终止）。
+### Monitor / Admin
+- 统一后端提供的登录、退出、初始化和会话校验。
+- 仅管理员可访问的监控接口。
+- 服务器实时指标与历史指标。
+- 站点巡检目标的增删改查与结果历史。
+- 用户管理，包括角色和密码操作。
+- 面向普通用户的 `trading`、`notes`、`ledger` 模块可见性控制。
+- 按模块配置 `read_write` / `read_only` 数据权限。
+- 审计日志的采集、列表、筛选和删除。
 
-## 5. 技术栈
-- 后端：Python、FastAPI、SQLAlchemy、Pydantic、Uvicorn
-- 存储：SQLite（`backend/data/trading.db`）
-- 监控采集：`psutil`
-- 网络/解析辅助：`httpx`、`ebooklib`、`beautifulsoup4`
-- 前端：React + Vite + Axios + Ant Design
-- 图表：`recharts`
-- 笔记编辑器：Tiptap 生态（`@tiptap/*`、`tiptap-markdown`）
-- 部署：Nginx + systemd + Shell 脚本
+### Ledger
+- 账户管理。
+- 分类管理。
+- 流水增删改查，以及按账户、分类、类型、方向、来源、关键词、日期范围筛选。
+- Dashboard 汇总、账户余额和最近流水。
+- CSV 导入预览、确认导入，以及导入模板保存。
+- 自动规则的增删改查、预览和重新应用。
+- 周期账单规则、提醒、候选识别、草稿生成和手工匹配标记。
 
-## 6. 架构说明
-- 浏览器流量由 Nginx 路由：
-  - `/` -> `portal/index.html`
-  - `/login` -> `portal/login.html`
-  - `/trading/` -> `frontend/dist`
-  - `/notes/` -> `frontend-notes/dist`
-  - `/monitor/` -> `frontend-monitor/dist`
-  - `/ledger/` -> `frontend-ledger/dist`
-  - `/ledger` -> `301 /ledger/`
-  - `/api/*` -> FastAPI（`127.0.0.1:8000`）
-- FastAPI 负责业务接口、上传、鉴权、诗词、监控、用户管理与审计日志接口。
-- 鉴权策略：
-  - `DEV_MODE=1` 时接口默认使用管理员开发上下文。
-  - 非开发模式下，除白名单鉴权接口外，`/api/*` 需有效 `session_token` Cookie。
-  - 用户信息存储于数据库 `users` 表；旧 `backend/data/auth.json` 会自动迁移为 `xiaoyao/admin`。
-- 数据流：
-  - 持久化数据进 SQLite（`backend/data`）。
-  - 上传图片落地到 `backend/data/uploads`。
-- 签名密钥文件保存在 `backend/data/.secret`；`auth.json` 仅作兼容保留。
-
-## 7. 目录结构
-```text
-.
-├─ backend/
-│  ├─ main.py
-│  ├─ app.py
-│  ├─ auth.py
-│  ├─ trade_review_taxonomy.py
-│  ├─ core/
-│  │  ├─ config.py
-│  │  ├─ context.py
-│  │  ├─ db.py
-│  │  ├─ deps.py
-│  │  ├─ errors.py
-│  │  ├─ logging.py
-│  │  ├─ middleware.py
-│  │  └─ security.py
-│  ├─ routers/
-│  │  ├─ auth.py
-│  │  ├─ admin.py
-│  │  ├─ trading.py
-│  │  ├─ review.py
-│  │  ├─ review_sessions.py
-│  │  ├─ trade_plans.py
-│  │  ├─ knowledge.py
-│  │  ├─ notes.py
-│  │  ├─ notebook.py
-│  │  ├─ todo.py
-│  │  ├─ monitor.py
-│  │  ├─ recycle.py
-│  │  ├─ upload.py
-│  │  ├─ poem.py
-│  │  ├─ audit.py
-│  │  └─ health.py
-│  ├─ services/
-│  │  ├─ auth_service.py
-│  │  ├─ admin_service.py
-│  │  ├─ monitor_service.py
-│  │  ├─ recycle_service.py
-│  │  ├─ upload_service.py
-│  │  ├─ poem_service.py
-│  │  ├─ audit_service.py
-│  │  └─ notes_service.py
-│  ├─ models/
-│  │  ├─ trading.py
-│  │  ├─ review.py
-│  │  ├─ knowledge.py
-│  │  ├─ notes.py
-│  │  ├─ auth.py
-│  │  ├─ audit.py
-│  │  └─ monitor.py
-│  ├─ schemas/
-│  │  ├─ trading.py
-│  │  ├─ review.py
-│  │  ├─ knowledge.py
-│  │  ├─ notes.py
-│  │  ├─ auth.py
-│  │  ├─ admin.py
-│  │  └─ monitor.py
-│  ├─ trading/
-│  │  ├─ analytics_service.py
-│  │  ├─ import_service.py
-│  │  ├─ knowledge_service.py
-│  │  ├─ review_service.py
-│  │  ├─ review_session_service.py
-│  │  ├─ source_service.py
-│  │  ├─ tag_service.py
-│  │  ├─ trade_plan_service.py
-│  │  ├─ trade_service.py
-│  │  ├─ broker_service.py
-│  │  └─ maintenance_service.py
-│  ├─ tests/
-│  │  ├─ conftest.py
-│  │  └─ test_*.py
-│  └─ data/
-│     ├─ trading.db
-│     ├─ uploads/
-│     └─ news_epub/
-├─ frontend/
-│  ├─ src/
-│  │  ├─ api/
-│  │  ├─ components/
-│  │  ├─ features/trading/
-│  │  ├─ pages/
-│  │  └─ utils/
-│  ├─ index.html
-│  ├─ vite.config.js
-│  └─ package.json
-├─ frontend-notes/
-│  ├─ src/
-│  │  ├─ api/
-│  │  ├─ components/
-│  │  └─ utils/
-│  ├─ index.html
-│  ├─ vite.config.js
-│  └─ package.json
-├─ frontend-monitor/
-│  ├─ src/
-│  │  ├─ api.js
-│  │  ├─ App.jsx
-│  │  └─ main.jsx
-│  ├─ index.html
-│  ├─ vite.config.js
-│  └─ package.json
-├─ frontend-ledger/
-│  ├─ src/
-│  │  ├─ api/
-│  │  ├─ components/
-│  │  ├─ hooks/
-│  │  ├─ pages/
-│  │  └─ utils/
-│  ├─ index.html
-│  ├─ vite.config.js
-│  └─ package.json
-├─ frontend-news/            # 历史遗留目录，当前无 package.json
-├─ portal/
-│  ├─ dev_server.py
-│  ├─ index.html
-│  └─ login.html
-├─ deploy/
-│  ├─ setup.sh
-│  ├─ update.sh
-│  ├─ remote-update.sh
-│  ├─ nginx.conf
-│  └─ trading.service
-├─ AGENTS.md
-├─ dev.sh
-├─ README.md
-└─ README.zh-CN.md
-```
-
-（已省略 `node_modules`、`dist`、`.dev-run` 等构建/运行期产物目录。）
-
-## 8. 快速开始
-本地联调建议直接使用仓库根脚本：
-
-```bash
-./dev.sh up
-```
-
-该命令会拉起 backend + `portal` 本地网关 + 自动发现的全部 frontend 开发服务（匹配 `frontend*` 目录且 `package.json` 中含 `dev` 脚本）；有 tmux 则用 tmux，没有则后台运行。
-门户访问地址：`http://127.0.0.1:5172`（可用 `PORTAL_DEV_PORT` 覆盖）。
-
-## 9. 前置要求
+## Quick Start
+### 前置要求
 - Python 3
-- Node.js + npm
-- 可选：`tmux`（多窗口联调）
-- 生产脚本运行环境：Linux + `nginx` + `systemd`
+- Node.js
+- npm
+- 可选：`tmux`
+- 生产部署需要 Linux、`nginx` 和 `systemd`
 
-## 10. 安装方式
-按模块安装依赖：
-
+### 安装依赖
 ```bash
-# backend
 cd backend
 pip install -r requirements.txt
 
-# trading frontend
 cd ../frontend
 npm install
 
-# notes frontend
 cd ../frontend-notes
 npm install
 
-# monitor frontend
 cd ../frontend-monitor
 npm install
 
-# ledger frontend
 cd ../frontend-ledger
 npm install
 ```
 
-## 11. 环境变量
-后端直接读取进程环境变量（代码里没有 dotenv 自动加载）。
-
-| 变量名 | 默认值 | 作用 |
-| --- | --- | --- |
-| `DEV_MODE` | `0` | 设为 `1` 时跳过 API 鉴权中间件，便于本地开发。 |
-| `COOKIE_SECURE` | `DEV_MODE=0` 时为 `1`，否则为 `0` | 控制登录 Cookie 的 `secure` 标记。 |
-| `POEM_CACHE_TTL` | `1800` | 每日诗词缓存秒数。 |
-| `POEM_REMOTE_URL` | `https://v2.jinrishici.com/sentence` | 远程诗词接口地址。 |
-| `JINRISHICI_TOKEN` | 空 | 诗词接口可选请求令牌。 |
-
-仓库根目录已补充最小可用 `.env.example`。
-仓库忽略规则会屏蔽 `.env` / `.env.*`，并保留 `.env.example` 模板。
-
-## 12. 常用脚本
-仓库级：
-- `./dev.sh up`：启动 backend + `portal` 本地网关 + 自动发现的全部 `frontend*` 本地开发服务。
-- `./dev.sh down`：停止全部本地服务，并兜底清理仓库内残留调试进程（`vite`/`npm run dev`、portal `dev_server.py` 及匹配的后端 `uvicorn`）。
-- Windows bash（`Git Bash`/`MSYS`/`Cygwin`）下，`./dev.sh down` 会额外触发一轮 PowerShell 兜底清理，避免原生 `node/vite` 残留进程。
-- `./dev.sh status`：查看 tmux/后台进程状态。
-- `./dev.sh attach`：附着 tmux 或跟随日志。
-- `./dev.sh restart`：重启全部服务。
-- `./dev.sh down`：默认会自动全量清理 `.dev-run` 下全部 `pid/log` 文件（含历史/手工日志）。
-- `DEV_CLEAN_ON_DOWN=0 ./dev.sh down`：停止服务时保留 `.dev-run` 下全部 `pid/log` 文件。
-- `PORTAL_DEV_PORT=5172 ./dev.sh up`：覆盖 portal 本地入口端口。
-- `PORTAL_BACKEND_PORT=8000 PORTAL_TRADING_PORT=5173 PORTAL_NOTES_PORT=5174 PORTAL_MONITOR_PORT=5175 PORTAL_LEDGER_PORT=5176 ./dev.sh up`：覆盖 portal 反向代理上游端口。
-
-前端子应用（如 `frontend`、`frontend-notes`、`frontend-monitor`、`frontend-ledger`）：
-- `npm run dev`
-- `npm run build`
-- `npm run preview`
-
-部署脚本：
-- `deploy/setup.sh`：服务器首次部署。
-- `deploy/update.sh`：拉取更新、安装/构建、更新 Nginx、重启服务。
-- `deploy/remote-update.sh`：在本地通过 SSH 触发远端 `deploy/update.sh`。
-
-## 13. 本地开发
-推荐流程：
-1. 安装各模块依赖。
-2. 设置环境变量（可参考 `.env.example`）。
-3. 在仓库根运行 `./dev.sh up`。
-4. 用 `./dev.sh attach` 查看日志。
-5. 推送前运行后端测试：
-
+### 最快启动方式
 ```bash
+./dev.sh up
+```
+
+默认从 `http://127.0.0.1:5172` 进入 portal。
+
+`dev.sh` 会自动发现带有 `package.json` 且定义了 `dev` 脚本的 `frontend*` 目录，并与 FastAPI backend、portal 本地网关一起拉起。
+
+## 路由与应用入口
+- `/`：工作台门户首页。
+- `/login`：统一登录页。
+- `/trading/`：交易前端入口；应用内部会跳转到 `/trading/dashboard`。
+- `/notes/`：笔记工作台入口。
+- `/monitor/`：监控与管理工作台入口。
+- `/ledger/`：账务前端入口；应用内部会跳转到 `/ledger/dashboard`。
+- `/api/*`：统一 FastAPI API，覆盖鉴权、交易、笔记、监控、账务、上传等后端能力。
+
+## 架构概览
+Portal 是整个工作台的入口层。各个前端应用独立构建，并分别挂在自己的子路径下；FastAPI 在 `/api/*` 下统一提供后端接口。持久化数据保存在 `backend/data` 下的 SQLite 中。生产环境由 Nginx 负责 portal、各个 SPA 和 API 的路径分发与回退处理，其中 `/ledger` 会重定向到 `/ledger/`。
+
+## 目录结构
+- `backend/`：统一 FastAPI 后端，既包含交易域，也包含独立的账务后端域 `/api/ledger/*`。
+  - `core/`：配置、数据库、请求上下文、中间件与安全相关基础设施。
+  - `routers/`：鉴权、交易、笔记、监控、账务、上传等 API 路由注册。
+  - `services/`：共享服务模块，以及账务相关服务实现。
+  - `models/`：各业务域的 SQLAlchemy 模型。
+  - `schemas/`：API 输入输出的 Pydantic 模型。
+  - `trading/`：交易域专用业务逻辑，如导入、分析、复盘、计划、知识等。
+  - `data/`：SQLite 数据库、上传文件和运行期数据。
+- `frontend/`：部署在 `/trading/` 下的交易前端。
+- `frontend-notes/`：部署在 `/notes/` 下的笔记前端。
+- `frontend-monitor/`：部署在 `/monitor/` 下的监控与管理前端。
+- `frontend-ledger/`：部署在 `/ledger/` 下的独立账务前端。
+- `portal/`：本地开发与生产共用的静态门户和登录页。
+- `deploy/`：部署脚本、Nginx 配置与 systemd 服务文件。
+- `dev.sh`：统一拉起 backend、portal 和自动发现前端的本地开发脚本。
+
+## 技术栈
+- FastAPI / SQLAlchemy / Pydantic / Uvicorn
+- SQLite
+- React / Vite / Axios / Ant Design
+- Recharts
+- Nginx / systemd / shell scripts
+
+## 环境变量
+| 变量 | 用途 |
+| --- | --- |
+| `DEV_MODE` | 控制后端是否启用本地开发模式。 |
+| `COOKIE_SECURE` | 控制鉴权 Cookie 是否要求 HTTPS。 |
+| `PORTAL_DEV_PORT` | portal 本地网关端口。 |
+| `PORTAL_BACKEND_PORT` | portal 本地代理使用的后端端口。 |
+| `PORTAL_TRADING_PORT` | portal 本地代理使用的交易前端端口。 |
+| `PORTAL_NOTES_PORT` | portal 本地代理使用的笔记前端端口。 |
+| `PORTAL_MONITOR_PORT` | portal 本地代理使用的监控前端端口。 |
+| `PORTAL_LEDGER_PORT` | portal 本地代理使用的账务前端端口。 |
+| `POEM_CACHE_TTL` | 可选的每日诗词接口缓存时长。 |
+| `POEM_REMOTE_URL` | 可选的每日诗词远端来源地址。 |
+| `JINRISHICI_TOKEN` | 可选的每日诗词来源令牌。 |
+
+## 常用命令
+```bash
+./dev.sh up
+./dev.sh down
+./dev.sh status
+./dev.sh attach
 pytest -q backend/tests
-```
 
-## 14. 生产构建
-手动构建顺序：
-
-```bash
 cd frontend && npm run build
-cd ../frontend-notes && npm run build
-cd ../frontend-monitor && npm run build
-cd ../frontend-ledger && npm run build
+cd frontend-notes && npm run build
+cd frontend-monitor && npm run build
+cd frontend-ledger && npm run build
 ```
 
-后端以 Uvicorn 直接运行，本仓库没有单独打包步骤。
+## 部署说明
+首次在 Linux 主机部署时使用 `deploy/setup.sh`，已有环境更新时使用 `deploy/update.sh`。生产路径分发定义在 `deploy/nginx.conf`，后端服务由 `deploy/trading.service` 管理。生产部署已纳入 `/ledger/`，并已配置好前端应用所需的 SPA fallback。
 
-## 15. 部署说明
-当前部署资源面向 Linux，默认路径 `/opt/tradingRecords`：
-- `deploy/trading.service` 在 `/opt/tradingRecords/backend` 启动 `python3 -m uvicorn main:app --host 127.0.0.1 --port 8000`。
-- `deploy/nginx.conf` 暴露门户和四个前端子路径（含 `/ledger/`），并将 `/api/` 反向代理到后端。
-  - 同时会把 `/ledger` 重定向到 `/ledger/`，避免无尾斜杠访问时出现 404。
-- `deploy/update.sh` 会执行 `git pull`、安装后端依赖、构建全部前端（含 `frontend-ledger`）、同步门户页面、重启 `nginx` 与 `trading` 服务。
-- `deploy/update.sh` 在每个前端构建前会先以管理员权限清理对应 `dist` 目录，避免历史产物权限导致的 `EACCES unlink` 构建失败。
-- `deploy/update.sh` 现在每次执行都会重新链接 `/etc/nginx/sites-enabled/trading` 并移除 `/etc/nginx/sites-enabled/default`，避免命中旧/默认站点配置导致路由 404。
-- 若通过非 root 用户（如 `admin`）触发，`deploy/update.sh` 会在特权步骤（`nginx`/`systemctl`）自动走 `sudo`，因此该用户需具备相应 sudo 权限。
-- 本地一条命令触发远端更新（无需先登录服务器）：
-  - `PROD_HOST=<服务器IP> PROD_USER=admin bash deploy/remote-update.sh`
-
-## 16. 数据库或存储说明
-- 主数据库：`backend/data/trading.db`（SQLite）。
-- 上传文件目录：`backend/data/uploads/`。
-- 鉴权文件：
-  - `backend/data/auth.json`（带盐哈希密码）
-  - `backend/data/.secret`（Token 签名密钥）
-- `backend/main.py` 启动阶段行为：
-  - `Base.metadata.create_all(...)`
-  - 针对已有 SQLite 表执行遗留字段迁移
-  - 在条件满足时将旧 `reviews` 数据迁移到 `review_sessions`
-
-## 17. 监控或服务相关说明
-后端监控接口：
-- `GET /api/monitor/realtime`：系统/CPU/内存/磁盘/网络/进程/服务快照。
-- `GET /api/monitor/history`：后台线程每 5 秒采样一次的内存历史序列。
-
-`frontend-monitor` 周期轮询上述接口并展示图表面板。
-
-## 18. 使用说明或注意事项
-- 首次使用需先调用 `POST /api/auth/setup` 初始化账号，系统会创建管理员 `xiaoyao`。
-- 前端 Axios 拦截 `401` 并跳转 `/login`。
-- 管理员接口：
-  - `GET/POST /api/admin/users`
-  - `PUT /api/admin/users/{id}`
-  - `DELETE /api/admin/users/{id}`
-  - `POST /api/admin/users/{id}/toggle-active`
-  - `POST /api/admin/users/{id}/reset-password`
-  - `PUT /api/admin/users/{id}` 可为普通用户额外设置 `module_permissions` 与 `data_permissions`。
-- 监控接口：
-  - `GET /api/monitor/realtime`、`GET /api/monitor/history`（仅管理员）
-  - `GET/POST /api/monitor/sites`、`PUT/DELETE /api/monitor/sites/{id}`
-  - `GET /api/monitor/sites/{id}/results`
-- 审计接口：
-  - `POST /api/audit/track`
-  - `GET /api/audit/logs`（仅管理员；支持 `page/size/username/module/event_type/keyword/date_from/date_to`）
-  - `DELETE /api/audit/logs/{id}`（仅管理员）
-- 笔记编辑器与交易研究面板图片都通过 `/api/upload` 上传。
-- 记账接口：
-  - `GET/POST /api/ledger/accounts`、`PUT/DELETE /api/ledger/accounts/{id}`
-  - `GET/POST /api/ledger/categories`、`PUT/DELETE /api/ledger/categories/{id}`
-  - `GET/POST /api/ledger/transactions`、`GET/PUT/DELETE /api/ledger/transactions/{id}`
-  - `GET /api/ledger/dashboard`
-  - `POST /api/ledger/import/preview`、`POST /api/ledger/import/commit`
-  - `GET/POST /api/ledger/import/templates`、`DELETE /api/ledger/import/templates/{template_id}`
-  - `GET/POST /api/ledger/rules`、`PUT/DELETE /api/ledger/rules/{rule_id}`
-  - `POST /api/ledger/rules/preview`、`POST /api/ledger/rules/reapply`
-  - `GET/POST /api/ledger/recurring/rules`、`PUT/DELETE /api/ledger/recurring/rules/{rule_id}`
-  - `POST /api/ledger/recurring/detect`
-  - `GET /api/ledger/recurring/reminders`、`GET /api/ledger/recurring/overview`
-  - `POST /api/ledger/recurring/{rule_id}/draft`
-  - `POST /api/ledger/recurring/{rule_id}/match/{transaction_id}`
-- 交易模块回收站接口：
-  - `GET /api/recycle/{trades|knowledge-items|trade-brokers|review-sessions|trade-plans}`
-  - `POST /api/recycle/<resource>/{id}/restore`
-  - `DELETE /api/recycle/<resource>/{id}/purge`
-- 知识分类接口：
-  - `GET/POST /api/knowledge-items/categories`
-  - `DELETE /api/knowledge-items/categories/{category_name}`
-- 记账前端路由（`/ledger/` 基路径）：
-  - `/ledger/` 会重定向到 `/ledger/dashboard`
-  - `/ledger/dashboard`、`/ledger/transactions`、`/ledger/import`、`/ledger/rules`、`/ledger/recurring`、`/ledger/accounts`、`/ledger/categories`
-- 记账 smoke 验证资料：
-  - 验收清单：`docs/ledger-smoke-checklist.md`
-  - 脚本：`scripts/ledger-smoke.sh`（可通过 `BASE_URL` 做在线检查）
-- `AGENTS.md` 协作约定要求：
-  - 本地调试统一使用 `./dev.sh`。
-  - 生产更新统一使用 `deploy/update.sh`。
-  - 推送前优先检查 `frontend-notes` 可构建。
-  - 每次推送前同步更新 `README.md` 与 `README.zh-CN.md`。
-
-## 19. 后续计划
-基于当前代码形态的保守方向：
-- 继续收敛遗留 `reviews` 路径，逐步以 `review_sessions` 作为核心复盘模型。
-- 逐步消除 Pydantic v2 兼容告警（目前仍使用 `class Config` 形式）。
-- 提高 `trade_source_metadata` 覆盖率，减少对旧 notes 文本解析的依赖。
-
-## 20. 贡献说明
-- 按现有模块边界提交改动（`backend`、`frontend`、`frontend-notes`、`frontend-monitor`、`portal`、`deploy`）。
-- 校验受影响前端构建，尤其是 `frontend-notes`。
-- 涉及 API/领域逻辑时运行 `pytest -q backend/tests`。
-- 遵守仓库 `AGENTS.md` 约定。
-
-## 21. 许可证
-未明确声明。
+## 文档与验收
+- [docs/ledger-smoke-checklist.md](./docs/ledger-smoke-checklist.md)
+- [scripts/ledger-smoke.sh](./scripts/ledger-smoke.sh)
+- [README.md](./README.md)
