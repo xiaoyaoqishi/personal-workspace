@@ -14,6 +14,10 @@ if ! rg -n 'location /ledger/' "$ROOT_DIR/deploy/nginx.conf" >/dev/null; then
   echo "FAIL: deploy/nginx.conf 缺少 location /ledger/"
   exit 1
 fi
+if ! rg -n 'location = /ledger' "$ROOT_DIR/deploy/nginx.conf" >/dev/null; then
+  echo "FAIL: deploy/nginx.conf 缺少 /ledger -> /ledger/ 重定向"
+  exit 1
+fi
 if ! rg -n '/opt/tradingRecords/frontend-ledger/dist/' "$ROOT_DIR/deploy/nginx.conf" >/dev/null; then
   echo "FAIL: deploy/nginx.conf 缺少 frontend-ledger dist alias"
   exit 1
@@ -73,6 +77,11 @@ if [[ -n "$BASE_URL" ]]; then
   asset_path="$(echo "$ledger_html" | rg -o '/ledger/assets/[^" ]+\.(js|css)' | head -n 1 || true)"
   if [[ -z "$asset_path" ]]; then
     echo "FAIL: 在线 /ledger/ 页面未解析到资源路径"
+    exit 1
+  fi
+  ledger_redirect_code="$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/ledger")"
+  if [[ "$ledger_redirect_code" != "301" && "$ledger_redirect_code" != "302" ]]; then
+    echo "FAIL: 在线 /ledger 未返回重定向，当前状态码: $ledger_redirect_code"
     exit 1
   fi
   curl -fsSL "$BASE_URL$asset_path" >/dev/null || {

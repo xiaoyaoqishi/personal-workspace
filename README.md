@@ -82,6 +82,7 @@ The backend uses SQLite and stores runtime data under `backend/data`.
   - `/notes/` -> `frontend-notes/dist`
   - `/monitor/` -> `frontend-monitor/dist`
   - `/ledger/` -> `frontend-ledger/dist`
+  - `/ledger` -> `301 /ledger/`
   - `/api/*` -> FastAPI (`127.0.0.1:8000`)
 - FastAPI serves domain APIs, uploads, auth, poem, monitor data, and audit/user-admin endpoints.
 - Authentication:
@@ -333,6 +334,7 @@ Backend runs with Uvicorn (no wheel/package build step in this repository).
 Current deployment assets are Linux-oriented and expect `/opt/tradingRecords`:
 - `deploy/trading.service` runs `python3 -m uvicorn main:app --host 127.0.0.1 --port 8000` in `/opt/tradingRecords/backend`.
 - `deploy/nginx.conf` exposes portal/apps under `/`, `/trading/`, `/notes/`, `/monitor/`, `/ledger/`, and proxies `/api/`.
+  - It also normalizes `/ledger` to `/ledger/` via HTTP redirect to avoid direct-path 404.
 - `deploy/update.sh` performs `git pull`, installs backend deps, builds all frontends (including `frontend-ledger`), updates portal files, and restarts `nginx` + `trading` service.
 - `deploy/update.sh` now removes each frontend `dist` directory with privileged cleanup before build to avoid stale-file permission errors (`EACCES unlink`).
 - When triggered by non-root users (for example `admin`), `deploy/update.sh` uses `sudo` for privileged steps (`nginx`/`systemctl`), so that user must have corresponding sudo permissions.

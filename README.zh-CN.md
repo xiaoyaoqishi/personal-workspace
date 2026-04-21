@@ -82,6 +82,7 @@ Trading Records Workspace
   - `/notes/` -> `frontend-notes/dist`
   - `/monitor/` -> `frontend-monitor/dist`
   - `/ledger/` -> `frontend-ledger/dist`
+  - `/ledger` -> `301 /ledger/`
   - `/api/*` -> FastAPI（`127.0.0.1:8000`）
 - FastAPI 负责业务接口、上传、鉴权、诗词、监控、用户管理与审计日志接口。
 - 鉴权策略：
@@ -332,6 +333,7 @@ cd ../frontend-ledger && npm run build
 当前部署资源面向 Linux，默认路径 `/opt/tradingRecords`：
 - `deploy/trading.service` 在 `/opt/tradingRecords/backend` 启动 `python3 -m uvicorn main:app --host 127.0.0.1 --port 8000`。
 - `deploy/nginx.conf` 暴露门户和四个前端子路径（含 `/ledger/`），并将 `/api/` 反向代理到后端。
+  - 同时会把 `/ledger` 重定向到 `/ledger/`，避免无尾斜杠访问时出现 404。
 - `deploy/update.sh` 会执行 `git pull`、安装后端依赖、构建全部前端（含 `frontend-ledger`）、同步门户页面、重启 `nginx` 与 `trading` 服务。
 - `deploy/update.sh` 在每个前端构建前会先以管理员权限清理对应 `dist` 目录，避免历史产物权限导致的 `EACCES unlink` 构建失败。
 - 若通过非 root 用户（如 `admin`）触发，`deploy/update.sh` 会在特权步骤（`nginx`/`systemctl`）自动走 `sudo`，因此该用户需具备相应 sudo 权限。
