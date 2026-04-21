@@ -336,6 +336,7 @@ cd ../frontend-ledger && npm run build
   - 同时会把 `/ledger` 重定向到 `/ledger/`，避免无尾斜杠访问时出现 404。
 - `deploy/update.sh` 会执行 `git pull`、安装后端依赖、构建全部前端（含 `frontend-ledger`）、同步门户页面、重启 `nginx` 与 `trading` 服务。
 - `deploy/update.sh` 在每个前端构建前会先以管理员权限清理对应 `dist` 目录，避免历史产物权限导致的 `EACCES unlink` 构建失败。
+- `deploy/update.sh` 现在每次执行都会重新链接 `/etc/nginx/sites-enabled/trading` 并移除 `/etc/nginx/sites-enabled/default`，避免命中旧/默认站点配置导致路由 404。
 - 若通过非 root 用户（如 `admin`）触发，`deploy/update.sh` 会在特权步骤（`nginx`/`systemctl`）自动走 `sudo`，因此该用户需具备相应 sudo 权限。
 - 本地一条命令触发远端更新（无需先登录服务器）：
   - `PROD_HOST=<服务器IP> PROD_USER=admin bash deploy/remote-update.sh`

@@ -66,6 +66,8 @@ done
 
 echo "=== 重启服务 ==="
 run_privileged cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-available/trading
+run_privileged ln -sf /etc/nginx/sites-available/trading /etc/nginx/sites-enabled/trading
+run_privileged rm -f /etc/nginx/sites-enabled/default
 run_privileged nginx -t
 run_privileged systemctl restart nginx
 run_privileged systemctl restart trading

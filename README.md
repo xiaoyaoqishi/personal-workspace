@@ -337,6 +337,7 @@ Current deployment assets are Linux-oriented and expect `/opt/tradingRecords`:
   - It also normalizes `/ledger` to `/ledger/` via HTTP redirect to avoid direct-path 404.
 - `deploy/update.sh` performs `git pull`, installs backend deps, builds all frontends (including `frontend-ledger`), updates portal files, and restarts `nginx` + `trading` service.
 - `deploy/update.sh` now removes each frontend `dist` directory with privileged cleanup before build to avoid stale-file permission errors (`EACCES unlink`).
+- `deploy/update.sh` now also re-links `/etc/nginx/sites-enabled/trading` and removes `/etc/nginx/sites-enabled/default` on each run to prevent old/default site config from causing route 404.
 - When triggered by non-root users (for example `admin`), `deploy/update.sh` uses `sudo` for privileged steps (`nginx`/`systemctl`), so that user must have corresponding sudo permissions.
 - Local one-command trigger (without manually logging into server):
   - `PROD_HOST=<server_ip> PROD_USER=admin bash deploy/remote-update.sh`
