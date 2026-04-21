@@ -13,6 +13,7 @@ class KnowledgeItem(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     category = Column(String(50), nullable=False, index=True)
+    sub_category = Column(String(100), index=True)
     title = Column(String(200), nullable=False, index=True)
     summary = Column(Text)
     content = Column(Text)

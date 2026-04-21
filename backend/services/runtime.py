@@ -268,6 +268,7 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "knowledge_items", "is_deleted", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "knowledge_items", "deleted_at", "DATETIME")
             _ensure_sqlite_column(db, "knowledge_items", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+            _ensure_sqlite_column(db, "knowledge_items", "sub_category", "VARCHAR(100)")
         if _table_exists(db, "review_sessions"):
             _ensure_sqlite_column(db, "review_sessions", "review_kind", "VARCHAR(40) DEFAULT 'custom'")
             _ensure_sqlite_column(db, "review_sessions", "review_scope", "VARCHAR(40) DEFAULT 'custom'")

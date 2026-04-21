@@ -4,6 +4,11 @@
   gap: 12px;
 }
 
+.maintain-scroll-spacer {
+  height: clamp(180px, 38vh, 420px);
+  pointer-events: none;
+}
+
 .maintain-toolbar {
   border-radius: 8px 8px 0 0;
   border-bottom: 1px solid rgba(90,75,55,0.2);
@@ -208,6 +213,97 @@
   font-size: 11px;
   line-height: 16px;
   padding-inline: 6px;
+}
+
+.maintain-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+
+.maintain-group-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #4a4035;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.maintain-category-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maintain-root-list .ant-list-items,
+.maintain-subfolder-list .ant-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.maintain-root-list .ant-list-item + .ant-list-item,
+.maintain-subfolder-list .ant-list-item + .ant-list-item {
+  border-top: 1px solid rgba(90,75,55,0.18) !important;
+  margin-top: 2px;
+  padding-top: 10px;
+}
+
+.maintain-subfolder-collapse {
+  background: transparent;
+}
+
+.maintain-subfolder-collapse .ant-collapse-item {
+  border: 1px solid rgba(90,75,55,0.16) !important;
+  border-radius: 8px !important;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.28);
+}
+
+.maintain-subfolder-collapse .ant-collapse-item:last-child {
+  margin-bottom: 0;
+}
+
+.maintain-subfolder-collapse .ant-collapse-header {
+  padding: 8px 10px !important;
+}
+
+.maintain-subfolder-collapse .ant-collapse-content {
+  border-top: 1px solid rgba(90,75,55,0.12);
+  background: rgba(255,255,255,0.2);
+}
+
+.maintain-subfolder-collapse .ant-collapse-content-box {
+  padding: 4px 6px 6px !important;
+}
+
+.maintain-subfolder-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 2px 4px;
+}
+
+.maintain-subfolder-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #504539;
+}
+
+.maintain-subfolder-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 768px) {

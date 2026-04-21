@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  FloatButton,
   Button,
   Col,
   Collapse,
@@ -20,7 +21,16 @@ import {
   message,
 } from 'antd';
 import InkSection from '../components/InkSection';
-import { DeleteOutlined, FolderOpenOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  FolderOpenOutlined,
+  FolderOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  PlusOutlined,
+  ReadOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useSearchParams } from 'react-router-dom';
 import { reviewSessionApi, tradeApi } from '../api';
@@ -158,6 +168,7 @@ export default function ReviewList() {
   const [minStars, setMinStars] = useState(undefined);
   const [selectedId, setSelectedId] = useState(initialSessionIdFromQuery);
   const [expandedScope, setExpandedScope] = useState(null);
+  const [reviewSidebarCollapsed, setReviewSidebarCollapsed] = useState(false);
   const [linkedTrades, setLinkedTrades] = useState([]);
   const [tradeOptions, setTradeOptions] = useState([]);
   const [tradeOptionLoading, setTradeOptionLoading] = useState(false);
@@ -475,6 +486,7 @@ export default function ReviewList() {
     resetForm(item);
     setEditing(false);
   };
+  const resolveScrollTarget = () => document.querySelector('.app-content') || window;
 
   return (
     <div className="review-workspace">
@@ -490,6 +502,12 @@ export default function ReviewList() {
             <Select allowClear value={activeTag} options={reviewTagOptions} placeholder="标签" onChange={setActiveTag} style={{ width: 140 }} />
             <Select value={favoriteOnly ? 'fav' : 'all'} style={{ width: 110 }} onChange={(v) => setFavoriteOnly(v === 'fav')} options={[{ label: '全部', value: 'all' }, { label: '仅收藏', value: 'fav' }]} />
             <Select allowClear value={minStars} placeholder="最低星级" style={{ width: 120 }} onChange={setMinStars} options={[1, 2, 3, 4, 5].map((x) => ({ value: x, label: `${x} 星` }))} />
+            <Button
+              icon={reviewSidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setReviewSidebarCollapsed((prev) => !prev)}
+            >
+              {reviewSidebarCollapsed ? '展开侧栏' : '收起侧栏'}
+            </Button>
             <Button onClick={() => { setSelectedId(null); resetForm(null); setEditing(true); }} icon={<PlusOutlined />}>新建会话</Button>
             <ReadEditActions editing={editing} saving={saving} onEdit={() => { if (selected) { resetForm(selected); setEditing(true); } }} onSave={handleSave} onCancel={() => { resetForm(selected); setEditing(false); }} editDisabled={!selectedId} />
             <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger icon={<DeleteOutlined />} disabled={!selectedId}>删除</Button></Popconfirm>
@@ -498,72 +516,100 @@ export default function ReviewList() {
       </div>
 
       <Row gutter={12}>
-        <Col xs={24} xl={4}>
-          <InkSection className="review-list-card" loading={loading}>
-            {groupedRows.length === 0 ? (
-              <Empty description="暂无会话" />
-            ) : (
-              <Collapse
-                accordion
-                bordered={false}
-                className="review-folder-collapse"
-                activeKey={expandedScope || undefined}
-                onChange={(key) => {
-                  const nextKey = Array.isArray(key) ? key[0] : key;
-                  setExpandedScope(nextKey ? String(nextKey) : null);
-                }}
-                items={groupedRows.map((group) => ({
-                  key: group.scope,
-                  label: (
-                    <div className="review-folder-label">
-                      <span className="review-folder-name">
-                        <span className="review-folder-icon">
-                          {expandedScope === group.scope ? <FolderOpenOutlined /> : <FolderOutlined />}
+        {!reviewSidebarCollapsed ? (
+          <Col xs={24} xl={6}>
+            <InkSection className="review-list-card" loading={loading}>
+              {groupedRows.length === 0 ? (
+                <Empty description="暂无会话" />
+              ) : (
+                <Collapse
+                  accordion
+                  bordered={false}
+                  className="review-folder-collapse"
+                  activeKey={expandedScope || undefined}
+                  onChange={(key) => {
+                    const nextKey = Array.isArray(key) ? key[0] : key;
+                    setExpandedScope(nextKey ? String(nextKey) : null);
+                  }}
+                  items={groupedRows.map((group) => ({
+                    key: group.scope,
+                    label: (
+                      <div className="review-folder-label">
+                        <span className="review-folder-name">
+                          <span className="review-folder-icon">
+                            {expandedScope === group.scope ? <FolderOpenOutlined /> : <FolderOutlined />}
+                          </span>
+                          {group.label}
                         </span>
-                        {group.label}
-                      </span>
-                      <span className="review-folder-count">{group.items.length}</span>
-                    </div>
-                  ),
-                  children: (
-                    <List
-                      dataSource={group.items}
-                      locale={{ emptyText: <Empty description="该分类下暂无会话" /> }}
-                      renderItem={(item) => {
-                        const itemTags = normalizeTagList(item.tags);
-                        return (
-                          <List.Item className={`review-list-item review-list-child-item ${item.id === selectedId ? 'active' : ''}`} onClick={() => selectSession(item)}>
-                            <div className="review-list-main">
-                              <div className="review-list-head">
-                                <div className="review-list-title" title={item.title || `Session #${item.id}`}>{item.title || `Session #${item.id}`}</div>
-                                <div className="review-list-meta">
-                                  <Tag className="review-mini-tag">{kindLabel(item.review_kind)}</Tag>
-                                  <Tag className="review-mini-tag" color="gold">★{item.star_rating || 0}</Tag>
+                        <span className="review-folder-count">{group.items.length}</span>
+                      </div>
+                    ),
+                    children: (
+                      <List
+                        dataSource={group.items}
+                        locale={{ emptyText: <Empty description="该分类下暂无会话" /> }}
+                        renderItem={(item) => {
+                          const itemTags = normalizeTagList(item.tags);
+                          return (
+                            <List.Item className={`review-list-item review-list-child-item ${item.id === selectedId ? 'active' : ''}`} onClick={() => selectSession(item)}>
+                              <div className="review-list-main">
+                                <div className="review-list-head">
+                                  <div className="review-list-title" title={item.title || `Session #${item.id}`}>{item.title || `Session #${item.id}`}</div>
+                                  <div className="review-list-meta">
+                                    <Tag className="review-mini-tag">{kindLabel(item.review_kind)}</Tag>
+                                    <Tag className="review-mini-tag" color="gold">★{item.star_rating || 0}</Tag>
+                                  </div>
                                 </div>
+                                {itemTags.length > 0 ? (
+                                  <div className="review-list-tags">
+                                    {itemTags.map((tag) => <Tag key={`${item.id}-${tag}`}>{tag}</Tag>)}
+                                  </div>
+                                ) : null}
                               </div>
-                              {itemTags.length > 0 ? (
-                                <div className="review-list-tags">
-                                  {itemTags.map((tag) => <Tag key={`${item.id}-${tag}`}>{tag}</Tag>)}
-                                </div>
-                              ) : null}
-                            </div>
-                          </List.Item>
-                        );
-                      }}
-                    />
-                  ),
-                }))}
-              />
-            )}
-          </InkSection>
-        </Col>
+                            </List.Item>
+                          );
+                        }}
+                      />
+                    ),
+                  }))}
+                />
+              )}
+            </InkSection>
+          </Col>
+        ) : null}
 
-        <Col xs={24} xl={20}>
-          <InkSection title={selectedId ? `会话 #${selectedId}` : '新建会话'} className="review-editor-card">
+        <Col xs={24} xl={reviewSidebarCollapsed ? 24 : 18}>
+          <InkSection className="review-editor-card">
             {editing ? (
               <>
                 <Form form={form} layout="vertical" initialValues={{ review_kind: activeKind, review_scope: 'custom', selection_mode: 'manual', tags: [], is_favorite: false }}>
                   <Row gutter={12}>
+                    <Col span={24}>
+                      <div className="review-group-header">
+                        <span className="review-group-name"><ReadOutlined />研究内容</span>
+                      </div>
+                    </Col>
+                    <Col span={24}><Form.Item name="summary" label="结论摘要"><TextArea rows={2} /></Form.Item></Col>
+                    <Col span={24}><Form.Item name="action_items" label="后续动作"><TextArea rows={2} /></Form.Item></Col>
+                    <Col span={24}><Form.Item name="content" label="详细文本"><TextArea rows={4} /></Form.Item></Col>
+                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
+                    <Col span={24}>
+                      <Form.Item shouldUpdate noStyle>
+                        {() => (
+                          <ResearchContentPanel
+                            editing
+                            title="研究内容"
+                            value={form.getFieldValue('research_notes')}
+                            onChange={(next) => form.setFieldValue('research_notes', next)}
+                          />
+                        )}
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <div className="review-group-header">
+                        <span className="review-group-name"><ShareAltOutlined />会话属性与关联</span>
+                      </div>
+                    </Col>
                     <Col span={10}><Form.Item name="title" label="标题"><Input /></Form.Item></Col>
                     <Col span={5}><Form.Item name="review_kind" label="类型" rules={[{ required: true }]}><Select options={REVIEW_KIND_OPTIONS} /></Form.Item></Col>
                     <Col span={5}><Form.Item name="review_scope" label="范围"><Select options={REVIEW_SCOPE_OPTIONS} /></Form.Item></Col>
@@ -576,22 +622,6 @@ export default function ReviewList() {
                     <Col span={4}><Form.Item name="star_rating" label="星级"><Rate /></Form.Item></Col>
                     <Col span={12}><Form.Item name="repeated_errors" label="重复错误"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="next_focus" label="下一步聚焦"><TextArea rows={2} /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="summary" label="结论摘要"><TextArea rows={2} /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="action_items" label="后续动作"><TextArea rows={2} /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="content" label="详细文本"><TextArea rows={4} /></Form.Item></Col>
-                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
-                    <Col span={24}>
-                      <Form.Item shouldUpdate noStyle>
-                        {() => (
-                          <ResearchContentPanel
-                            editing
-                            title="图文研究"
-                            value={form.getFieldValue('research_notes')}
-                            onChange={(next) => form.setFieldValue('research_notes', next)}
-                          />
-                        )}
-                      </Form.Item>
-                    </Col>
                   </Row>
                 </Form>
 
@@ -631,6 +661,16 @@ export default function ReviewList() {
               <Empty description="请选择左侧会话或新建" />
             ) : (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <div className="review-group-header">
+                  <span className="review-group-name"><ReadOutlined />研究内容</span>
+                </div>
+                {selected.summary ? <InkSection size="small" title="结论摘要"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.summary}</Typography.Paragraph></InkSection> : null}
+                {selected.action_items ? <InkSection size="small" title="后续动作"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.action_items}</Typography.Paragraph></InkSection> : null}
+                {selected.content ? <InkSection size="small" title="详细文本"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.content}</Typography.Paragraph></InkSection> : null}
+                <InkSection size="small" title="研究内容"><ResearchContentPanel value={selected.research_notes} title="研究内容" /></InkSection>
+                <div className="review-group-header">
+                  <span className="review-group-name"><ShareAltOutlined />会话属性与关联</span>
+                </div>
                 <InkSection size="small" title="会话概览">
                   <Descriptions size="small" column={2}>
                     <Descriptions.Item label="标题">{selected.title || '-'}</Descriptions.Item>
@@ -643,11 +683,6 @@ export default function ReviewList() {
                     <Descriptions.Item label="星级"><Rate disabled value={selected.star_rating || 0} /></Descriptions.Item>
                   </Descriptions>
                 </InkSection>
-
-                {selected.summary ? <InkSection size="small" title="结论摘要"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.summary}</Typography.Paragraph></InkSection> : null}
-                {selected.action_items ? <InkSection size="small" title="后续动作"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.action_items}</Typography.Paragraph></InkSection> : null}
-                {selected.content ? <InkSection size="small" title="详细文本"><Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.content}</Typography.Paragraph></InkSection> : null}
-                <InkSection size="small" title="图文研究"><ResearchContentPanel value={selected.research_notes} title="图文研究" /></InkSection>
 
                 <InkSection size="small" title="关联交易（内容卡片）">
                   {(selected.trade_links || []).length === 0 ? (
@@ -663,6 +698,11 @@ export default function ReviewList() {
           </InkSection>
         </Col>
       </Row>
+      <div className="review-scroll-spacer" aria-hidden />
+      <FloatButton.BackTop
+        target={resolveScrollTarget}
+        visibilityHeight={480}
+      />
     </div>
   );
 }

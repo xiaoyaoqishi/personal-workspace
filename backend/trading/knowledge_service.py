@@ -74,6 +74,7 @@ def list_knowledge_items(
                 KnowledgeItem.summary.contains(kw),
                 KnowledgeItem.content.contains(kw),
                 KnowledgeItem.tags_text.contains(kw),
+                KnowledgeItem.sub_category.contains(kw),
                 KnowledgeItem.related_symbol.contains(kw),
                 KnowledgeItem.related_pattern.contains(kw),
                 KnowledgeItem.related_regime.contains(kw),

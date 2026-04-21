@@ -8,6 +8,7 @@ from trade_review_taxonomy import EdgeSource, FailureType, OpportunityStructure,
 
 class KnowledgeItemCreate(BaseModel):
     category: str
+    sub_category: Optional[str] = None
     title: str
     summary: Optional[str] = None
     content: Optional[str] = None
@@ -25,6 +26,7 @@ class KnowledgeItemCreate(BaseModel):
 
 class KnowledgeItemUpdate(BaseModel):
     category: Optional[str] = None
+    sub_category: Optional[str] = None
     title: Optional[str] = None
     summary: Optional[str] = None
     content: Optional[str] = None

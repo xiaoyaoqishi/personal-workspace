@@ -1,11 +1,12 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, DatePicker, Descriptions, Empty, Form, Input, List, Popconfirm, Row, Select, Space, Tag, Typography, message } from 'antd';
+import { Button, Col, DatePicker, Descriptions, Empty, FloatButton, Form, Input, List, Popconfirm, Row, Select, Space, Tag, Typography, message } from 'antd';
 import InkSection from '../components/InkSection';
 import dayjs from 'dayjs';
 import { reviewSessionApi, tradeApi, tradePlanApi } from '../api';
 import ReadEditActions from '../features/trading/components/ReadEditActions';
 import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import { buildTradeSearchOption, formatInstrumentDisplay, normalizeTagList } from '../features/trading/display';
+import { MenuFoldOutlined, MenuUnfoldOutlined, ReadOutlined, ShareAltOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 
@@ -62,6 +63,7 @@ export default function TradePlanList() {
   const [tradeSearchOptions, setTradeSearchOptions] = useState([]);
   const [linkedTrades, setLinkedTrades] = useState([]);
   const [quickTradeId, setQuickTradeId] = useState(undefined);
+  const [planSidebarCollapsed, setPlanSidebarCollapsed] = useState(false);
   const [form] = Form.useForm();
 
   const selected = useMemo(() => rows.find((x) => x.id === selectedId) || null, [rows, selectedId]);
@@ -169,6 +171,7 @@ export default function TradePlanList() {
       message.error(e.response?.data?.detail || '创建跟进复盘失败');
     }
   };
+  const resolveScrollTarget = () => document.querySelector('.app-content') || window;
 
   return (
     <div className="review-workspace">
@@ -178,7 +181,13 @@ export default function TradePlanList() {
             <Typography.Title level={4} style={{ margin: 0 }}>交易计划工作台</Typography.Title>
             <Typography.Text type="secondary">计划是第一类对象，可关联交易并生成跟进复盘会话</Typography.Text>
           </div>
-          <Space>
+          <Space wrap>
+            <Button
+              icon={planSidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setPlanSidebarCollapsed((prev) => !prev)}
+            >
+              {planSidebarCollapsed ? '展开侧栏' : '收起侧栏'}
+            </Button>
             <Button onClick={() => { setSelectedId(null); resetForm(null); setEditing(true); }}>新建交易计划</Button>
             <ReadEditActions editing={editing} saving={saving} onEdit={() => { if (selected) { resetForm(selected); setEditing(true); } }} onSave={handleSave} onCancel={() => { resetForm(selected); setEditing(false); }} editDisabled={!selectedId} />
             <Button onClick={createFollowupSession} disabled={!selectedId}>创建跟进复盘会话</Button>
@@ -188,36 +197,63 @@ export default function TradePlanList() {
       </div>
 
       <Row gutter={12}>
-        <Col xs={24} xl={4}>
-          <InkSection title="交易计划列表" className="review-list-card" loading={loading}>
-            <List
-              dataSource={rows}
-              locale={{ emptyText: <Empty description="暂无交易计划" /> }}
-              renderItem={(item) => (
-                <List.Item className={`review-list-item ${item.id === selectedId ? 'active' : ''}`} onClick={() => { setSelectedId(item.id); resetForm(item); setEditing(false); }}>
-                  <div className="review-list-main">
-                    <div className="review-list-title">{item.title || `交易计划 #${item.id}`}</div>
-                    <div className="review-list-meta">
-                      <Tag>{statusLabel(item.status)}</Tag>
-                      <Tag color="blue">{item.plan_date || '-'}</Tag>
-                      <Tag color="gold">关联 {item.linked_trade_ids?.length || 0}</Tag>
+        {!planSidebarCollapsed ? (
+          <Col xs={24} xl={6}>
+            <InkSection title="交易计划列表" className="review-list-card" loading={loading}>
+              <List
+                dataSource={rows}
+                locale={{ emptyText: <Empty description="暂无交易计划" /> }}
+                renderItem={(item) => (
+                  <List.Item className={`review-list-item ${item.id === selectedId ? 'active' : ''}`} onClick={() => { setSelectedId(item.id); resetForm(item); setEditing(false); }}>
+                    <div className="review-list-main">
+                      <div className="review-list-title">{item.title || `交易计划 #${item.id}`}</div>
+                      <div className="review-list-meta">
+                        <Tag>{statusLabel(item.status)}</Tag>
+                        <Tag color="blue">{item.plan_date || '-'}</Tag>
+                        <Tag color="gold">关联 {item.linked_trade_ids?.length || 0}</Tag>
+                      </div>
+                      <Typography.Paragraph className="review-list-summary" ellipsis={{ rows: 2 }}>
+                        {item.thesis || item.setup_type || item.market_regime || '无摘要'}
+                      </Typography.Paragraph>
                     </div>
-                    <Typography.Paragraph className="review-list-summary" ellipsis={{ rows: 2 }}>
-                      {item.thesis || item.setup_type || item.market_regime || '无摘要'}
-                    </Typography.Paragraph>
-                  </div>
-                </List.Item>
-              )}
-            />
-          </InkSection>
-        </Col>
+                  </List.Item>
+                )}
+              />
+            </InkSection>
+          </Col>
+        ) : null}
 
-        <Col xs={24} xl={20}>
-          <InkSection title={selectedId ? `交易计划 #${selectedId}` : '新建交易计划'} className="review-editor-card">
+        <Col xs={24} xl={planSidebarCollapsed ? 24 : 18}>
+          <InkSection className="review-editor-card">
             {editing ? (
               <>
                 <Form form={form} layout="vertical" initialValues={{ status: 'draft', plan_date: dayjs(), tags: [] }}>
                   <Row gutter={12}>
+                    <Col span={24}>
+                      <div className="review-group-header">
+                        <span className="review-group-name"><ReadOutlined />研究内容</span>
+                      </div>
+                    </Col>
+                    <Col span={24}><Form.Item name="thesis" label="交易论点"><TextArea rows={2} /></Form.Item></Col>
+                    <Col span={24}><Form.Item name="post_result_summary" label="结果摘要"><Input /></Form.Item></Col>
+                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
+                    <Col span={24}>
+                      <Form.Item shouldUpdate noStyle>
+                        {() => (
+                          <ResearchContentPanel
+                            editing
+                            title="研究内容"
+                            value={form.getFieldValue('research_notes')}
+                            onChange={(next) => form.setFieldValue('research_notes', next)}
+                          />
+                        )}
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <div className="review-group-header">
+                        <span className="review-group-name"><ShareAltOutlined />计划属性与关联</span>
+                      </div>
+                    </Col>
                     <Col span={10}><Form.Item name="title" label="标题" rules={[{ required: true }]}><Input /></Form.Item></Col>
                     <Col span={7}><Form.Item name="plan_date" label="计划日期" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
                     <Col span={7}><Form.Item name="status" label="状态"><Select options={STATUS_OPTIONS} /></Form.Item></Col>
@@ -230,26 +266,11 @@ export default function TradePlanList() {
                     <Col span={12}><Form.Item name="invalid_condition" label="失效条件"><Input /></Form.Item></Col>
                     <Col span={12}><Form.Item name="stop_loss_plan" label="止损计划"><Input /></Form.Item></Col>
                     <Col span={12}><Form.Item name="target_plan" label="目标计划"><Input /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="thesis" label="交易论点"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="risk_notes" label="风险备注"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="execution_checklist" label="执行清单"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="priority" label="优先级"><Select options={PRIORITY_OPTIONS} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="tags" label="标签"><Select mode="tags" tokenSeparators={[',', '，']} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="source_ref" label="来源引用"><Input /></Form.Item></Col>
-                    <Col span={12}><Form.Item name="post_result_summary" label="结果摘要"><Input /></Form.Item></Col>
-                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
-                    <Col span={24}>
-                      <Form.Item shouldUpdate noStyle>
-                        {() => (
-                          <ResearchContentPanel
-                            editing
-                            title="计划图文研究"
-                            value={form.getFieldValue('research_notes')}
-                            onChange={(next) => form.setFieldValue('research_notes', next)}
-                          />
-                        )}
-                      </Form.Item>
-                    </Col>
                   </Row>
                 </Form>
 
@@ -277,6 +298,25 @@ export default function TradePlanList() {
               <Empty description="请选择左侧交易计划或新建" />
             ) : (
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <div className="review-group-header">
+                  <span className="review-group-name"><ReadOutlined />研究内容</span>
+                </div>
+                {selected.thesis ? (
+                  <InkSection size="small" title="交易论点">
+                    <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.thesis}</Typography.Paragraph>
+                  </InkSection>
+                ) : null}
+                {selected.post_result_summary ? (
+                  <InkSection size="small" title="结果摘要">
+                    <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selected.post_result_summary}</Typography.Paragraph>
+                  </InkSection>
+                ) : null}
+                <InkSection size="small" title="研究内容">
+                  <ResearchContentPanel value={selected.research_notes} title="研究内容" />
+                </InkSection>
+                <div className="review-group-header">
+                  <span className="review-group-name"><ShareAltOutlined />计划属性与关联</span>
+                </div>
                 <InkSection size="small" title="计划概览">
                   <Descriptions size="small" column={2}>
                     <Descriptions.Item label="标题">{selected.title || '-'}</Descriptions.Item>
@@ -285,12 +325,8 @@ export default function TradePlanList() {
                     <Descriptions.Item label="品种">{formatInstrumentDisplay(selected.symbol, selected.contract)}</Descriptions.Item>
                     <Descriptions.Item label="形态">{selected.setup_type || '-'}</Descriptions.Item>
                     <Descriptions.Item label="市场环境">{selected.market_regime || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="交易论点">{selected.thesis || '-'}</Descriptions.Item>
                     <Descriptions.Item label="执行清单">{selected.execution_checklist || '-'}</Descriptions.Item>
                   </Descriptions>
-                </InkSection>
-                <InkSection size="small" title="计划图文研究">
-                  <ResearchContentPanel value={selected.research_notes} title="计划图文研究" />
                 </InkSection>
                 <InkSection size="small" title="关联交易（内容卡片）">
                   {(selected.trade_links || []).length === 0 ? <Empty description="暂无关联交易" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
@@ -310,7 +346,11 @@ export default function TradePlanList() {
           </InkSection>
         </Col>
       </Row>
+      <div className="review-scroll-spacer" aria-hidden />
+      <FloatButton.BackTop
+        target={resolveScrollTarget}
+        visibilityHeight={480}
+      />
     </div>
   );
 }
-

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  FloatButton,
+  AutoComplete,
   Button,
   Col,
   Collapse,
-  DatePicker,
   Descriptions,
   Empty,
   Form,
@@ -19,8 +20,16 @@ import {
   message,
 } from 'antd';
 import InkSection from '../components/InkSection';
-import { DeleteOutlined, FolderOpenOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import {
+  DeleteOutlined,
+  FolderOpenOutlined,
+  FolderOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  PlusOutlined,
+  ReadOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons';
 import { brokerApi, knowledgeApi, noteApi, notebookApi } from '../api';
 import {
   KNOWLEDGE_CATEGORY_ZH,
@@ -29,7 +38,7 @@ import {
   dictToOptions,
   mapLabel,
 } from '../features/trading/localization';
-import { formatInstrumentDisplay, getTagColor, normalizeTagList } from '../features/trading/display';
+import { getTagColor, normalizeTagList } from '../features/trading/display';
 import ReadEditActions from '../features/trading/components/ReadEditActions';
 import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import './BrokerManage.css';
@@ -47,22 +56,35 @@ function knowledgePriorityColor(priority) {
   return 'gold';
 }
 
+function normalizeSubCategory(value) {
+  if (Array.isArray(value)) {
+    for (let i = value.length - 1; i >= 0; i -= 1) {
+      const item = String(value[i] || '').trim();
+      if (item) return item;
+    }
+    return null;
+  }
+  const text = String(value || '').trim();
+  return text || null;
+}
+
+function normalizeSourceRef(value) {
+  const text = String(value || '').trim();
+  return text || null;
+}
+
 function normalizeKnowledgePayload(values) {
   return {
     ...values,
     category: values.category || 'pattern_dictionary',
+    sub_category: normalizeSubCategory(values.sub_category),
     title: values.title?.trim() || '',
     summary: values.summary?.trim() || null,
     content: values.content?.trim() || null,
     tags: normalizeTagList(values.tags),
-    related_symbol: values.related_symbol?.trim() || null,
-    related_pattern: values.related_pattern?.trim() || null,
-    related_regime: values.related_regime?.trim() || null,
     status: values.status || 'active',
     priority: values.priority || 'medium',
-    next_action: values.next_action?.trim() || null,
     source_ref: values.source_ref?.trim() || null,
-    due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') : null,
     related_note_ids: normalizeNoteIdList(values.related_note_ids),
   };
 }
@@ -162,8 +184,12 @@ export default function InfoMaintain() {
   const [knowledgeCategories, setKnowledgeCategories] = useState([]);
   const [knowledgeDocOptions, setKnowledgeDocOptions] = useState([]);
   const [knowledgeDocSearching, setKnowledgeDocSearching] = useState(false);
+  const [knowledgeSubCategoryHistory, setKnowledgeSubCategoryHistory] = useState([]);
+  const [knowledgeSourceRefHistory, setKnowledgeSourceRefHistory] = useState([]);
   const [knowledgeNotebookMap, setKnowledgeNotebookMap] = useState(new Map());
   const [knowledgeExpandedCategory, setKnowledgeExpandedCategory] = useState(null);
+  const [knowledgeExpandedSubFolderMap, setKnowledgeExpandedSubFolderMap] = useState({});
+  const [maintainSidebarCollapsed, setMaintainSidebarCollapsed] = useState(false);
   const [knowledgeForm] = Form.useForm();
 
   const [brokerRows, setBrokerRows] = useState([]);
@@ -197,6 +223,28 @@ export default function InfoMaintain() {
     return Array.from(set).map((x) => ({ value: x, label: x }));
   }, [knowledgeRows]);
 
+  const knowledgeSubCategoryOptions = useMemo(() => {
+    const set = new Set(knowledgeSubCategoryHistory);
+    knowledgeRows.forEach((item) => {
+      const name = normalizeSubCategory(item.sub_category);
+      if (name) set.add(name);
+    });
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+      .map((x) => ({ value: x, label: x }));
+  }, [knowledgeRows, knowledgeSubCategoryHistory]);
+
+  const knowledgeSourceRefOptions = useMemo(() => {
+    const set = new Set(knowledgeSourceRefHistory);
+    knowledgeRows.forEach((item) => {
+      const value = normalizeSourceRef(item.source_ref);
+      if (value) set.add(value);
+    });
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+      .map((x) => ({ value: x, label: x }));
+  }, [knowledgeRows, knowledgeSourceRefHistory]);
+
   const knowledgeGroupedRows = useMemo(() => {
     const priorityRank = { high: 0, medium: 1, low: 2 };
     const maintenanceTs = (item) => {
@@ -221,15 +269,37 @@ export default function InfoMaintain() {
     const groups = new Map();
     for (const item of knowledgeRows) {
       const category = (item.category || '').trim() || 'uncategorized';
-      if (!groups.has(category)) groups.set(category, []);
-      groups.get(category).push(item);
+      if (!groups.has(category)) {
+        groups.set(category, { rootItems: [], subMap: new Map() });
+      }
+      const bucket = groups.get(category);
+      const subCategory = normalizeSubCategory(item.sub_category);
+      if (subCategory) {
+        if (!bucket.subMap.has(subCategory)) bucket.subMap.set(subCategory, []);
+        bucket.subMap.get(subCategory).push(item);
+      } else {
+        bucket.rootItems.push(item);
+      }
     }
     return Array.from(groups.entries())
-      .map(([category, items]) => ({
-        category,
-        label: category === 'uncategorized' ? '未分类' : mapLabel(KNOWLEDGE_CATEGORY_ZH, category),
-        items: [...items].sort(compareKnowledgeItem),
-      }))
+      .map(([category, bucket]) => {
+        const rootItems = [...bucket.rootItems].sort(compareKnowledgeItem);
+        const subGroups = Array.from(bucket.subMap.entries())
+          .map(([subCategory, items]) => ({
+            subCategory,
+            label: subCategory,
+            items: [...items].sort(compareKnowledgeItem),
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+        const totalCount = rootItems.length + subGroups.reduce((acc, group) => acc + group.items.length, 0);
+        return {
+          category,
+          label: category === 'uncategorized' ? '未分类' : mapLabel(KNOWLEDGE_CATEGORY_ZH, category),
+          rootItems,
+          subGroups,
+          totalCount,
+        };
+      })
       .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
   }, [knowledgeRows]);
 
@@ -299,6 +369,22 @@ export default function InfoMaintain() {
       const res = await knowledgeApi.list(params);
       const rows = res.data || [];
       setKnowledgeRows(rows);
+      setKnowledgeSubCategoryHistory((prev) => {
+        const set = new Set(prev);
+        rows.forEach((item) => {
+          const name = normalizeSubCategory(item.sub_category);
+          if (name) set.add(name);
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+      });
+      setKnowledgeSourceRefHistory((prev) => {
+        const set = new Set(prev);
+        rows.forEach((item) => {
+          const value = normalizeSourceRef(item.source_ref);
+          if (value) set.add(value);
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+      });
       const target = nextSelectedId ?? selectedKnowledgeId;
       if (!rows.length) {
         setSelectedKnowledgeId(null);
@@ -363,6 +449,7 @@ export default function InfoMaintain() {
       knowledgeForm.resetFields();
       knowledgeForm.setFieldsValue({
         category: 'pattern_dictionary',
+        sub_category: undefined,
         status: 'active',
         priority: 'medium',
         tags: [],
@@ -377,9 +464,9 @@ export default function InfoMaintain() {
     setKnowledgeDocOptions((prev) => mergeNoteOptions(prev, selectedDocOptions));
     knowledgeForm.setFieldsValue({
       ...selectedKnowledge,
+      sub_category: selectedKnowledge.sub_category || undefined,
       tags: normalizeTagList(selectedKnowledge.tags || selectedKnowledge.tags_text),
       related_note_ids: (selectedKnowledge.related_notes || []).map((note) => note.id),
-      due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
     });
   }, [selectedKnowledge, knowledgeForm, knowledgeNotebookMap]);
 
@@ -402,6 +489,7 @@ export default function InfoMaintain() {
     knowledgeForm.resetFields();
     knowledgeForm.setFieldsValue({
       category: knowledgeFilters.category || 'pattern_dictionary',
+      sub_category: undefined,
       status: 'active',
       priority: 'medium',
       tags: [],
@@ -542,8 +630,13 @@ export default function InfoMaintain() {
   const selectKnowledge = (id) => {
     const next = knowledgeRows.find((x) => x.id === id);
     const nextCategory = (next?.category || '').trim() || 'uncategorized';
+    const nextSubCategory = normalizeSubCategory(next?.sub_category);
     if (nextCategory) {
       setKnowledgeExpandedCategory(nextCategory);
+      setKnowledgeExpandedSubFolderMap((prev) => ({
+        ...prev,
+        [nextCategory]: nextSubCategory || null,
+      }));
     }
     setSelectedKnowledgeId(id);
     setKnowledgeEditing(false);
@@ -553,9 +646,9 @@ export default function InfoMaintain() {
     if (!selectedKnowledge) return;
     knowledgeForm.setFieldsValue({
       ...selectedKnowledge,
+      sub_category: selectedKnowledge.sub_category || undefined,
       tags: normalizeTagList(selectedKnowledge.tags || selectedKnowledge.tags_text),
       related_note_ids: (selectedKnowledge.related_notes || []).map((note) => note.id),
-      due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
     });
     setKnowledgeEditing(true);
   };
@@ -564,9 +657,9 @@ export default function InfoMaintain() {
     if (selectedKnowledge) {
       knowledgeForm.setFieldsValue({
         ...selectedKnowledge,
+        sub_category: selectedKnowledge.sub_category || undefined,
         tags: normalizeTagList(selectedKnowledge.tags || selectedKnowledge.tags_text),
         related_note_ids: (selectedKnowledge.related_notes || []).map((note) => note.id),
-        due_date: selectedKnowledge.due_date ? dayjs(selectedKnowledge.due_date) : null,
       });
       setKnowledgeEditing(false);
       return;
@@ -574,6 +667,7 @@ export default function InfoMaintain() {
     knowledgeForm.resetFields();
     knowledgeForm.setFieldsValue({
       category: knowledgeFilters.category || 'pattern_dictionary',
+      sub_category: undefined,
       status: 'active',
       priority: 'medium',
       tags: [],
@@ -616,9 +710,33 @@ export default function InfoMaintain() {
   };
 
   const selectedKnowledgeTags = normalizeTagList(selectedKnowledge?.tags || selectedKnowledge?.tags_text);
-  const selectedKnowledgeSymbolLabel = selectedKnowledge?.related_symbol
-    ? formatInstrumentDisplay(selectedKnowledge.related_symbol, selectedKnowledge.related_symbol)
-    : '-';
+  const resolveScrollTarget = () => document.querySelector('.app-content') || window;
+  const renderKnowledgeListItem = (item) => {
+    const itemTags = normalizeTagList(item.tags || item.tags_text);
+    return (
+      <List.Item
+        className={`maintain-list-item maintain-list-child-item ${item.id === selectedKnowledgeId ? 'active' : ''}`}
+        onClick={() => selectKnowledge(item.id)}
+      >
+        <div className="maintain-list-main">
+          <div className="maintain-list-head">
+            <div className="maintain-list-title" title={item.title}>{item.title}</div>
+            <div className="maintain-list-meta">
+              <Tag className="maintain-mini-tag">{mapLabel(KNOWLEDGE_STATUS_ZH, item.status)}</Tag>
+              <Tag className="maintain-mini-tag" color={knowledgePriorityColor(item.priority)}>
+                {mapLabel(KNOWLEDGE_PRIORITY_ZH, item.priority)}
+              </Tag>
+            </div>
+          </div>
+          {itemTags.length > 0 ? (
+            <div className="maintain-list-tags">
+              {itemTags.map((t) => <Tag key={`${item.id}-${t}`} color={getTagColor(t)}>{t}</Tag>)}
+            </div>
+          ) : null}
+        </div>
+      </List.Item>
+    );
+  };
 
   return (
     <div className="maintain-workspace">
@@ -636,6 +754,12 @@ export default function InfoMaintain() {
               { label: '券商来源', value: 'broker' },
             ]}
           />
+          <Button
+            icon={maintainSidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setMaintainSidebarCollapsed((prev) => !prev)}
+          >
+            {maintainSidebarCollapsed ? '展开侧栏' : '收起侧栏'}
+          </Button>
         </div>
       </div>
 
@@ -669,7 +793,7 @@ export default function InfoMaintain() {
               />
               <Search
                 allowClear
-                placeholder="搜索标题/标签/内容"
+                placeholder="搜索标题/标签/次级分类/内容"
                 style={{ width: 280 }}
                 onSearch={(v) => setKnowledgeFilters((p) => ({ ...p, q: v }))}
               />
@@ -699,83 +823,147 @@ export default function InfoMaintain() {
           </div>
 
           <Row gutter={12}>
-            <Col xs={24} xl={4}>
-              <InkSection className="maintain-list-card" loading={knowledgeLoading}>
-                {knowledgeGroupedRows.length === 0 ? (
-                  <Empty description="暂无知识条目" />
-                ) : (
-                  <Collapse
-                    accordion
-                    bordered={false}
-                    className="maintain-folder-collapse"
-                    activeKey={knowledgeExpandedCategory || undefined}
-                    onChange={(key) => {
-                      const nextKey = Array.isArray(key) ? key[0] : key;
-                      setKnowledgeExpandedCategory(nextKey ? String(nextKey) : null);
-                    }}
-                    items={knowledgeGroupedRows.map((group) => ({
-                      key: group.category,
-                      label: (
-                        <div className="maintain-folder-label">
-                          <span className="maintain-folder-name">
-                            <span className="maintain-folder-icon">
-                              {knowledgeExpandedCategory === group.category ? <FolderOpenOutlined /> : <FolderOutlined />}
+            {!maintainSidebarCollapsed ? (
+              <Col xs={24} xl={6}>
+                <InkSection className="maintain-list-card" loading={knowledgeLoading}>
+                  {knowledgeGroupedRows.length === 0 ? (
+                    <Empty description="暂无知识条目" />
+                  ) : (
+                    <Collapse
+                      accordion
+                      bordered={false}
+                      className="maintain-folder-collapse"
+                      activeKey={knowledgeExpandedCategory || undefined}
+                      onChange={(key) => {
+                        const nextKey = Array.isArray(key) ? key[0] : key;
+                        setKnowledgeExpandedCategory(nextKey ? String(nextKey) : null);
+                      }}
+                      items={knowledgeGroupedRows.map((group) => ({
+                        key: group.category,
+                        label: (
+                          <div className="maintain-folder-label">
+                            <span className="maintain-folder-name">
+                              <span className="maintain-folder-icon">
+                                {knowledgeExpandedCategory === group.category ? <FolderOpenOutlined /> : <FolderOutlined />}
+                              </span>
+                              {group.label}
                             </span>
-                            {group.label}
-                          </span>
-                          <span className="maintain-folder-count">{group.items.length}</span>
-                        </div>
-                      ),
-                      children: (
-                        <List
-                          dataSource={group.items}
-                          locale={{ emptyText: <Empty description="该分类下暂无知识" /> }}
-                          renderItem={(item) => {
-                            const itemTags = normalizeTagList(item.tags || item.tags_text);
-                            return (
-                              <List.Item
-                                className={`maintain-list-item maintain-list-child-item ${item.id === selectedKnowledgeId ? 'active' : ''}`}
-                                onClick={() => selectKnowledge(item.id)}
-                              >
-                                <div className="maintain-list-main">
-                                  <div className="maintain-list-head">
-                                    <div className="maintain-list-title" title={item.title}>{item.title}</div>
-                                    <div className="maintain-list-meta">
-                                      <Tag className="maintain-mini-tag">{mapLabel(KNOWLEDGE_STATUS_ZH, item.status)}</Tag>
-                                      <Tag className="maintain-mini-tag" color={knowledgePriorityColor(item.priority)}>
-                                        {mapLabel(KNOWLEDGE_PRIORITY_ZH, item.priority)}
-                                      </Tag>
-                                    </div>
-                                  </div>
-                                  {itemTags.length > 0 ? (
-                                    <div className="maintain-list-tags">
-                                      {itemTags.map((t) => <Tag key={`${item.id}-${t}`} color={getTagColor(t)}>{t}</Tag>)}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </List.Item>
-                            );
-                          }}
-                        />
-                      ),
-                    }))}
-                  />
-                )}
-              </InkSection>
-            </Col>
+                            <span className="maintain-folder-count">{group.totalCount}</span>
+                          </div>
+                        ),
+                        children: (
+                          <div className="maintain-category-body">
+                            {group.rootItems.length > 0 ? (
+                              <List
+                                dataSource={group.rootItems}
+                                className="maintain-root-list"
+                                renderItem={renderKnowledgeListItem}
+                              />
+                            ) : null}
+                            {group.subGroups.length > 0 ? (
+                              <Collapse
+                                accordion
+                                bordered={false}
+                                className="maintain-subfolder-collapse"
+                                activeKey={knowledgeExpandedSubFolderMap[group.category] || undefined}
+                                onChange={(key) => {
+                                  const nextKey = Array.isArray(key) ? key[0] : key;
+                                  setKnowledgeExpandedSubFolderMap((prev) => ({
+                                    ...prev,
+                                    [group.category]: nextKey ? String(nextKey) : null,
+                                  }));
+                                }}
+                                items={group.subGroups.map((subGroup) => {
+                                  const activeSubFolder = knowledgeExpandedSubFolderMap[group.category] || null;
+                                  const isOpen = activeSubFolder === subGroup.subCategory;
+                                  return {
+                                    key: subGroup.subCategory,
+                                    label: (
+                                      <div className="maintain-subfolder-label">
+                                        <span className="maintain-subfolder-name">
+                                          <span className="maintain-subfolder-icon">
+                                            {isOpen ? <FolderOpenOutlined /> : <FolderOutlined />}
+                                          </span>
+                                          {subGroup.label}
+                                        </span>
+                                        <span className="maintain-folder-count">{subGroup.items.length}</span>
+                                      </div>
+                                    ),
+                                    children: (
+                                      <List
+                                        dataSource={subGroup.items}
+                                        className="maintain-subfolder-list"
+                                        renderItem={renderKnowledgeListItem}
+                                      />
+                                    ),
+                                  };
+                                })}
+                              />
+                            ) : null}
+                            {group.rootItems.length === 0 && group.subGroups.length === 0 ? (
+                              <Empty description="该分类下暂无知识" />
+                            ) : null}
+                          </div>
+                        ),
+                      }))}
+                    />
+                  )}
+                </InkSection>
+              </Col>
+            ) : null}
 
-            <Col xs={24} xl={20}>
-              <InkSection title={selectedKnowledgeId ? `知识 #${selectedKnowledgeId}` : '新建知识条目'} className="maintain-editor-card">
+            <Col xs={24} xl={maintainSidebarCollapsed ? 24 : 18}>
+              <InkSection className="maintain-editor-card">
                 {knowledgeEditing ? (
-                  <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', status: 'active', priority: 'medium', tags: [], related_note_ids: [] }}>
+                  <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', sub_category: undefined, status: 'active', priority: 'medium', tags: [], related_note_ids: [] }}>
                     <Row gutter={12}>
+                      <Col span={24}>
+                        <div className="maintain-group-header">
+                          <span className="maintain-group-name"><ReadOutlined />研究内容</span>
+                        </div>
+                      </Col>
+                      <Col span={24}><Form.Item name="summary" label="摘要"><TextArea rows={2} /></Form.Item></Col>
+                      <Form.Item name="content" hidden><Input /></Form.Item>
+                      <Col span={24}>
+                        <Form.Item shouldUpdate noStyle>
+                          {() => (
+                            <ResearchContentPanel
+                              editing
+                              title="研究内容"
+                              showStandardFields={false}
+                              value={knowledgeForm.getFieldValue('content') || ''}
+                              onChange={(next) => knowledgeForm.setFieldValue('content', next)}
+                            />
+                          )}
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <div className="maintain-group-header">
+                          <span className="maintain-group-name"><ShareAltOutlined />知识属性与关联</span>
+                        </div>
+                      </Col>
                       <Col span={10}><Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}><Input placeholder="例如：趋势启动回调判定" /></Form.Item></Col>
-                      <Col span={7}><Form.Item name="category" label="分类"><Select showSearch options={knowledgeCategoryOptions} /></Form.Item></Col>
-                      <Col span={7}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
-                      <Col span={8}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
-                      <Col span={8}><Form.Item name="related_symbol" label="关联品种"><Input placeholder="IF / AU" /></Form.Item></Col>
-                      <Col span={8}><Form.Item name="related_pattern" label="关联结构"><Input placeholder="failed_breakout_reversal" /></Form.Item></Col>
-                      <Col span={8}><Form.Item name="related_regime" label="关联环境"><Input placeholder="high-vol directional" /></Form.Item></Col>
+                      <Col span={6}><Form.Item name="category" label="分类"><Select showSearch options={knowledgeCategoryOptions} /></Form.Item></Col>
+                      <Col span={8}>
+                        <Form.Item name="sub_category" label="次级分类">
+                          <AutoComplete
+                            options={knowledgeSubCategoryOptions}
+                            placeholder="输入或选择次级分类"
+                            filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={5}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
+                      <Col span={5}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
+                      <Col span={14}>
+                        <Form.Item name="source_ref" label="来源引用">
+                          <AutoComplete
+                            options={knowledgeSourceRefOptions}
+                            placeholder="链接/来源（输入或选择历史）"
+                            filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())}
+                          />
+                        </Form.Item>
+                      </Col>
                       <Col span={24}>
                         <Form.Item name="tags" label="标签">
                           <Select mode="tags" tokenSeparators={[',', '，']} options={knowledgeTagOptions} placeholder="输入标签并回车" />
@@ -797,43 +985,42 @@ export default function InfoMaintain() {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={24}><Form.Item name="summary" label="摘要"><TextArea rows={2} /></Form.Item></Col>
-                      <Form.Item name="content" hidden><Input /></Form.Item>
-                      <Col span={24}>
-                        <Form.Item shouldUpdate noStyle>
-                          {() => (
-                            <ResearchContentPanel
-                              editing
-                              title="正文图文录入"
-                              showStandardFields={false}
-                              value={knowledgeForm.getFieldValue('content') || ''}
-                              onChange={(next) => knowledgeForm.setFieldValue('content', next)}
-                            />
-                          )}
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}><Form.Item name="next_action" label="下一步动作"><TextArea rows={2} /></Form.Item></Col>
-                      <Col span={6}><Form.Item name="due_date" label="截止日期"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-                      <Col span={6}><Form.Item name="source_ref" label="来源引用"><Input placeholder="链接/来源" /></Form.Item></Col>
                     </Row>
                   </Form>
                 ) : !selectedKnowledge ? (
                   <Empty description="请选择左侧知识条目或新建" />
                 ) : (
                   <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <div className="maintain-group-header">
+                      <span className="maintain-group-name"><ReadOutlined />研究内容</span>
+                    </div>
+                    {selectedKnowledge.summary ? (
+                      <div>
+                        <Typography.Text type="secondary">摘要</Typography.Text>
+                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.summary}</Typography.Paragraph>
+                      </div>
+                    ) : null}
+                    <div>
+                      <ResearchContentPanel
+                        title="研究内容"
+                        showStandardFields={false}
+                        value={selectedKnowledge.content}
+                      />
+                    </div>
+                    <div className="maintain-group-header">
+                      <span className="maintain-group-name"><ShareAltOutlined />知识属性与关联</span>
+                    </div>
                     <Descriptions size="small" column={2}>
                       <Descriptions.Item label="标题">{selectedKnowledge.title || '-'}</Descriptions.Item>
                       <Descriptions.Item label="分类">{mapLabel(KNOWLEDGE_CATEGORY_ZH, selectedKnowledge.category)}</Descriptions.Item>
+                      <Descriptions.Item label="次级分类">{selectedKnowledge.sub_category || '-'}</Descriptions.Item>
                       <Descriptions.Item label="状态">{mapLabel(KNOWLEDGE_STATUS_ZH, selectedKnowledge.status)}</Descriptions.Item>
                       <Descriptions.Item label="优先级">
                         <Tag color={knowledgePriorityColor(selectedKnowledge.priority)}>
                           {mapLabel(KNOWLEDGE_PRIORITY_ZH, selectedKnowledge.priority)}
                         </Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="关联品种">{selectedKnowledgeSymbolLabel}</Descriptions.Item>
-                      <Descriptions.Item label="关联结构">{selectedKnowledge.related_pattern || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="关联环境">{selectedKnowledge.related_regime || '-'}</Descriptions.Item>
-                      <Descriptions.Item label="截止日期">{selectedKnowledge.due_date || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="来源引用">{selectedKnowledge.source_ref || '-'}</Descriptions.Item>
                     </Descriptions>
                     {selectedKnowledgeTags.length > 0 ? (
                       <div>
@@ -857,67 +1044,45 @@ export default function InfoMaintain() {
                         </div>
                       </div>
                     ) : null}
-                    {selectedKnowledge.summary ? (
-                      <div>
-                        <Typography.Text type="secondary">摘要</Typography.Text>
-                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.summary}</Typography.Paragraph>
-                      </div>
-                    ) : null}
-                    <div>
-                      <ResearchContentPanel
-                        title="正文图文"
-                        showStandardFields={false}
-                        value={selectedKnowledge.content}
-                      />
-                    </div>
-                    {selectedKnowledge.next_action ? (
-                      <div>
-                        <Typography.Text type="secondary">下一步动作</Typography.Text>
-                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.next_action}</Typography.Paragraph>
-                      </div>
-                    ) : null}
-                    {selectedKnowledge.source_ref ? (
-                      <div>
-                        <Typography.Text type="secondary">来源引用</Typography.Text>
-                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{selectedKnowledge.source_ref}</Typography.Paragraph>
-                      </div>
-                    ) : null}
                   </Space>
                 )}
               </InkSection>
             </Col>
           </Row>
+          <div className="maintain-scroll-spacer" aria-hidden />
         </>
       )}
 
       {moduleKey === 'broker' && (
         <Row gutter={12}>
-          <Col xs={24} xl={4}>
-            <InkSection
-              title="券商来源"
-              className="maintain-list-card"
-              loading={brokerLoading}
-              extra={<Button onClick={createBroker} icon={<PlusOutlined />}>新建</Button>}
-            >
-              <List
-                dataSource={brokerRows}
-                locale={{ emptyText: <Empty description="暂无券商" /> }}
-                renderItem={(item) => (
-                  <List.Item
-                    className={`maintain-list-item ${item.id === selectedBrokerId ? 'active' : ''}`}
-                    onClick={() => selectBroker(item.id)}
-                  >
-                    <div className="maintain-list-main">
-                      <div className="maintain-list-title">{item.name}</div>
-                      <Typography.Text type="secondary">{item.account || '无账号信息'}</Typography.Text>
-                    </div>
-                  </List.Item>
-                )}
-              />
-            </InkSection>
-          </Col>
+          {!maintainSidebarCollapsed ? (
+            <Col xs={24} xl={6}>
+              <InkSection
+                title="券商来源"
+                className="maintain-list-card"
+                loading={brokerLoading}
+                extra={<Button onClick={createBroker} icon={<PlusOutlined />}>新建</Button>}
+              >
+                <List
+                  dataSource={brokerRows}
+                  locale={{ emptyText: <Empty description="暂无券商" /> }}
+                  renderItem={(item) => (
+                    <List.Item
+                      className={`maintain-list-item ${item.id === selectedBrokerId ? 'active' : ''}`}
+                      onClick={() => selectBroker(item.id)}
+                    >
+                      <div className="maintain-list-main">
+                        <div className="maintain-list-title">{item.name}</div>
+                        <Typography.Text type="secondary">{item.account || '无账号信息'}</Typography.Text>
+                      </div>
+                    </List.Item>
+                  )}
+                />
+              </InkSection>
+            </Col>
+          ) : null}
 
-          <Col xs={24} xl={20}>
+          <Col xs={24} xl={maintainSidebarCollapsed ? 24 : 18}>
             <InkSection
               title={selectedBrokerId ? `券商 #${selectedBrokerId}` : '新建券商'}
               className="maintain-editor-card"
@@ -966,6 +1131,10 @@ export default function InfoMaintain() {
           </Col>
         </Row>
       )}
+      <FloatButton.BackTop
+        target={resolveScrollTarget}
+        visibilityHeight={480}
+      />
     </div>
   );
 }

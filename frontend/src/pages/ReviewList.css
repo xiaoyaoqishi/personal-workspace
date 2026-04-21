@@ -4,6 +4,28 @@
   gap: 12px;
 }
 
+.review-scroll-spacer {
+  height: clamp(180px, 38vh, 420px);
+  pointer-events: none;
+}
+
+.review-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+
+.review-group-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #4a4035;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .review-toolbar {
   border-radius: 8px 8px 0 0;
   border-bottom: 1px solid rgba(90,75,55,0.2);

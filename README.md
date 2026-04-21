@@ -21,7 +21,10 @@
 - Structured per-trade review data and review taxonomy support.
 - Review sessions with linked trades and selection-based generation.
 - Trade plans with linked trades and follow-up review flow.
-- Knowledge items with categories, tags, statuses, and note links.
+- Knowledge items with primary category + secondary category folders, tags, statuses, and note links.
+- Knowledge maintain workspace supports long-content bottom scroll buffer and a back-to-top button for long pages.
+- Review session and trade plan workspaces support long-content bottom scroll buffer and a back-to-top button for long pages.
+- Review session and trade plan workspaces support collapsible sidebars, grouped sections (`研究内容` / `属性与关联`), and title-free main panels.
 - Trading recycle bin for trades, brokers, review sessions, plans, and knowledge items.
 
 ### Notes / Knowledge

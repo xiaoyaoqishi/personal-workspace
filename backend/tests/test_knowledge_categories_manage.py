@@ -60,3 +60,31 @@ def test_knowledge_category_owner_scoped(admin_login):
     user_list_after = client.get('/api/knowledge-items/categories')
     assert user_list_after.status_code == 200
     assert 'user_cat' in user_list_after.json()['items']
+
+
+def test_knowledge_item_sub_category_roundtrip_and_search(admin_login):
+    client = admin_login
+
+    created = client.post(
+        '/api/knowledge-items',
+        json={
+            'category': 'pattern_dictionary',
+            'sub_category': '突破结构',
+            'title': 'item-subcat',
+            'tags': ['alpha'],
+        },
+    )
+    assert created.status_code == 200
+    row = created.json()
+    assert row['sub_category'] == '突破结构'
+
+    listed = client.get('/api/knowledge-items', params={'q': '突破结构', 'size': 50})
+    assert listed.status_code == 200
+    assert any(item.get('id') == row['id'] for item in listed.json())
+
+    updated = client.put(
+        f"/api/knowledge-items/{row['id']}",
+        json={'sub_category': '回踩结构'},
+    )
+    assert updated.status_code == 200
+    assert updated.json()['sub_category'] == '回踩结构'
