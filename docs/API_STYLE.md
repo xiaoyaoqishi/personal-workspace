@@ -7,12 +7,11 @@
 ### Legacy 风格
 
 - `trading` 及多数历史 router 采用 `APIRouter(prefix="/api")`。
-- 路由注册主要使用 `router.add_api_route(...)`。
-- 代表文件包括：
-  - `backend/routers/trading.py`
+- 部分历史 router 为兼容既有 API，仍保留 `prefix="/api"`。
 
 ### 已迁移模块/文件
 
+- `backend/routers/trading.py` 已迁移为 decorator 风格，当前仍保留 `prefix="/api"` 以兼容历史 API；禁止在该文件继续新增 `/api/trading/*`，除非单独发起 API v2 迁移。
 - `backend/routers/monitor.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/monitor"`。
 - `backend/routers/notes.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/notes"`。
 - `backend/routers/notebook.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/notebooks"`。
@@ -34,6 +33,7 @@
   - router 前缀明确到模块级，例如 `/api/ledger`、未来的 `/api/trading`、`/api/notes`。
   - 路由定义优先使用 `@router.get/post/...`。
   - router 文件只负责参数接收、依赖注入和转发，不承载业务逻辑。
+- `trading.py` 属于历史兼容例外：当前仅统一为 decorator 风格，继续保留 `prefix="/api"`，不得顺手引入 `/api/trading/*`。
 - 不在同一个模块内继续混合两种风格，避免新增漂移。
 
 ## 过渡规则
