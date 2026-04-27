@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from trade_review_taxonomy import EdgeSource, FailureType, OpportunityStructure, ReviewConclusion
 from schemas.trading import TradeSummaryResponse
@@ -82,17 +82,18 @@ class ReviewTradeLinkUpsert(BaseModel):
 
 
 class ReviewTradeLinkResponse(ReviewTradeLinkUpsert):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     review_id: int
     trade_summary: Optional[TradeSummaryResponse] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 
 class ReviewResponse(ReviewCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -100,9 +101,6 @@ class ReviewResponse(ReviewCreate):
     tags_text: Optional[str] = None
     trade_links: List[ReviewTradeLinkResponse] = []
     linked_trade_ids: List[int] = []
-
-    class Config:
-        from_attributes = True
 
 
 class ReviewTradeLinksPayload(BaseModel):
@@ -158,17 +156,18 @@ class ReviewSessionUpdate(BaseModel):
 
 
 class ReviewSessionTradeLinkResponse(ReviewSessionTradeLinkUpsert):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     review_session_id: int
     trade_summary: Optional[TradeSummaryResponse] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 
 class ReviewSessionResponse(ReviewSessionCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -177,9 +176,6 @@ class ReviewSessionResponse(ReviewSessionCreate):
     tags_text: Optional[str] = None
     trade_links: List[ReviewSessionTradeLinkResponse] = []
     linked_trade_ids: List[int] = []
-
-    class Config:
-        from_attributes = True
 
 
 class ReviewSessionTradeLinksPayload(BaseModel):
@@ -264,26 +260,26 @@ class TradePlanUpdate(BaseModel):
 
 
 class TradePlanTradeLinkResponse(TradePlanTradeLinkUpsert):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     trade_plan_id: int
     trade_summary: Optional[TradeSummaryResponse] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 
 class TradePlanReviewSessionLinkResponse(TradePlanReviewSessionLinkUpsert):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     trade_plan_id: int
     created_at: Optional[datetime] = None
     review_session: Optional[ReviewSessionResponse] = None
 
-    class Config:
-        from_attributes = True
-
 
 class TradePlanResponse(TradePlanCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -293,9 +289,6 @@ class TradePlanResponse(TradePlanCreate):
     trade_links: List[TradePlanTradeLinkResponse] = []
     linked_trade_ids: List[int] = []
     review_session_links: List[TradePlanReviewSessionLinkResponse] = []
-
-    class Config:
-        from_attributes = True
 
 
 class TradePlanTradeLinksPayload(BaseModel):

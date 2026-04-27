@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from trade_review_taxonomy import EdgeSource, FailureType, OpportunityStructure, ReviewConclusion
 
@@ -141,6 +141,8 @@ class TradeUpdate(BaseModel):
 
 
 class TradeResponse(TradeCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -150,9 +152,6 @@ class TradeResponse(TradeCreate):
     source_display: Optional[str] = None
     source_is_metadata: Optional[bool] = None
     has_trade_review: Optional[bool] = None
-
-    class Config:
-        from_attributes = True
 
 
 class TradePasteImportRequest(BaseModel):
@@ -220,15 +219,14 @@ class TradeReviewUpsert(BaseModel):
 
 
 class TradeReviewResponse(TradeReviewUpsert):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     trade_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     tags: List[str] = []
     review_tags: Optional[str] = None
-
-    class Config:
-        from_attributes = True
 
 
 class TradeReviewTaxonomyResponse(BaseModel):
@@ -248,14 +246,13 @@ class TradeSourceMetadataUpsert(BaseModel):
 
 
 class TradeSourceMetadataResponse(TradeSourceMetadataUpsert):
+    model_config = ConfigDict(from_attributes=True)
+
     id: Optional[int] = None
     trade_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     exists_in_db: bool = False
-
-    class Config:
-        from_attributes = True
 
 
 class TradeBrokerCreate(BaseModel):
@@ -275,13 +272,12 @@ class TradeBrokerUpdate(BaseModel):
 
 
 class TradeBrokerResponse(TradeBrokerCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 class TradeSummaryResponse(BaseModel):

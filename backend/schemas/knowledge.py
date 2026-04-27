@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from trade_review_taxonomy import EdgeSource, FailureType, OpportunityStructure, ReviewConclusion
 
@@ -51,6 +51,8 @@ class KnowledgeRelatedNoteResponse(BaseModel):
 
 
 class KnowledgeItemResponse(KnowledgeItemCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     tags: List[str] = []
     tags_text: Optional[str] = None
@@ -58,9 +60,6 @@ class KnowledgeItemResponse(KnowledgeItemCreate):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 # 鈹€鈹€ Notebook 鈹€鈹€

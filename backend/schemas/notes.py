@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from trade_review_taxonomy import EdgeSource, FailureType, OpportunityStructure, ReviewConclusion
 
@@ -23,12 +23,11 @@ class NotebookUpdate(BaseModel):
 
 
 class NotebookResponse(NotebookCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 # 鈹€鈹€ Note 鈹€鈹€
@@ -57,13 +56,12 @@ class NoteUpdate(BaseModel):
 
 
 class NoteResponse(NoteCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 # 鈹€鈹€ Todo 鈹€鈹€
@@ -88,6 +86,8 @@ class TodoUpdate(BaseModel):
 
 
 class TodoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     content: str
     is_completed: bool
@@ -98,9 +98,6 @@ class TodoResponse(BaseModel):
     reminder_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 
 # 鈹€鈹€ News 鈹€鈹€
