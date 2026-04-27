@@ -181,6 +181,15 @@ cd frontend-ledger && npm run build
 Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for routine updates on an existing server. Production routing lives in `deploy/nginx.conf`, and the backend service is managed by `deploy/trading.service`. The deployed path layout includes `/ledger/`, and SPA fallback handling is already configured for the frontend apps.
 
 ## Docs & Validation
+- [docs/MODULE_REGISTRY.md](./docs/MODULE_REGISTRY.md)
+- [docs/API_STYLE.md](./docs/API_STYLE.md)
+- [docs/BACKEND_STRUCTURE.md](./docs/BACKEND_STRUCTURE.md)
+- [docs/DEPENDENCY_POLICY.md](./docs/DEPENDENCY_POLICY.md)
+- [docs/SECURITY.md](./docs/SECURITY.md)
+- [scripts/check_all.sh](./scripts/check_all.sh)
+- [scripts/check_deploy.sh](./scripts/check_deploy.sh)
+- [scripts/check_naming.sh](./scripts/check_naming.sh)
+- [scripts/check_runtime_size.py](./scripts/check_runtime_size.py)
 - [docs/ledger-smoke-checklist.md](./docs/ledger-smoke-checklist.md)
 - [scripts/ledger-smoke.sh](./scripts/ledger-smoke.sh)
 - [README.zh-CN.md](./README.zh-CN.md)

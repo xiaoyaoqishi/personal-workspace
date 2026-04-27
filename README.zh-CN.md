@@ -181,6 +181,15 @@ cd frontend-ledger && npm run build
 首次在 Linux 主机部署时使用 `deploy/setup.sh`，已有环境更新时使用 `deploy/update.sh`。生产路径分发定义在 `deploy/nginx.conf`，后端服务由 `deploy/trading.service` 管理。生产部署已纳入 `/ledger/`，并已配置好前端应用所需的 SPA fallback。
 
 ## 文档与验收
+- [docs/MODULE_REGISTRY.md](./docs/MODULE_REGISTRY.md)
+- [docs/API_STYLE.md](./docs/API_STYLE.md)
+- [docs/BACKEND_STRUCTURE.md](./docs/BACKEND_STRUCTURE.md)
+- [docs/DEPENDENCY_POLICY.md](./docs/DEPENDENCY_POLICY.md)
+- [docs/SECURITY.md](./docs/SECURITY.md)
+- [scripts/check_all.sh](./scripts/check_all.sh)
+- [scripts/check_deploy.sh](./scripts/check_deploy.sh)
+- [scripts/check_naming.sh](./scripts/check_naming.sh)
+- [scripts/check_runtime_size.py](./scripts/check_runtime_size.py)
 - [docs/ledger-smoke-checklist.md](./docs/ledger-smoke-checklist.md)
 - [scripts/ledger-smoke.sh](./scripts/ledger-smoke.sh)
 - [README.md](./README.md)

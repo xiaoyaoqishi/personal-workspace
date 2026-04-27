@@ -11,6 +11,7 @@
 ## 1. 基本协作约定
 - 本地调试统一使用 `./dev.sh`（`up/status/attach/down/restart`）。
 - 生产部署统一使用 `deploy/update.sh`。
+- 修改前必须先阅读 `docs/MODULE_REGISTRY.md`、`docs/API_STYLE.md`、`docs/BACKEND_STRUCTURE.md`、`docs/DEPENDENCY_POLICY.md`、`docs/SECURITY.md`。
 - 涉及部署初始化或 nginx/systemd 的改动，需同步检查 `deploy/setup.sh`、`deploy/nginx.conf` 等相关文件。
 - 优化时除功能正确外，需要兼顾易用性、信息密度和整体观感。
 
@@ -44,6 +45,7 @@
 - 后端改动：至少运行相关 `pytest`。
 - 前端改动：至少运行对应前端的 `npm run build`。
 - portal / deploy / route 改动：需说明入口、刷新、静态资源路径是否正常。
+- 涉及结构、部署、权限、依赖变更时，必须运行相关检查脚本：`scripts/check_deploy.sh`、`scripts/check_naming.sh`、`scripts/check_runtime_size.py`、`scripts/check_all.sh` 中的适用项。
 - 若无法完成真实联调，必须明确说明未验证项，不得假装已验证。
 
 ## 6. 回复要求
