@@ -1,21 +1,21 @@
-from services import runtime
+from services import recycle_runtime
 
-list_recycle_trades = runtime.list_recycle_trades
-restore_recycle_trade = runtime.restore_recycle_trade
-purge_recycle_trade = runtime.purge_recycle_trade
-list_recycle_knowledge_items = runtime.list_recycle_knowledge_items
-restore_recycle_knowledge_item = runtime.restore_recycle_knowledge_item
-purge_recycle_knowledge_item = runtime.purge_recycle_knowledge_item
-list_recycle_trade_brokers = runtime.list_recycle_trade_brokers
-restore_recycle_trade_broker = runtime.restore_recycle_trade_broker
-purge_recycle_trade_broker = runtime.purge_recycle_trade_broker
-list_recycle_review_sessions = runtime.list_recycle_review_sessions
-restore_recycle_review_session = runtime.restore_recycle_review_session
-purge_recycle_review_session = runtime.purge_recycle_review_session
-list_recycle_trade_plans = runtime.list_recycle_trade_plans
-restore_recycle_trade_plan = runtime.restore_recycle_trade_plan
-purge_recycle_trade_plan = runtime.purge_recycle_trade_plan
-list_recycle_notes = runtime.list_recycle_notes
-restore_note = runtime.restore_note
-purge_note = runtime.purge_note
-clear_recycle_notes = runtime.clear_recycle_notes
+list_recycle_trades = recycle_runtime.list_recycle_trades
+restore_recycle_trade = recycle_runtime.restore_recycle_trade
+purge_recycle_trade = recycle_runtime.purge_recycle_trade
+list_recycle_knowledge_items = recycle_runtime.list_recycle_knowledge_items
+restore_recycle_knowledge_item = recycle_runtime.restore_recycle_knowledge_item
+purge_recycle_knowledge_item = recycle_runtime.purge_recycle_knowledge_item
+list_recycle_trade_brokers = recycle_runtime.list_recycle_trade_brokers
+restore_recycle_trade_broker = recycle_runtime.restore_recycle_trade_broker
+purge_recycle_trade_broker = recycle_runtime.purge_recycle_trade_broker
+list_recycle_review_sessions = recycle_runtime.list_recycle_review_sessions
+restore_recycle_review_session = recycle_runtime.restore_recycle_review_session
+purge_recycle_review_session = recycle_runtime.purge_recycle_review_session
+list_recycle_trade_plans = recycle_runtime.list_recycle_trade_plans
+restore_recycle_trade_plan = recycle_runtime.restore_recycle_trade_plan
+purge_recycle_trade_plan = recycle_runtime.purge_recycle_trade_plan
+list_recycle_notes = recycle_runtime.list_recycle_notes
+restore_note = recycle_runtime.restore_note
+purge_note = recycle_runtime.purge_note
+clear_recycle_notes = recycle_runtime.clear_recycle_notes

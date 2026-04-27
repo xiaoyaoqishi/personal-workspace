@@ -20,16 +20,17 @@
 - `auth` 运行期逻辑已迁出到 `backend/services/auth_runtime.py`，后续新的认证、登录、登出、setup、鉴权检查与用户权限归一化逻辑不得写回 `runtime.py`。
 - `admin` 运行期逻辑已迁出到 `backend/services/admin_runtime.py`，后续新的用户管理、模块权限配置与管理员操作逻辑不得写回 `runtime.py`。
 - `audit` 运行期逻辑已迁出到 `backend/services/audit_runtime.py`，后续新的审计写入、审计查询与审计删除逻辑不得写回 `runtime.py`。
+- `recycle` 运行期逻辑已迁出到 `backend/services/recycle_runtime.py`，后续新的 recycle / soft delete / restore / purge 逻辑不得写回 `runtime.py`。
 
 ## 新逻辑落点
 
 - `trading` 新业务逻辑进入 `backend/trading/` 下对应 service。
 - `ledger` 新业务逻辑进入 `backend/services/ledger/` 下对应 service。
-- `notes`、`monitor`、`auth`、`admin`、`audit` 等后续新增逻辑，应进入各自 dedicated runtime / service，不应新增到 `runtime.py`。
+- `notes`、`monitor`、`auth`、`admin`、`audit`、`recycle` 等后续新增逻辑，应进入各自 dedicated runtime / service，不应新增到 `runtime.py`。
 - router 仅负责参数、依赖和转发，不承载业务实现。
 
 ## 历史债务说明
 
-- `runtime.py` 当前上限已下调为 `2623` 行，并继续以 `scripts/check_runtime_size.py` 强制守护。
+- `runtime.py` 当前上限已下调为 `2420` 行，并继续以 `scripts/check_runtime_size.py` 强制守护。
 - 其中同时存在初始化、兼容迁移和历史业务代码，这种混合状态需要后续单独拆分。
 - auth/admin/audit 运行期逻辑已迁出；后续拆分应单独发起，不要在业务需求顺手继续扩大该文件。
