@@ -189,6 +189,8 @@ Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for
 - [scripts/check_all.sh](./scripts/check_all.sh)
 - [scripts/check_deploy.sh](./scripts/check_deploy.sh)
 - [scripts/check_naming.sh](./scripts/check_naming.sh)
+- [scripts/check_router_style.py](./scripts/check_router_style.py)
+- [scripts/check_runtime_boundaries.py](./scripts/check_runtime_boundaries.py)
 - [scripts/check_runtime_size.py](./scripts/check_runtime_size.py)
 - [docs/ledger-smoke-checklist.md](./docs/ledger-smoke-checklist.md)
 - [scripts/ledger-smoke.sh](./scripts/ledger-smoke.sh)

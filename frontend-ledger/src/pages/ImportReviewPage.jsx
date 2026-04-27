@@ -473,7 +473,7 @@ export default function ImportReviewPage() {
               }
             }}
           >
-            提交入账（仅已确认）
+            提交入账（仅可提交）
           </Button>
         </Space>
         <ReviewTable
