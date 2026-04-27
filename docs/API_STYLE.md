@@ -14,10 +14,13 @@
   - `backend/routers/review_sessions.py`
   - `backend/routers/trade_plans.py`
   - `backend/routers/knowledge.py`
-  - `backend/routers/notes.py`
-  - `backend/routers/notebook.py`
-  - `backend/routers/todo.py`
-  - `backend/routers/monitor.py`
+
+### 已迁移模块/文件
+
+- `backend/routers/monitor.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/monitor"`。
+- `backend/routers/notes.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/notes"`。
+- `backend/routers/notebook.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/notebooks"`。
+- `backend/routers/todo.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/todos"`。
 
 ### Ledger 风格
 

@@ -2,8 +2,9 @@ from fastapi import APIRouter
 
 from services import notes_service
 
-router = APIRouter(prefix="/api", tags=["todo"])
-router.add_api_route("/todos", notes_service.list_todos, methods=["GET"])
-router.add_api_route("/todos", notes_service.create_todo, methods=["POST"])
-router.add_api_route("/todos/{todo_id}", notes_service.update_todo, methods=["PUT"])
-router.add_api_route("/todos/{todo_id}", notes_service.delete_todo, methods=["DELETE"])
+router = APIRouter(prefix="/api/todos", tags=["todo"])
+
+router.get("")(notes_service.list_todos)
+router.post("")(notes_service.create_todo)
+router.put("/{todo_id}")(notes_service.update_todo)
+router.delete("/{todo_id}")(notes_service.delete_todo)
