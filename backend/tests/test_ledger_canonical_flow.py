@@ -35,6 +35,7 @@ def test_commit_import_batch_only_commits_confirmed_rows_and_is_idempotent(admin
 消费,2026-01-25,-30.00,15090.94,财付通-微信支付-朴朴超市
 消费,2026-01-26,-40.00,15050.94,财付通-微信支付-滴滴出行
 消费,2026-01-27,-50.00,15000.94,财付通-微信支付-京东商城
+消费,2026-01-28,-18.00,14982.94,财付通-微信支付-楼下水果店
 """
     batch_id = _post_file(admin_login, "commit-flow.csv", csv_text.encode("utf-8"))
     _run_to_reprocess(admin_login, batch_id)
@@ -42,9 +43,9 @@ def test_commit_import_batch_only_commits_confirmed_rows_and_is_idempotent(admin
     rows_resp = admin_login.get(f"/api/ledger/import-batches/{batch_id}/review-rows")
     assert rows_resp.status_code == 200
     rows = rows_resp.json()["items"]
-    assert len(rows) == 5
+    assert len(rows) == 6
 
-    confirmed_row_ids = [int(rows[0]["id"]), int(rows[4]["id"])]
+    confirmed_row_ids = [int(rows[0]["id"]), int(rows[5]["id"])]
     confirm_resp = admin_login.post(
         f"/api/ledger/import-batches/{batch_id}/review/bulk-confirm",
         json={"row_ids": confirmed_row_ids},
@@ -54,10 +55,11 @@ def test_commit_import_batch_only_commits_confirmed_rows_and_is_idempotent(admin
 
     with _session() as db:
         db_rows = db.query(LedgerImportRow).filter(LedgerImportRow.batch_id == batch_id).order_by(LedgerImportRow.row_index.asc()).all()
-        db_rows[1].review_status = "pending"
-        db_rows[2].review_status = "duplicate"
-        db_rows[3].review_status = "rejected"
-        db_rows[4].amount = None
+        db_rows[1].review_status = "ignored"
+        db_rows[2].review_status = "pending"
+        db_rows[3].review_status = "duplicate"
+        db_rows[4].review_status = "rejected"
+        db_rows[5].amount = None
         db.commit()
 
     commit_resp = admin_login.post(f"/api/ledger/import-batches/{batch_id}/commit")
@@ -66,7 +68,7 @@ def test_commit_import_batch_only_commits_confirmed_rows_and_is_idempotent(admin
     assert payload["committed_count"] == 1
     assert payload["created_count"] == 1
     assert payload["failed_count"] == 1
-    assert payload["skipped_count"] == 3
+    assert payload["skipped_count"] == 4
     assert len(payload["errors"]) == 1
     assert payload["errors"][0]["row_id"] == confirmed_row_ids[1]
 
@@ -97,6 +99,8 @@ def test_commit_import_batch_only_commits_confirmed_rows_and_is_idempotent(admin
     second_payload = second_commit.json()
     assert second_payload["committed_count"] == 0
     assert second_payload["created_count"] == 0
+    assert second_payload["failed_count"] == 0
+    assert second_payload["skipped_count"] == 6
 
     with _session() as db:
         txs = db.query(LedgerTransaction).filter(LedgerTransaction.batch_id == batch_id).all()

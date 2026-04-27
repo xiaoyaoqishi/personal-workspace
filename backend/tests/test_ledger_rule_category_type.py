@@ -1,6 +1,6 @@
 import io
 
-from models import LedgerCategory
+from models import LedgerCategory, LedgerRule
 
 
 def _post_file(client, filename: str, content: bytes, mime: str = "text/csv") -> int:
@@ -70,3 +70,40 @@ def test_review_generate_rule_rejects_ambiguous_new_category_type(admin_login):
     )
     assert resp.status_code == 400
     assert resp.json()["error"]["code"] == "ambiguous_category_type"
+
+
+def test_category_rule_auto_create_uses_income_direction_not_expense(admin_login):
+    csv_text = """摘要,交易日期,交易金额,账户余额,交易地点/附言
+收入,2026-03-03,1888.00,21888.00,绩效奖金到账
+"""
+    batch_id = _post_file(admin_login, "bonus.csv", csv_text.encode("utf-8"))
+    _run_to_reprocess(admin_login, batch_id)
+
+    with _session() as db:
+        db.add(
+            LedgerRule(
+                owner_role="admin",
+                rule_type="category",
+                priority=25,
+                enabled=True,
+                match_mode="contains",
+                pattern="绩效奖金",
+                direction_condition="income",
+                target_scene="绩效奖金收入",
+                confidence_score=0.9,
+                explain_text="收入规则自动建类",
+            )
+        )
+        db.commit()
+
+    replay_resp = admin_login.post(f"/api/ledger/import-batches/{batch_id}/reprocess")
+    assert replay_resp.status_code == 200
+
+    rows = admin_login.get(f"/api/ledger/import-batches/{batch_id}/review-rows").json()["items"]
+    assert len(rows) == 1
+    assert rows[0]["category_id"] is not None
+
+    with _session() as db:
+        category = db.query(LedgerCategory).filter(LedgerCategory.name == "绩效奖金收入").first()
+        assert category is not None
+        assert category.category_type == "income"

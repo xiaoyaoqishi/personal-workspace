@@ -12,14 +12,42 @@ from services.ledger.rules.matchers import text_match
 from services.ledger.rules.merchant_resolver import resolve_merchant
 
 
-def _infer_category_type_from_scene(scene: str | None) -> str:
-    normalized = str(scene or "").strip().lower()
-    if normalized in {"income", "收入", "工资", "salary", "bonus", "奖金", "refund_income", "退款"}:
+def _normalize_category_type_from_direction(direction: str | None) -> str | None:
+    normalized = str(direction or "").strip().lower()
+    if normalized in {"expense", "out", "debit"}:
+        return "expense"
+    if normalized in {"income", "in", "credit"}:
         return "income"
-    return "expense"
+    return None
 
 
-def _ensure_category(db: Session, owner_role: str, name: str, category_type: str | None = None) -> int:
+def _infer_category_type_from_scene(scene: str | None, direction: str | None = None) -> str | None:
+    normalized = str(scene or "").strip().lower()
+    if normalized in {"income", "收入", "工资", "salary", "bonus", "奖金", "refund_income"}:
+        return "income"
+    if normalized in {
+        "购物",
+        "餐饮",
+        "交通",
+        "房租",
+        "公共交通",
+        "出行",
+        "买菜/商超",
+        "公用事业",
+        "便利店",
+        "医疗候选",
+        "线下其他待确认",
+        "wechat_payment",
+        "alipay_payment",
+        "jd_payment",
+        "pdd_payment",
+        "meituan_payment",
+    }:
+        return "expense"
+    return _normalize_category_type_from_direction(direction)
+
+
+def _ensure_category(db: Session, owner_role: str, name: str, category_type: str | None = None) -> int | None:
     row = db.query(LedgerCategory).filter(
         LedgerCategory.owner_role == owner_role,
         LedgerCategory.name == name,
@@ -27,9 +55,11 @@ def _ensure_category(db: Session, owner_role: str, name: str, category_type: str
     ).first()
     if row:
         return int(row.id)
+    if category_type not in {"expense", "income"}:
+        return None
     created = LedgerCategory(
         name=name,
-        category_type=category_type or "expense",
+        category_type=category_type,
         owner_role=owner_role,
     )
     db.add(created)
@@ -124,7 +154,12 @@ def _rule_match(rule: LedgerRule, row: LedgerImportRow, text: str) -> bool:
     return text_match(rule.match_mode, rule.pattern, text)
 
 
-def _scene_to_category_id(db: Session, owner_role: str, scene: str | None) -> int | None:
+def _scene_to_category_id(
+    db: Session,
+    owner_role: str,
+    scene: str | None,
+    direction: str | None = None,
+) -> int | None:
     if not scene:
         return None
     mapping = {
@@ -140,9 +175,20 @@ def _scene_to_category_id(db: Session, owner_role: str, scene: str | None) -> in
         "便利店": "便利店",
         "医疗候选": "医疗候选",
         "线下其他待确认": "线下其他待确认",
+        "salary": "工资收入",
+        "bonus": "奖金收入",
+        "收入": "收入",
+        "income": "收入",
+        "refund": "退款",
+        "退款": "退款",
+        "repayment": "还款",
+        "还款": "还款",
+        "fee": "手续费",
+        "手续费": "手续费",
     }
     name = mapping.get(scene, scene)
-    return _ensure_category(db, owner_role, name, category_type=_infer_category_type_from_scene(name))
+    category_type = _infer_category_type_from_scene(scene, direction=direction)
+    return _ensure_category(db, owner_role, name, category_type=category_type)
 
 
 def _apply_source_layer(row: LedgerImportRow, rules: list[LedgerRule], text: str, trace: dict[str, Any]) -> None:
@@ -269,7 +315,12 @@ def _apply_merchant_layer(
 
 def _apply_category_layer(row: LedgerImportRow, rules: list[LedgerRule], text: str, db: Session, owner_role: str, trace: dict[str, Any]) -> None:
     if (row.txn_kind or "") == "transfer":
-        row.category_id = _scene_to_category_id(db, owner_role, "转账")
+        row.category_id = _scene_to_category_id(db, owner_role, "转账", direction=row.direction)
+        if row.category_id is None:
+            row.category_confidence = 0.0
+            row.category_explain = "交易类型为转账，但无法判断分类类型，需人工确认"
+            trace["category"] = {"matched": False, "rule_id": None, "confidence": 0.0, "explain": row.category_explain}
+            return
         row.category_confidence = 0.96
         row.category_explain = "交易类型为转账，统一归类转账"
         trace["category"] = {"matched": True, "rule_id": None, "confidence": 0.96, "explain": row.category_explain}
@@ -278,19 +329,19 @@ def _apply_category_layer(row: LedgerImportRow, rules: list[LedgerRule], text: s
     # boundary: 美团支付 + 单车优先交通; 美团支付 + 买药候选医疗
     lowered = text.lower()
     if "美团" in lowered and "单车" in lowered:
-        row.category_id = _scene_to_category_id(db, owner_role, "交通")
+        row.category_id = _scene_to_category_id(db, owner_role, "交通", direction=row.direction)
         row.category_confidence = 0.95
         row.category_explain = "边界规则：美团+单车优先归交通"
         trace["category"] = {"matched": True, "rule_id": None, "confidence": 0.95, "explain": row.category_explain}
         return
     if "美团" in lowered and "买药" in lowered:
-        row.category_id = _scene_to_category_id(db, owner_role, "医疗候选")
+        row.category_id = _scene_to_category_id(db, owner_role, "医疗候选", direction=row.direction)
         row.category_confidence = 0.72
         row.category_explain = "边界规则：美团+买药标记医疗候选"
         trace["category"] = {"matched": True, "rule_id": None, "confidence": 0.72, "explain": row.category_explain}
         return
     if "美团支付-美团app" in lowered:
-        row.category_id = _scene_to_category_id(db, owner_role, "餐饮")
+        row.category_id = _scene_to_category_id(db, owner_role, "餐饮", direction=row.direction)
         row.category_confidence = 0.9
         row.category_explain = "结构规则：美团支付-美团App门店默认归餐饮"
         trace["category"] = {"matched": True, "rule_id": None, "confidence": 0.9, "explain": row.category_explain}
@@ -306,7 +357,23 @@ def _apply_category_layer(row: LedgerImportRow, rules: list[LedgerRule], text: s
         if matched.target_category_id:
             row.category_id = matched.target_category_id
         elif matched.target_scene:
-            row.category_id = _scene_to_category_id(db, owner_role, matched.target_scene)
+            row.category_id = _scene_to_category_id(
+                db,
+                owner_role,
+                matched.target_scene,
+                direction=matched.direction_condition or row.direction,
+            )
+            if row.category_id is None:
+                row.category_confidence = 0.0
+                row.category_explain = "命中分类规则，但目标分类类型不明确，需人工确认"
+                trace["category"] = {
+                    "matched": False,
+                    "rule_id": matched.id,
+                    "pattern": matched.pattern,
+                    "confidence": 0.0,
+                    "explain": row.category_explain,
+                }
+                return
         if matched.target_subcategory_id:
             row.subcategory_id = matched.target_subcategory_id
         row.category_rule_id = matched.id
@@ -324,17 +391,19 @@ def _apply_category_layer(row: LedgerImportRow, rules: list[LedgerRule], text: s
 
     # 微信支付 + 普通店名：进入线下其他待确认
     if (row.source_channel or "") == "wechat" and not row.category_id:
-        row.category_id = _scene_to_category_id(db, owner_role, "线下其他待确认")
-        row.category_confidence = 0.45
-        row.category_explain = "微信支付普通店名未命中字典，进入线下其他待确认"
-        trace["category"] = {
-            "matched": False,
-            "fallback": True,
-            "category_id": row.category_id,
-            "confidence": row.category_confidence,
-            "explain": row.category_explain,
-        }
-        return
+        fallback_category_id = _scene_to_category_id(db, owner_role, "线下其他待确认", direction=row.direction)
+        if fallback_category_id is not None:
+            row.category_id = fallback_category_id
+            row.category_confidence = 0.45
+            row.category_explain = "微信支付普通店名未命中字典，进入线下其他待确认"
+            trace["category"] = {
+                "matched": False,
+                "fallback": True,
+                "category_id": row.category_id,
+                "confidence": row.category_confidence,
+                "explain": row.category_explain,
+            }
+            return
 
     row.category_confidence = 0.0
     row.category_explain = "未命中分类规则"

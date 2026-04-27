@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -58,9 +58,6 @@ PLATFORM_DISPLAY = {
     "unknown": "未识别",
     "unkonwn": "其他",
 }
-
-COMMIT_ELIGIBLE_STATUSES = {"confirmed", "approved", "accepted"}
-
 
 def _json_dump(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
@@ -1098,6 +1095,7 @@ def commit_import_batch(db: Session, role: str, batch_id: int) -> dict[str, Any]
     rows = db.query(LedgerImportRow).filter(LedgerImportRow.batch_id == batch.id).order_by(LedgerImportRow.row_index.asc()).all()
     if not rows:
         raise AppError("empty_batch", "没有可提交的导入行", status_code=400)
+    row_by_id = {int(row.id): row for row in rows}
 
     row_ids = [int(row.id) for row in rows]
     existing_rows = db.query(LedgerTransaction).filter(
@@ -1140,11 +1138,11 @@ def commit_import_batch(db: Session, role: str, batch_id: int) -> dict[str, Any]
         if canonical and merchant_id_by_name.get(canonical):
             row.merchant_id = merchant_id_by_name[canonical]
     for tx in transactions:
-        source_row = next((row for row in rows if int(row.id) == int(tx.import_row_id or 0)), None)
+        source_row = row_by_id.get(int(tx.import_row_id or 0))
         if source_row is not None:
             tx.merchant_id = source_row.merchant_id
     for tx in existing_by_row_id.values():
-        source_row = next((row for row in rows if int(row.id) == int(tx.import_row_id or 0)), None)
+        source_row = row_by_id.get(int(tx.import_row_id or 0))
         if source_row is not None:
             tx.merchant_id = source_row.merchant_id
 
