@@ -1,6 +1,6 @@
-from services import runtime
+from services import trade_broker_runtime
 
-list_trade_brokers = runtime.list_trade_brokers
-create_trade_broker = runtime.create_trade_broker
-update_trade_broker = runtime.update_trade_broker
-delete_trade_broker = runtime.delete_trade_broker
+list_trade_brokers = trade_broker_runtime.list_trade_brokers
+create_trade_broker = trade_broker_runtime.create_trade_broker
+update_trade_broker = trade_broker_runtime.update_trade_broker
+delete_trade_broker = trade_broker_runtime.delete_trade_broker
