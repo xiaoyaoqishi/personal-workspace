@@ -191,7 +191,7 @@ body {
   border-radius: 6px;
 }
 
-.server-monitor-page {
+.monitor-page {
   display: flex;
   flex-direction: column;
   gap: 14px;

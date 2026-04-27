@@ -6,7 +6,7 @@
 
 | module_id | 中文名 | frontend_dir | frontend_base | dev_port | backend_router | api_prefix | permission_scope | production_path |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `trading` | 交易记录 | `frontend` | `/trading/` | `5173` | `backend/routers/trading.py`；关联 `review.py`、`review_sessions.py`、`trade_plans.py`、`knowledge.py`、`recycle.py` | `/api/trades`、`/api/reviews`、`/api/review-sessions`、`/api/trade-plans`、`/api/knowledge-items`、`/api/trade-brokers`、`/api/trade-review-taxonomy`、`/api/recycle` | 普通用户数据模块；受 `module_permissions.trading` 与 `data_permissions.trading` 控制 | `/trading/` |
+| `trading` | 交易记录 | `frontend-trading` | `/trading/` | `5173` | `backend/routers/trading.py`；关联 `review.py`、`review_sessions.py`、`trade_plans.py`、`knowledge.py`、`recycle.py` | `/api/trades`、`/api/reviews`、`/api/review-sessions`、`/api/trade-plans`、`/api/knowledge-items`、`/api/trade-brokers`、`/api/trade-review-taxonomy`、`/api/recycle` | 普通用户数据模块；受 `module_permissions.trading` 与 `data_permissions.trading` 控制 | `/trading/` |
 | `notes` | 笔记 | `frontend-notes` | `/notes/` | `5174` | `backend/routers/notes.py`、`notebook.py`、`todo.py` | `/api/notes`、`/api/notebooks`、`/api/todos` | 普通用户数据模块；受 `module_permissions.notes` 与 `data_permissions.notes` 控制 | `/notes/` |
 | `ledger` | 记账 | `frontend-ledger` | `/ledger/` | `5176` | `backend/routers/ledger.py` | `/api/ledger/*` | 普通用户数据模块；受 `module_permissions.ledger` 与 `data_permissions.ledger` 控制 | `/ledger/` |
 | `monitor` | 监控与管理 | `frontend-monitor` | `/monitor/` | `5175` | `backend/routers/monitor.py`；管理相关接口还包括 `admin.py`、`audit.py` | `/api/monitor/*`、`/api/admin/*`、`/api/audit/*` | `admin-only` 模块；不属于普通用户 `module_permissions` / `data_permissions` 范围 | `/monitor/` |

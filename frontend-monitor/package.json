@@ -1,5 +1,5 @@
 {
-  "name": "server-monitor",
+  "name": "frontend-monitor",
   "private": true,
   "version": "1.0.0",
   "type": "module",

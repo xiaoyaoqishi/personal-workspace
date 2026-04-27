@@ -11,7 +11,7 @@
 
 ### 前端
 
-- `trading` (`frontend`)：`React 19`、`antd 6`、`vite 8`。
+- `trading` (`frontend-trading`)：`React 19`、`antd 6`、`vite 8`。
 - `notes` (`frontend-notes`)：`React 19`、`antd 6`、`vite 8`。
 - `ledger` (`frontend-ledger`)：`React 19`、`antd 6`、`vite 8`。
 - `monitor` (`frontend-monitor`)：`React 18`、`antd 5`、`vite 6`。

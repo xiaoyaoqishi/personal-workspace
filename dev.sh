@@ -73,7 +73,7 @@ process.exit(pkg.scripts && pkg.scripts.dev ? 0 : 1);
 service_name_for_frontend_dir() {
   local dir_name="$1"
   case "$dir_name" in
-    frontend) echo "frontend" ;;
+    frontend-trading) echo "trading" ;;
     frontend-*) echo "${dir_name#frontend-}" ;;
     *) echo "$dir_name" ;;
   esac

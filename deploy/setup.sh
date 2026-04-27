@@ -15,7 +15,7 @@ pip3 install -r requirements.txt
 mkdir -p data
 
 echo "=== 4. 前端构建 ==="
-cd ../frontend
+cd ../frontend-trading
 npm install
 npm run build
 

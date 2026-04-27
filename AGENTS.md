@@ -20,7 +20,7 @@
 - 不要把新的领域逻辑堆进 `backend/services/runtime.py`。
 - Router 负责参数接收、依赖注入和转发；业务逻辑应放在 service。
 - 新增 ledger 能力必须优先放在 ledger 域下，不要混入 trading/notes/monitor。
-- 不要把 ledger 前端页面塞进 `frontend`；ledger 保持在 `frontend-ledger`。
+- 不要把 ledger 前端页面塞进 `frontend-trading`；ledger 保持在 `frontend-ledger`。
 
 ## 3. 模块改动原则
 - 改某个模块时，尽量保持影响范围局部化，避免无关模块连带修改。

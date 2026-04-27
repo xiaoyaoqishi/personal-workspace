@@ -60,7 +60,7 @@ else
 fi
 
 if require_cmd_or_fail "npm" "install Node.js and npm first."; then
-  for app in frontend frontend-notes frontend-monitor frontend-ledger; do
+  for app in frontend-trading frontend-notes frontend-monitor frontend-ledger; do
     if [[ ! -f "${ROOT_DIR}/${app}/package.json" ]]; then
       echo "[check_all] FAIL: missing package.json in ${app}"
       status=1

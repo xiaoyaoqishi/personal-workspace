@@ -32,7 +32,7 @@ cd backend
 pip3 install -r requirements.txt --break-system-packages -q
 
 echo "=== 构建交易前端 ==="
-cd ../frontend
+cd ../frontend-trading
 npm install
 clean_frontend_dist "$(pwd)"
 npm run build

@@ -273,7 +273,7 @@ function ServerPanel() {
   ];
 
   return (
-    <div className="server-monitor-page">
+    <div className="monitor-page">
       {error.realtime ? <Alert type="error" showIcon message={error.realtime} style={{ marginBottom: 12 }} /> : null}
       {error.history ? <Alert type="error" showIcon message={error.history} style={{ marginBottom: 12 }} /> : null}
 

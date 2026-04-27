@@ -90,7 +90,7 @@
 cd backend
 pip install -r requirements.txt
 
-cd ../frontend
+cd ../frontend-trading
 npm install
 
 cd ../frontend-notes
@@ -133,7 +133,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
   - `schemas/`: Pydantic schemas for API input and output.
   - `trading/`: Trading-specific business logic such as imports, analytics, reviews, plans, and knowledge.
   - `data/`: SQLite database, uploads, and runtime data.
-- `frontend/`: Trading frontend served under `/trading/`.
+- `frontend-trading/`: Trading frontend served under `/trading/`.
 - `frontend-notes/`: Notes frontend served under `/notes/`.
 - `frontend-monitor/`: Monitor and admin frontend served under `/monitor/`.
 - `frontend-ledger/`: Independent ledger frontend served under `/ledger/`.
@@ -171,7 +171,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 ./dev.sh attach
 pytest -q backend/tests
 
-cd frontend && npm run build
+cd frontend-trading && npm run build
 cd frontend-notes && npm run build
 cd frontend-monitor && npm run build
 cd frontend-ledger && npm run build

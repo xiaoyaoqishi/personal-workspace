@@ -56,11 +56,14 @@ check_build_dir() {
   fi
 }
 
+check_file_contains "deploy/setup.sh" "frontend-trading" "setup.sh contains frontend-trading"
+check_file_contains "deploy/update.sh" "frontend-trading" "update.sh contains frontend-trading"
+check_file_contains "deploy/nginx.conf" "frontend-trading" "nginx.conf contains frontend-trading"
 check_file_contains "deploy/setup.sh" "frontend-ledger" "setup.sh contains frontend-ledger"
 check_file_contains "deploy/update.sh" "frontend-ledger" "update.sh contains frontend-ledger"
 check_file_contains "deploy/nginx.conf" "frontend-ledger" "nginx.conf contains frontend-ledger"
 
-for app in frontend frontend-notes frontend-monitor frontend-ledger; do
+for app in frontend-trading frontend-notes frontend-monitor frontend-ledger; do
   check_build_dir "deploy/setup.sh" "../${app}" "setup.sh builds ${app}"
   check_build_dir "deploy/update.sh" "../${app}" "update.sh builds ${app}"
 done
