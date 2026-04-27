@@ -169,7 +169,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 ./dev.sh down
 ./dev.sh status
 ./dev.sh attach
-pytest -q backend/tests
+python3 -m pytest -q backend/tests
 
 cd frontend-trading && npm run build
 cd frontend-notes && npm run build

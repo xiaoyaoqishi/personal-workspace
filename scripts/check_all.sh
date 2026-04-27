@@ -6,17 +6,6 @@ cd "$ROOT_DIR"
 
 status=0
 
-resolve_python_cmd() {
-  local candidate
-  for candidate in python3 python; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      echo "$candidate"
-      return 0
-    fi
-  done
-  return 1
-}
-
 run_step() {
   local label="$1"
   shift
@@ -43,18 +32,17 @@ require_cmd_or_fail() {
   return 1
 }
 
-PYTHON_CMD="$(resolve_python_cmd || true)"
-if [[ -z "${PYTHON_CMD}" ]]; then
-  echo "[check_all] FAIL: missing python interpreter"
-  echo "[check_all] hint: install python3 or python before running checks."
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "[check_all] FAIL: missing command 'python3'"
+  echo "[check_all] hint: install python3 before running checks."
   exit 1
 fi
 
-if "$PYTHON_CMD" -m pytest --version >/dev/null 2>&1; then
-  run_step "pytest -q backend/tests" bash -lc "cd '$ROOT_DIR/backend' && '$PYTHON_CMD' -m pytest -q tests"
+if python3 -m pytest --version >/dev/null 2>&1; then
+  run_step "python3 -m pytest -q backend/tests" python3 -m pytest -q backend/tests
 else
-  echo "[check_all] FAIL: pytest is not available for ${PYTHON_CMD}"
-  echo "[check_all] hint: install backend test dependencies, for example 'cd backend && ${PYTHON_CMD} -m pip install -r requirements.txt pytest'."
+  echo "[check_all] FAIL: pytest is not available for python3"
+  echo "[check_all] hint: install backend test dependencies, for example 'cd backend && python3 -m pip install -r requirements.txt pytest'."
   echo
   status=1
 fi
@@ -80,7 +68,7 @@ fi
 
 run_step "bash scripts/check_naming.sh" bash scripts/check_naming.sh
 run_step "bash scripts/check_deploy.sh" bash scripts/check_deploy.sh
-run_step "python scripts/check_runtime_size.py" "$PYTHON_CMD" scripts/check_runtime_size.py
+run_step "python3 scripts/check_runtime_size.py" python3 scripts/check_runtime_size.py
 
 if [[ "$status" -ne 0 ]]; then
   echo "[check_all] result: FAILED"
