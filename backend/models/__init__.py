@@ -2,6 +2,9 @@ from models.auth import User
 from models.audit import BrowseLog
 from models.knowledge import KnowledgeCategory, KnowledgeItem, KnowledgeItemNoteLink, KnowledgeItemTagLink
 from models.ledger import (
+    LedgerAsset,
+    LedgerAssetEvent,
+    LedgerAssetValuation,
     LedgerCategory,
     LedgerImportBatch,
     LedgerImportRow,
@@ -29,6 +32,9 @@ __all__ = [
     "KnowledgeItem",
     "KnowledgeItemNoteLink",
     "KnowledgeItemTagLink",
+    "LedgerAsset",
+    "LedgerAssetEvent",
+    "LedgerAssetValuation",
     "LedgerCategory",
     "LedgerImportBatch",
     "LedgerImportRow",

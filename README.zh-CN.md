@@ -9,7 +9,7 @@
 - `Trading`：负责交易记录、分析、复盘会话、交易计划，以及研究/知识工作流。
 - `Notes`：负责笔记本、日记/文档笔记、反向链接、待办和回收流程。
 - `Monitor`：负责管理员侧的服务器指标、站点巡检、用户管理和审计日志。
-- `Ledger`：独立的个人账务应用，当前围绕导入批次、校对台、规则、商户词典和分析页面展开。
+- `Ledger`：独立的个人账务应用，当前围绕导入批次、校对台、规则、商户词典、分析页面和资产库展开。
 - `Portal`：工作台的静态首页与登录入口。
 - `Backend`：统一 FastAPI API、鉴权、数据权限、上传能力，以及基于 SQLite 的后端服务。
 
@@ -59,12 +59,14 @@
 - 导入时间口径统一为“年月日”（导入时不保留时分秒）。
 - 商户词典 `ledger_merchants`（规范名/别名/默认分类/命中次数）支持编辑，并展示最近关联样本。
 - 统一表格读取层支持 `csv/xls/xlsx`（包含 HTML table 风格 `.xls` 导出）。
-- Phase 3 最小可用前端已落地：
+- 资产库页面 `/ledger/assets` 已支持仪表盘总览、分析筛选、新增、详情 Drawer、编辑、软删除、生命周期事件、估值记录、卖出复盘与时间线工作台。
+- 当前 Ledger 页面包括：
   - 导入中心：`/ledger/imports`
   - 导入校对台：`/ledger/imports/:batchId/review`
   - 基础分析页：`/ledger/analytics`
   - 商户词典页：`/ledger/merchants`
   - 规则管理页：`/ledger/rules`（支持规则新增/编辑/删除，含命中次数与最近命中时间）
+  - 资产库页：`/ledger/assets`（在单页面 Tabs 内完成总览仪表盘、分析复盘、资产 CRUD、生命周期事件与估值记录闭环）
 - 关键接口：
   - `POST /api/ledger/import-batches`、`GET /api/ledger/import-batches`、`GET /api/ledger/import-batches/{id}`
   - `POST /api/ledger/import-batches/{id}/parse`、`/classify`、`/dedupe`、`/commit`

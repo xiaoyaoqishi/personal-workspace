@@ -1,13 +1,17 @@
 import importlib
 
 from routers.ledger import router
+from routers.ledger_assets import router as assets_router
 from services.ledger import analytics_service, category_service
+from services.ledger import assets_service
 from services.ledger.imports import pipeline
 
 
 def test_ledger_router_import_does_not_depend_on_legacy_models():
     module = importlib.import_module("routers.ledger")
     assert getattr(module, "router", None) is not None
+    assets_module = importlib.import_module("routers.ledger_assets")
+    assert getattr(assets_module, "router", None) is not None
 
 
 def test_ledger_router_public_handlers_have_backing_services():
@@ -96,3 +100,43 @@ def test_ledger_router_does_not_expose_legacy_paths():
     assert "/api/ledger/accounts" not in paths
     assert "/api/ledger/transactions" not in paths
     assert "/api/ledger/recurring" not in paths
+
+
+def test_ledger_assets_router_public_handlers_have_backing_services():
+    for name in {
+        "list_assets",
+        "get_asset",
+        "create_asset",
+        "update_asset",
+        "soft_delete_asset",
+        "list_asset_events",
+        "add_asset_event",
+        "delete_asset_event",
+        "list_asset_valuations",
+        "add_asset_valuation",
+        "calculate_asset_metrics",
+        "get_asset_summary",
+    }:
+        assert hasattr(assets_service, name), f"assets_service missing handler: {name}"
+
+
+def test_ledger_assets_router_public_routes_match_current_handlers_and_keep_summary_before_asset_id():
+    endpoint_names = {route.endpoint.__name__ for route in assets_router.routes}
+    assert endpoint_names == {
+        "list_assets",
+        "create_asset",
+        "get_asset_summary",
+        "get_asset",
+        "update_asset",
+        "delete_asset",
+        "list_asset_events",
+        "add_asset_event",
+        "delete_asset_event",
+        "list_asset_valuations",
+        "add_asset_valuation",
+    }
+
+    paths = [route.path for route in assets_router.routes]
+    assert "/api/ledger/assets/summary" in paths
+    assert "/api/ledger/assets/{asset_id}" in paths
+    assert paths.index("/api/ledger/assets/summary") < paths.index("/api/ledger/assets/{asset_id}")

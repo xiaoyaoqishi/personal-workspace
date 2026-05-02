@@ -6,6 +6,7 @@ from routers.auth import router as auth_router
 from routers.health import router as health_router
 from routers.knowledge import router as knowledge_router
 from routers.ledger import router as ledger_router
+from routers.ledger_assets import router as ledger_assets_router
 from routers.monitor import router as monitor_router
 from routers.notes import router as notes_router
 from routers.notebook import router as notebook_router
@@ -30,6 +31,7 @@ api_router.include_router(review_sessions_router)
 api_router.include_router(trade_plans_router)
 api_router.include_router(knowledge_router)
 api_router.include_router(ledger_router)
+api_router.include_router(ledger_assets_router)
 api_router.include_router(notebook_router)
 api_router.include_router(notes_router)
 api_router.include_router(todo_router)

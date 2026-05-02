@@ -11,6 +11,7 @@ const ImportReviewPage = lazy(() => import('./pages/ImportReviewPage'))
 const MerchantDictionaryPage = lazy(() => import('./pages/MerchantDictionaryPage'))
 const RulesPage = lazy(() => import('./pages/Rules'))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const AssetsPage = lazy(() => import('./pages/AssetsPage'))
 
 function AppLayout() {
   useAuditPageView()
@@ -27,6 +28,7 @@ function AppLayout() {
             <Route path="/merchants" element={<MerchantDictionaryPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/assets" element={<AssetsPage />} />
             <Route path="*" element={<Alert type="warning" showIcon message="页面不存在" />} />
           </Routes>
         </Suspense>

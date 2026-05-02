@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -179,3 +179,75 @@ class LedgerTransaction(Base):
     deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class LedgerAsset(Base):
+    __tablename__ = "ledger_assets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, index=True)
+    asset_type = Column(String(40), nullable=False, index=True)
+    category = Column(String(80), nullable=True, index=True)
+    status = Column(String(20), nullable=False, default="draft", index=True)
+    brand = Column(String(100), nullable=True, index=True)
+    model = Column(String(100), nullable=True, index=True)
+    serial_number = Column(String(120), nullable=True, index=True)
+    location = Column(String(120), nullable=True, index=True)
+    purchase_channel = Column(String(120), nullable=True, index=True)
+    purchase_date = Column(Date, nullable=True, index=True)
+    start_use_date = Column(Date, nullable=True, index=True)
+    end_date = Column(Date, nullable=True, index=True)
+    purchase_price = Column(Float, nullable=True)
+    extra_cost = Column(Float, nullable=True)
+    current_value = Column(Float, nullable=True)
+    sale_price = Column(Float, nullable=True)
+    target_daily_cost = Column(Float, nullable=True)
+    expected_use_days = Column(Integer, nullable=True)
+    usage_count = Column(Integer, nullable=False, default=0)
+    warranty_until = Column(Date, nullable=True, index=True)
+    include_in_net_worth = Column(Boolean, nullable=False, default=True, index=True)
+    tags_json = Column(Text, nullable=False, default="[]")
+    images_json = Column(Text, nullable=False, default="[]")
+    note = Column(Text, nullable=True)
+    owner_role = Column(String(20), default="admin", index=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    events = relationship("LedgerAssetEvent", back_populates="asset", cascade="all, delete-orphan")
+    valuations = relationship("LedgerAssetValuation", back_populates="asset", cascade="all, delete-orphan")
+
+
+class LedgerAssetEvent(Base):
+    __tablename__ = "ledger_asset_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("ledger_assets.id"), nullable=False, index=True)
+    event_type = Column(String(30), nullable=False, index=True)
+    event_date = Column(Date, nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    amount = Column(Float, nullable=True)
+    value_after = Column(Float, nullable=True)
+    note = Column(Text, nullable=True)
+    metadata_json = Column(Text, nullable=False, default="{}")
+    owner_role = Column(String(20), default="admin", index=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    asset = relationship("LedgerAsset", back_populates="events")
+
+
+class LedgerAssetValuation(Base):
+    __tablename__ = "ledger_asset_valuations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("ledger_assets.id"), nullable=False, index=True)
+    valuation_date = Column(Date, nullable=False, index=True)
+    value = Column(Float, nullable=False)
+    valuation_type = Column(String(20), nullable=False, index=True)
+    source = Column(String(120), nullable=True, index=True)
+    note = Column(Text, nullable=True)
+    owner_role = Column(String(20), default="admin", index=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    asset = relationship("LedgerAsset", back_populates="valuations")

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  DatabaseOutlined,
   BarChartOutlined,
   ImportOutlined,
   LogoutOutlined,
@@ -12,6 +13,7 @@ import { logout } from '../api/auth'
 const navs = [
   { key: '/imports', label: '导入中心', icon: <ImportOutlined /> },
   { key: '/analytics', label: '基础分析', icon: <BarChartOutlined /> },
+  { key: '/assets', label: '资产库', icon: <DatabaseOutlined /> },
   { key: '/merchants', label: '商户词典', icon: <ShopOutlined /> },
   { key: '/rules', label: '规则管理', icon: <SettingOutlined /> },
 ]

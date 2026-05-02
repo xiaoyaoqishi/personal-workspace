@@ -9,7 +9,7 @@
 - `Trading`: Trade records, analytics, review sessions, plans, and research or knowledge workflow.
 - `Notes`: Notebooks, diary and document notes, backlinks, todo, and recycle flow.
 - `Monitor`: Admin-side server metrics, site checks, users, and audit logs.
-- `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, and analytics.
+- `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, analytics, and an in-app asset library.
 - `Portal`: Static home page and login entry for the workspace.
 - `Backend`: Shared FastAPI API, auth, data permissions, uploads, and SQLite-backed services.
 
@@ -59,12 +59,14 @@
 - Imported datetime is normalized to date-only precision (`YYYY-MM-DD`, no time part).
 - Merchant dictionary (`ledger_merchants`) supports editing canonical name/aliases/default categories and displays recent linked samples.
 - Unified tabular parser supports `csv/xls/xlsx` (including HTML-table style `.xls` exports).
-- Phase 3 MVP frontend now includes:
+- Asset library (`/ledger/assets`) now supports dashboard overview, analysis filters, create, detail drawer, edit, soft delete, lifecycle events, valuations, sold review, and a dedicated lifecycle workspace within one tabbed page.
+- Current ledger pages include:
   - Import Center (`/ledger/imports`) for batch lifecycle operations.
   - Import Review Workbench (`/ledger/imports/:batchId/review`) with explain visibility and batch actions.
   - Basic Analytics page (`/ledger/analytics`).
   - Merchant Dictionary page (`/ledger/merchants`).
   - Rules Management page (`/ledger/rules`) with create/edit/delete plus hit count and last hit timestamp.
+  - Asset Library page (`/ledger/assets`) with dashboard overview, analysis workspace, CRUD closure, lifecycle events, valuations, and timeline workspace.
 - REST APIs:
   - `POST /api/ledger/import-batches`, `GET /api/ledger/import-batches`, `GET /api/ledger/import-batches/{id}`
   - `POST /api/ledger/import-batches/{id}/parse`, `/classify`, `/dedupe`, `/commit`
