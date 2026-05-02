@@ -4,12 +4,6 @@ from datetime import date, timedelta
 import uuid
 
 
-def _session():
-    import core.db as core_db
-
-    return core_db.SessionLocal()
-
-
 def _asset_payload(name: str, **overrides):
     today = date.today()
     payload = {
@@ -23,7 +17,6 @@ def _asset_payload(name: str, **overrides):
         "purchase_date": (today - timedelta(days=10)).isoformat(),
         "purchase_price": 1000,
         "extra_cost": 50,
-        "current_value": 800,
         "target_daily_cost": 20,
         "expected_use_days": 120,
         "usage_count": 0,
@@ -69,6 +62,7 @@ def test_ledger_assets_create_list_detail_update_soft_delete_flow(admin_login):
     assert detail.status_code == 200
     metrics = detail.json()["metrics"]
     assert metrics["total_cost"] == 1050.0
+    assert metrics["cash_daily_cost"] is not None
     assert metrics["holding_days"] is not None
 
     update = client.put(
@@ -96,28 +90,6 @@ def test_ledger_assets_create_list_detail_update_soft_delete_flow(admin_login):
 
     deleted_detail = client.get(f"/api/ledger/assets/{asset_id}")
     assert deleted_detail.status_code == 404
-
-
-def test_ledger_asset_valuation_updates_current_value(admin_login):
-    client = admin_login
-    asset = _create_asset(client, current_value=700)
-    asset_id = asset["id"]
-
-    valuation = client.post(
-        f"/api/ledger/assets/{asset_id}/valuations",
-        json={"valuation_date": date.today().isoformat(), "value": 666, "valuation_type": "manual", "source": "manual-check"},
-    )
-    assert valuation.status_code == 200
-    assert valuation.json()["value"] == 666.0
-
-    detail = client.get(f"/api/ledger/assets/{asset_id}")
-    assert detail.status_code == 200
-    assert detail.json()["current_value"] == 666.0
-
-    valuations = client.get(f"/api/ledger/assets/{asset_id}/valuations")
-    assert valuations.status_code == 200
-    assert valuations.json()["total"] >= 1
-    assert valuations.json()["items"][0]["valuation_type"] == "manual"
 
 
 def test_ledger_asset_events_update_status_cost_usage_and_delete_does_not_roll_back(admin_login):
@@ -180,6 +152,22 @@ def test_ledger_asset_events_update_status_cost_usage_and_delete_does_not_roll_b
     assert final_detail.json()["status"] == "in_use"
 
 
+def test_ledger_asset_valuation_route_and_event_type_removed(admin_login):
+    client = admin_login
+    asset = _create_asset(client)
+    asset_id = asset["id"]
+    today = date.today().isoformat()
+
+    valuation_route = client.get(f"/api/ledger/assets/{asset_id}/valuations")
+    assert valuation_route.status_code == 404
+
+    valuation_event = client.post(
+        f"/api/ledger/assets/{asset_id}/events",
+        json={"event_type": "valuation", "event_date": today, "title": "Valuation"},
+    )
+    assert valuation_event.status_code == 422
+
+
 def test_ledger_asset_sell_event_updates_sale_state_and_metrics(admin_login):
     client = admin_login
     today = date.today()
@@ -189,7 +177,6 @@ def test_ledger_asset_sell_event_updates_sale_state_and_metrics(admin_login):
         start_use_date=(today - timedelta(days=10)).isoformat(),
         purchase_price=1000,
         extra_cost=100,
-        current_value=800,
     )
     asset_id = asset["id"]
 
@@ -205,20 +192,16 @@ def test_ledger_asset_sell_event_updates_sale_state_and_metrics(admin_login):
     assert payload["status"] == "sold"
     assert payload["sale_price"] == 900.0
     assert payload["end_date"] == today.isoformat()
-    assert payload["current_value"] == 900.0
     assert payload["metrics"]["profit_loss"] == -200.0
+    assert payload["metrics"]["realized_consumption_cost"] == 200.0
     assert payload["metrics"]["realized_daily_cost"] is not None
 
-    valuations = client.get(f"/api/ledger/assets/{asset_id}/valuations")
-    assert valuations.status_code == 200
-    assert any(item["valuation_type"] == "sale" for item in valuations.json()["items"])
 
-
-def test_ledger_asset_dispose_and_lost_events_zero_current_value(admin_login):
+def test_ledger_asset_dispose_and_lost_events_only_update_status_and_end_date(admin_login):
     client = admin_login
     today = date.today()
-    dispose_asset = _create_asset(client, current_value=500)
-    lost_asset = _create_asset(client, current_value=400)
+    dispose_asset = _create_asset(client)
+    lost_asset = _create_asset(client)
 
     dispose = client.post(
         f"/api/ledger/assets/{dispose_asset['id']}/events",
@@ -234,9 +217,9 @@ def test_ledger_asset_dispose_and_lost_events_zero_current_value(admin_login):
     dispose_detail = client.get(f"/api/ledger/assets/{dispose_asset['id']}")
     lost_detail = client.get(f"/api/ledger/assets/{lost_asset['id']}")
     assert dispose_detail.json()["status"] == "disposed"
-    assert dispose_detail.json()["current_value"] == 0.0
+    assert dispose_detail.json()["end_date"] == today.isoformat()
     assert lost_detail.json()["status"] == "lost"
-    assert lost_detail.json()["current_value"] == 0.0
+    assert lost_detail.json()["end_date"] == today.isoformat()
 
 
 def test_ledger_asset_summary_returns_expected_totals(admin_login):
@@ -245,9 +228,9 @@ def test_ledger_asset_summary_returns_expected_totals(admin_login):
     assert baseline.status_code == 200
     before = baseline.json()
 
-    _create_asset(client, purchase_price=100, extra_cost=20, current_value=80, status="in_use", category="device")
-    _create_asset(client, purchase_price=200, extra_cost=0, current_value=150, status="idle", category="device")
-    _create_asset(client, purchase_price=300, extra_cost=0, current_value=250, sale_price=240, status="sold", category="resale")
+    _create_asset(client, purchase_price=100, extra_cost=20, status="in_use", category="device")
+    _create_asset(client, purchase_price=200, extra_cost=30, status="idle", category="device")
+    _create_asset(client, purchase_price=300, extra_cost=10, sale_price=240, status="sold", category="resale")
 
     summary = client.get("/api/ledger/assets/summary")
     assert summary.status_code == 200
@@ -257,10 +240,15 @@ def test_ledger_asset_summary_returns_expected_totals(admin_login):
     assert payload["active_assets"] >= before["active_assets"] + 1
     assert payload["idle_assets"] >= before["idle_assets"] + 1
     assert payload["sold_assets"] >= before["sold_assets"] + 1
-    assert payload["total_purchase_cost"] >= before["total_purchase_cost"] + 620.0
-    assert payload["total_current_value"] >= before["total_current_value"] + 480.0
+    assert payload["total_purchase_cost"] >= before["total_purchase_cost"] + 600.0
+    assert payload["total_extra_cost"] >= before["total_extra_cost"] + 60.0
+    assert payload["total_cost"] >= before["total_cost"] + 660.0
+    assert payload["total_realized_profit_loss"] <= before["total_realized_profit_loss"] - 70.0
     assert "status_breakdown" in payload
     assert "category_breakdown" in payload
+    assert "top_daily_cost_assets" in payload
+    assert "top_idle_assets" in payload
+    assert "top_extra_cost_assets" in payload
 
 
 def test_ledger_assets_owner_role_isolation(admin_login):

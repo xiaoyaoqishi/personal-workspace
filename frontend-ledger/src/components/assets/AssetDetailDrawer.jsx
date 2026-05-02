@@ -1,6 +1,5 @@
 import { Alert, Button, Card, Descriptions, Divider, Drawer, Empty, Flex, Space, Statistic, Tabs, Tag, Typography } from 'antd'
 import AssetEventsPanel from './AssetEventsPanel'
-import AssetValuationsPanel from './AssetValuationsPanel'
 import { buildAssetMetricsSnapshot } from './assetAnalytics'
 import {
   displayEmpty,
@@ -50,15 +49,14 @@ export default function AssetDetailDrawer({
   const metrics = buildAssetMetricsSnapshot(asset)
   const metricDescriptions = [
     ['总投入成本', formatMoney(metrics.total_cost)],
-    ['当前净消费成本', formatMoney(metrics.net_consumption_cost)],
     ['已实现消费成本', formatMoney(metrics.realized_consumption_cost)],
     ['现金日均成本', formatMoney(metrics.cash_daily_cost)],
-    ['净日均成本', formatMoney(metrics.net_daily_cost)],
     ['已实现日均成本', formatMoney(metrics.realized_daily_cost)],
-    ['残值率', formatPercent(metrics.residual_rate)],
     ['已实现盈亏', formatMoney(metrics.profit_loss)],
     ['持有天数', formatNumber(metrics.holding_days)],
     ['使用天数', formatNumber(metrics.use_days)],
+    ['目标进度', formatPercent(metrics.target_progress)],
+    ['距目标日均成本天数', formatNumber(metrics.days_to_target)],
   ]
 
   const overviewTab = asset ? (
@@ -73,28 +71,28 @@ export default function AssetDetailDrawer({
               <Tag color={getAssetStatusColor(asset.status)}>{getAssetStatusLabel(asset.status)}</Tag>
               <Tag>{getAssetTypeLabel(asset.asset_type)}</Tag>
               {asset.category ? <Tag>{asset.category}</Tag> : null}
-              {asset.include_in_net_worth ? <Tag color="cyan">计入净资产</Tag> : <Tag>不计入净资产</Tag>}
+              {asset.include_in_net_worth ? <Tag color="cyan">纳入长期资产统计</Tag> : <Tag>不纳入长期资产统计</Tag>}
             </Space>
           </div>
           <div className="asset-library-detail-value-group">
-            <span>当前估值</span>
-            <strong>{formatMoney(asset.current_value)}</strong>
+            <span>累计投入成本</span>
+            <strong>{formatMoney(metrics.total_cost)}</strong>
           </div>
         </Flex>
       </Card>
 
       <div className="asset-library-detail-stat-grid">
         <Card bordered={false}>
-          <Statistic title="总投入成本" value={formatMoney(metrics.total_cost)} />
+          <Statistic title="累计投入成本" value={formatMoney(metrics.total_cost)} />
         </Card>
         <Card bordered={false}>
-          <Statistic title="净消费成本" value={formatMoney(metrics.net_consumption_cost)} />
+          <Statistic title="现金日均成本" value={formatMoney(metrics.cash_daily_cost)} />
         </Card>
         <Card bordered={false}>
-          <Statistic title="净日均成本" value={formatMoney(metrics.net_daily_cost)} />
+          <Statistic title="已实现盈亏" value={formatMoney(metrics.profit_loss)} />
         </Card>
         <Card bordered={false}>
-          <Statistic title="残值率" value={formatPercent(metrics.residual_rate)} />
+          <Statistic title="已实现日均成本" value={formatMoney(metrics.realized_daily_cost)} />
         </Card>
       </div>
 
@@ -111,16 +109,16 @@ export default function AssetDetailDrawer({
         </Descriptions>
       </DetailBlock>
 
-      <DetailBlock title="成本与估值">
+      <DetailBlock title="成本与卖出复盘">
         <Descriptions column={2} size="small" bordered className="asset-library-detail-descriptions">
-          <Descriptions.Item label="买入价格">{formatMoney(asset.purchase_price)}</Descriptions.Item>
-          <Descriptions.Item label="额外成本">{formatMoney(asset.extra_cost)}</Descriptions.Item>
-          <Descriptions.Item label="当前估值">{formatMoney(asset.current_value)}</Descriptions.Item>
+          <Descriptions.Item label="买入成本">{formatMoney(asset.purchase_price)}</Descriptions.Item>
+          <Descriptions.Item label="附加成本">{formatMoney(asset.extra_cost)}</Descriptions.Item>
           <Descriptions.Item label="卖出价格">{formatMoney(asset.sale_price)}</Descriptions.Item>
           <Descriptions.Item label="目标日均成本">{formatMoney(asset.target_daily_cost)}</Descriptions.Item>
           <Descriptions.Item label="已使用次数">{formatNumber(asset.usage_count)}</Descriptions.Item>
-          <Descriptions.Item label="预计使用天数">{formatNumber(asset.expected_use_days)}</Descriptions.Item>
           <Descriptions.Item label="结束日期">{formatDate(asset.end_date)}</Descriptions.Item>
+          <Descriptions.Item label="预计使用天数">{formatNumber(asset.expected_use_days)}</Descriptions.Item>
+          <Descriptions.Item label="保修到期">{formatDate(asset.warranty_until)}</Descriptions.Item>
         </Descriptions>
       </DetailBlock>
 
@@ -128,11 +126,8 @@ export default function AssetDetailDrawer({
         <Descriptions column={2} size="small" bordered className="asset-library-detail-descriptions">
           <Descriptions.Item label="购买日期">{formatDate(asset.purchase_date)}</Descriptions.Item>
           <Descriptions.Item label="开始使用">{formatDate(asset.start_use_date)}</Descriptions.Item>
-          <Descriptions.Item label="保修到期">{formatDate(asset.warranty_until)}</Descriptions.Item>
           <Descriptions.Item label="持有天数">{formatNumber(metrics.holding_days)}</Descriptions.Item>
           <Descriptions.Item label="使用天数">{formatNumber(metrics.use_days)}</Descriptions.Item>
-          <Descriptions.Item label="距目标日均成本天数">{formatNumber(metrics.days_to_target)}</Descriptions.Item>
-          <Descriptions.Item label="目标进度">{formatPercent(metrics.target_progress)}</Descriptions.Item>
         </Descriptions>
       </DetailBlock>
 
@@ -206,12 +201,6 @@ export default function AssetDetailDrawer({
               key: 'events',
               label: '生命周期事件',
               children: <AssetEventsPanel assetId={asset.id} onAssetMutated={onAssetMutated} title="生命周期事件" />,
-              forceRender: true,
-            },
-            {
-              key: 'valuations',
-              label: '估值记录',
-              children: <AssetValuationsPanel assetId={asset.id} onAssetMutated={onAssetMutated} title="估值记录" />,
               forceRender: true,
             },
           ]}

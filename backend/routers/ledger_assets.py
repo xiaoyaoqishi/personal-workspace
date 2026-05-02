@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from core.deps import db_session, get_current_role
-from schemas.ledger_assets import LedgerAssetCreate, LedgerAssetEventCreate, LedgerAssetUpdate, LedgerAssetValuationCreate
+from schemas.ledger_assets import LedgerAssetCreate, LedgerAssetEventCreate, LedgerAssetUpdate
 from services.ledger import assets_service
 
 router = APIRouter(prefix="/api/ledger/assets", tags=["ledger"])
@@ -109,22 +109,3 @@ def delete_asset_event(
     role: str = Depends(get_current_role),
 ):
     return assets_service.delete_asset_event(db, role=role, asset_id=asset_id, event_id=event_id)
-
-
-@router.get("/{asset_id}/valuations")
-def list_asset_valuations(
-    asset_id: int,
-    db: Session = Depends(db_session),
-    role: str = Depends(get_current_role),
-):
-    return assets_service.list_asset_valuations(db, role=role, asset_id=asset_id)
-
-
-@router.post("/{asset_id}/valuations")
-def add_asset_valuation(
-    asset_id: int,
-    payload: LedgerAssetValuationCreate,
-    db: Session = Depends(db_session),
-    role: str = Depends(get_current_role),
-):
-    return assets_service.add_asset_valuation(db, role=role, asset_id=asset_id, payload=payload)

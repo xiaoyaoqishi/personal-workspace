@@ -59,14 +59,14 @@
 - Imported datetime is normalized to date-only precision (`YYYY-MM-DD`, no time part).
 - Merchant dictionary (`ledger_merchants`) supports editing canonical name/aliases/default categories and displays recent linked samples.
 - Unified tabular parser supports `csv/xls/xlsx` (including HTML-table style `.xls` exports).
-- Asset library (`/ledger/assets`) now supports dashboard overview, analysis filters, create, detail drawer, edit, soft delete, lifecycle events, valuations, sold review, and a dedicated lifecycle workspace within one tabbed page.
+- Asset library (`/ledger/assets`) now supports long-term asset records, purchase cost, extra cost, usage and idle tracking, lifecycle events, sold review, and cash daily cost analysis within one tabbed page.
 - Current ledger pages include:
   - Import Center (`/ledger/imports`) for batch lifecycle operations.
   - Import Review Workbench (`/ledger/imports/:batchId/review`) with explain visibility and batch actions.
   - Basic Analytics page (`/ledger/analytics`).
   - Merchant Dictionary page (`/ledger/merchants`).
   - Rules Management page (`/ledger/rules`) with create/edit/delete plus hit count and last hit timestamp.
-  - Asset Library page (`/ledger/assets`) with dashboard overview, analysis workspace, CRUD closure, lifecycle events, valuations, and timeline workspace.
+  - Asset Library page (`/ledger/assets`) with long-term records, purchase cost, extra cost, usage and idle tracking, lifecycle events, sold review, and cash daily cost analysis in a single tabbed workspace.
 - REST APIs:
   - `POST /api/ledger/import-batches`, `GET /api/ledger/import-batches`, `GET /api/ledger/import-batches/{id}`
   - `POST /api/ledger/import-batches/{id}/parse`, `/classify`, `/dedupe`, `/commit`

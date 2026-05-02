@@ -27,7 +27,6 @@ export function getDefaultAssetEventFormValues() {
     event_date: dayjs(),
     title: '',
     amount: null,
-    value_after: null,
     note: '',
   }
 }
@@ -38,7 +37,6 @@ export function buildAssetEventPayload(values) {
     event_date: toDateString(values.event_date),
     title: String(values.title || '').trim(),
     amount: toNumberOrNull(values.amount),
-    value_after: toNumberOrNull(values.value_after),
     note: toTextOrNull(values.note),
   }
 }
@@ -81,9 +79,6 @@ export default function AssetEventForm({
         <Form.Item label="金额" name="amount">
           <InputNumber min={0} precision={2} style={{ width: '100%' }} placeholder="为空则不提交" />
         </Form.Item>
-        <Form.Item label="事件后估值" name="value_after">
-          <InputNumber min={0} precision={2} style={{ width: '100%' }} placeholder="为空则不提交" />
-        </Form.Item>
       </div>
 
       <Form.Item label="备注" name="note">
@@ -91,9 +86,7 @@ export default function AssetEventForm({
       </Form.Item>
 
       <Flex justify="space-between" align="center" wrap gap={12}>
-        <Typography.Text type="secondary">
-          `amount` 和 `value_after` 为空时会提交 `null`，不会发送 `NaN`。
-        </Typography.Text>
+        <Typography.Text type="secondary">金额为空时会提交 `null`，不会发送 `NaN`。</Typography.Text>
         <Space>
           {onCancel ? <Button onClick={onCancel}>取消</Button> : null}
           <Button type="primary" htmlType="submit" loading={submitting}>

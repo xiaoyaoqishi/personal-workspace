@@ -28,12 +28,12 @@
 
 ## 2.1 Ledger 资产库专项约定
 
-- 资产库是 Ledger 域内的独立子模块，页面名称固定为「资产库」，用于个人资产全生命周期管理。
-- 资产库集成在账务管理中，但不依赖账务导入、交易流水、复核工作台、商户识别或规则引擎；用户应能直接创建、维护、估值、追踪和复盘资产。
-- 资产库前端入口归属 `frontend-ledger`，主流程集中在一个「资产库」页面内，通过 Tabs 承载功能；不要新增多个一级导航入口，也不要放入 `frontend-trading`、`frontend-notes`、`frontend-monitor` 或 `portal`。
-- 资产库后端归属 ledger 域，API、schema、service、runtime 应保持 ledger 边界内聚；Router 只做参数接收与转发，领域逻辑放在 ledger service/dedicated runtime，不得回流 `backend/main.py` 或 `backend/services/runtime.py`。
-- 资产库详细产品逻辑、状态机、数据对象、指标口径、V1 范围和阶段计划以 `docs/ledger/asset-library.md` 为准；只有执行资产库相关任务时才需要阅读该文档。
-- 资产库开发按“可验收切片 -> 反馈修正 -> 增量迭代”推进；每次迭代需明确范围边界、不做事项、验证方式，并在必要时同步更新 `docs/ledger/asset-library.md` 的设计决策、待办与里程碑。
+- 资产库是 Ledger 域内的独立子模块，页面名称固定为「资产库」，用于个人资产的长期记录、使用管理、闲置管理和卖出复盘。
+- 资产库前端归属 `frontend-ledger`，主流程集中在 `/assets` 页面内，通过 Tabs 承载；不要新增多个一级导航入口，也不要放入 `frontend-trading`、`frontend-notes`、`frontend-monitor` 或 `portal`。
+- 资产库后端归属 ledger 域，API 命名空间为 `/api/ledger/assets`；schema、service、router 应保持 ledger 边界内聚，领域逻辑不得回流 `backend/main.py` 或 `backend/services/runtime.py`。
+- 资产库不依赖账务导入、交易流水、复核工作台、商户识别或规则引擎；用户应能直接创建、维护、追踪和复盘资产。
+- 资产库后续优化以易用性和维护性为主：降低录入成本、提高列表管理效率、优化详情信息层级、保持页面紧凑，不暴露开发阶段文案。
+- 当前产品主链路以购入、附加成本、使用、闲置、卖出为主；手动估值不再作为核心使用链路。
 
 ## 3. 模块改动原则
 - 改某个模块时，尽量保持影响范围局部化，避免无关模块连带修改。

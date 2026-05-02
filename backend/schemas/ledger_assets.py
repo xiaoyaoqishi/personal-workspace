@@ -10,7 +10,6 @@ LedgerAssetStatus = Literal["draft", "in_use", "idle", "on_sale", "sold", "retir
 LedgerAssetEventType = Literal[
     "purchase",
     "start_use",
-    "valuation",
     "repair",
     "maintenance",
     "accessory",
@@ -24,15 +23,12 @@ LedgerAssetEventType = Literal[
     "lost",
     "note",
 ]
-LedgerAssetValuationType = Literal["manual", "depreciation", "market", "sale", "zero"]
 
 
 def _parse_string_list(value: Any) -> list[str]:
     if value is None:
         return []
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    if isinstance(value, tuple):
+    if isinstance(value, (list, tuple)):
         return [str(item).strip() for item in value if str(item).strip()]
     if isinstance(value, str):
         raw = value.strip()
@@ -44,7 +40,6 @@ def _parse_string_list(value: Any) -> list[str]:
             return [raw]
         if isinstance(parsed, list):
             return [str(item).strip() for item in parsed if str(item).strip()]
-        return []
     return []
 
 
@@ -81,7 +76,6 @@ class LedgerAssetBase(BaseModel):
     end_date: Optional[date] = None
     purchase_price: Optional[float] = Field(default=None, ge=0)
     extra_cost: Optional[float] = Field(default=None, ge=0)
-    current_value: Optional[float] = Field(default=None, ge=0)
     sale_price: Optional[float] = Field(default=None, ge=0)
     target_daily_cost: Optional[float] = Field(default=None, ge=0)
     expected_use_days: Optional[int] = Field(default=None, ge=0)
@@ -117,7 +111,6 @@ class LedgerAssetUpdate(BaseModel):
     end_date: Optional[date] = None
     purchase_price: Optional[float] = Field(default=None, ge=0)
     extra_cost: Optional[float] = Field(default=None, ge=0)
-    current_value: Optional[float] = Field(default=None, ge=0)
     sale_price: Optional[float] = Field(default=None, ge=0)
     target_daily_cost: Optional[float] = Field(default=None, ge=0)
     expected_use_days: Optional[int] = Field(default=None, ge=0)
@@ -140,12 +133,9 @@ class LedgerAssetMetricsOut(BaseModel):
     holding_days: Optional[int] = None
     use_days: Optional[int] = None
     total_cost: Optional[float] = None
-    net_consumption_cost: Optional[float] = None
     realized_consumption_cost: Optional[float] = None
     cash_daily_cost: Optional[float] = None
-    net_daily_cost: Optional[float] = None
     realized_daily_cost: Optional[float] = None
-    residual_rate: Optional[float] = None
     profit_loss: Optional[float] = None
     target_progress: Optional[float] = None
     days_to_target: Optional[int] = None
@@ -177,7 +167,12 @@ class LedgerAssetSummaryOut(BaseModel):
     model: Optional[str] = None
     location: Optional[str] = None
     purchase_date: Optional[date] = None
-    current_value: Optional[float] = None
+    start_use_date: Optional[date] = None
+    end_date: Optional[date] = None
+    purchase_price: Optional[float] = None
+    extra_cost: Optional[float] = None
+    sale_price: Optional[float] = None
+    target_daily_cost: Optional[float] = None
     usage_count: int = 0
     include_in_net_worth: bool
     tags: list[str] = Field(default_factory=list, validation_alias=AliasChoices("tags", "tags_json"))
@@ -198,7 +193,6 @@ class LedgerAssetEventCreate(BaseModel):
     event_date: date
     title: str = Field(min_length=1, max_length=200)
     amount: Optional[float] = Field(default=None, ge=0)
-    value_after: Optional[float] = Field(default=None, ge=0)
     note: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict, validation_alias=AliasChoices("metadata", "metadata_json"))
 
@@ -209,23 +203,6 @@ class LedgerAssetEventCreate(BaseModel):
 
 
 class LedgerAssetEventOut(LedgerAssetEventCreate):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    asset_id: int
-    owner_role: str
-    created_at: Optional[datetime] = None
-
-
-class LedgerAssetValuationCreate(BaseModel):
-    valuation_date: date
-    value: float = Field(ge=0)
-    valuation_type: LedgerAssetValuationType
-    source: Optional[str] = Field(default=None, max_length=120)
-    note: Optional[str] = None
-
-
-class LedgerAssetValuationOut(LedgerAssetValuationCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -246,11 +223,6 @@ class LedgerAssetEventListResponse(BaseModel):
     total: int
 
 
-class LedgerAssetValuationListResponse(BaseModel):
-    items: list[LedgerAssetValuationOut] = Field(default_factory=list)
-    total: int
-
-
 class LedgerAssetStatusBreakdownOut(BaseModel):
     status: str
     count: int
@@ -260,7 +232,8 @@ class LedgerAssetCategoryBreakdownOut(BaseModel):
     category: str
     count: int
     total_purchase_cost: float
-    total_current_value: float
+    total_extra_cost: float
+    total_cost: float
 
 
 class LedgerAssetLibrarySummaryOut(BaseModel):
@@ -269,10 +242,11 @@ class LedgerAssetLibrarySummaryOut(BaseModel):
     idle_assets: int
     sold_assets: int
     total_purchase_cost: float
-    total_current_value: float
-    total_net_consumption_cost: float
+    total_extra_cost: float
+    total_cost: float
     total_realized_profit_loss: float
     status_breakdown: list[LedgerAssetStatusBreakdownOut] = Field(default_factory=list)
     category_breakdown: list[LedgerAssetCategoryBreakdownOut] = Field(default_factory=list)
     top_daily_cost_assets: list[LedgerAssetSummaryOut] = Field(default_factory=list)
     top_idle_assets: list[LedgerAssetSummaryOut] = Field(default_factory=list)
+    top_extra_cost_assets: list[LedgerAssetSummaryOut] = Field(default_factory=list)

@@ -199,7 +199,6 @@ class LedgerAsset(Base):
     end_date = Column(Date, nullable=True, index=True)
     purchase_price = Column(Float, nullable=True)
     extra_cost = Column(Float, nullable=True)
-    current_value = Column(Float, nullable=True)
     sale_price = Column(Float, nullable=True)
     target_daily_cost = Column(Float, nullable=True)
     expected_use_days = Column(Integer, nullable=True)
@@ -216,7 +215,6 @@ class LedgerAsset(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     events = relationship("LedgerAssetEvent", back_populates="asset", cascade="all, delete-orphan")
-    valuations = relationship("LedgerAssetValuation", back_populates="asset", cascade="all, delete-orphan")
 
 
 class LedgerAssetEvent(Base):
@@ -228,26 +226,9 @@ class LedgerAssetEvent(Base):
     event_date = Column(Date, nullable=False, index=True)
     title = Column(String(200), nullable=False)
     amount = Column(Float, nullable=True)
-    value_after = Column(Float, nullable=True)
     note = Column(Text, nullable=True)
     metadata_json = Column(Text, nullable=False, default="{}")
     owner_role = Column(String(20), default="admin", index=True)
     created_at = Column(DateTime, server_default=func.now())
 
     asset = relationship("LedgerAsset", back_populates="events")
-
-
-class LedgerAssetValuation(Base):
-    __tablename__ = "ledger_asset_valuations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey("ledger_assets.id"), nullable=False, index=True)
-    valuation_date = Column(Date, nullable=False, index=True)
-    value = Column(Float, nullable=False)
-    valuation_type = Column(String(20), nullable=False, index=True)
-    source = Column(String(120), nullable=True, index=True)
-    note = Column(Text, nullable=True)
-    owner_role = Column(String(20), default="admin", index=True)
-    created_at = Column(DateTime, server_default=func.now())
-
-    asset = relationship("LedgerAsset", back_populates="valuations")

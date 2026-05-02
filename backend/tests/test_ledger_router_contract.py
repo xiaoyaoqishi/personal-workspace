@@ -112,8 +112,6 @@ def test_ledger_assets_router_public_handlers_have_backing_services():
         "list_asset_events",
         "add_asset_event",
         "delete_asset_event",
-        "list_asset_valuations",
-        "add_asset_valuation",
         "calculate_asset_metrics",
         "get_asset_summary",
     }:
@@ -132,11 +130,10 @@ def test_ledger_assets_router_public_routes_match_current_handlers_and_keep_summ
         "list_asset_events",
         "add_asset_event",
         "delete_asset_event",
-        "list_asset_valuations",
-        "add_asset_valuation",
     }
 
     paths = [route.path for route in assets_router.routes]
     assert "/api/ledger/assets/summary" in paths
     assert "/api/ledger/assets/{asset_id}" in paths
     assert paths.index("/api/ledger/assets/summary") < paths.index("/api/ledger/assets/{asset_id}")
+    assert all("/valuations" not in path for path in paths)

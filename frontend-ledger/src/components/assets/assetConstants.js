@@ -54,7 +54,6 @@ export const EMPTY_VALUE = '--'
 export const ASSET_EVENT_TYPE_LABELS = {
   purchase: '购入',
   start_use: '开始使用',
-  valuation: '估值更新',
   repair: '维修',
   maintenance: '保养',
   accessory: '增加配件',
@@ -72,7 +71,6 @@ export const ASSET_EVENT_TYPE_LABELS = {
 export const ASSET_EVENT_TYPE_COLORS = {
   purchase: 'blue',
   start_use: 'processing',
-  valuation: 'cyan',
   repair: 'orange',
   maintenance: 'gold',
   accessory: 'purple',
@@ -91,38 +89,16 @@ export const ASSET_EVENT_TYPE_OPTIONS = Object.entries(ASSET_EVENT_TYPE_LABELS).
 
 export const ASSET_EVENT_HINTS = {
   sell: '卖出事件会将资产状态更新为已卖出，并记录卖出价格与结束日期。',
-  dispose: '报废事件会将资产状态更新为已报废，并将当前估值归零。',
-  lost: '丢失事件会将资产状态更新为已丢失，并将当前估值归零。',
+  dispose: '报废事件会将资产状态更新为已报废，并记录结束日期。',
+  lost: '丢失事件会将资产状态更新为已遗失，并记录结束日期。',
   repair: '维修事件会将金额累计到附加成本。',
   maintenance: '保养事件会将金额累计到附加成本。',
   accessory: '配件事件会将金额累计到附加成本。',
-  valuation: '估值更新事件会按事件后的估值更新当前估值。',
   start_use: '开始使用事件会将状态更新为使用中，并回写开始使用日期。',
   usage: '使用打卡会将使用次数加 1。',
   idle: '转为闲置事件会切换资产状态为闲置。',
   resume: '重新启用事件会切换资产状态回使用中。',
 }
-
-export const ASSET_VALUATION_TYPE_LABELS = {
-  manual: '手动估值',
-  depreciation: '折旧估值',
-  market: '市场参考',
-  sale: '卖出成交价',
-  zero: '归零估值',
-}
-
-export const ASSET_VALUATION_TYPE_COLORS = {
-  manual: 'blue',
-  depreciation: 'gold',
-  market: 'purple',
-  sale: 'success',
-  zero: 'default',
-}
-
-export const ASSET_VALUATION_TYPE_OPTIONS = Object.entries(ASSET_VALUATION_TYPE_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}))
 
 export function getAssetStatusLabel(value) {
   return ASSET_STATUS_LABELS[value] || value || '未知状态'
@@ -146,14 +122,6 @@ export function getAssetEventTypeColor(value) {
 
 export function getAssetEventHint(value) {
   return ASSET_EVENT_HINTS[value] || ''
-}
-
-export function getAssetValuationTypeLabel(value) {
-  return ASSET_VALUATION_TYPE_LABELS[value] || value || '未知估值方式'
-}
-
-export function getAssetValuationTypeColor(value) {
-  return ASSET_VALUATION_TYPE_COLORS[value] || 'default'
 }
 
 export function displayEmpty(value, fallback = EMPTY_VALUE) {

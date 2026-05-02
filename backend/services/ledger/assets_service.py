@@ -9,11 +9,10 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.errors import AppError
-from models import LedgerAsset, LedgerAssetEvent, LedgerAssetValuation
+from models import LedgerAsset, LedgerAssetEvent
 from services.ledger import apply_owner_scope, owner_role_for_create
 
-ACTIVE_ASSET_STATUSES = {"draft", "in_use", "on_sale"}
-ZERO_VALUE_STATUSES = {"disposed", "lost"}
+ACTIVE_ASSET_STATUSES = {"in_use"}
 
 
 def _safe_json_load(raw: Any, fallback: Any):
@@ -65,12 +64,6 @@ def _round_money(value: Optional[float]) -> Optional[float]:
     return round(float(value), 2)
 
 
-def _round_ratio(value: Optional[float]) -> Optional[float]:
-    if value is None:
-        return None
-    return round(float(value), 4)
-
-
 def _coerce_money(value: Any) -> Optional[float]:
     if value is None:
         return None
@@ -115,15 +108,11 @@ def _date_diff_inclusive(start: Optional[date], end: Optional[date]) -> Optional
     return (end - start).days + 1
 
 
-def _current_value_for_metrics(asset: LedgerAsset) -> Optional[float]:
-    if asset.status in ZERO_VALUE_STATUSES:
-        return 0.0
-    return _coerce_money(asset.current_value)
-
-
 def calculate_asset_metrics(asset: LedgerAsset) -> dict[str, Any]:
     today = date.today()
-    total_cost = round(float(asset.purchase_price or 0) + float(asset.extra_cost or 0), 2)
+    purchase_price = float(asset.purchase_price or 0)
+    extra_cost = float(asset.extra_cost or 0)
+    total_cost = round(purchase_price + extra_cost, 2)
 
     holding_end = asset.end_date or today
     holding_days = _date_diff_inclusive(asset.purchase_date, holding_end)
@@ -132,11 +121,9 @@ def calculate_asset_metrics(asset: LedgerAsset) -> dict[str, Any]:
     use_end = asset.end_date or today
     use_days = _date_diff_inclusive(use_start, use_end)
 
-    current_value = _current_value_for_metrics(asset)
     sale_price = _coerce_money(asset.sale_price)
     target_daily_cost = _coerce_money(asset.target_daily_cost)
 
-    net_consumption_cost = None if current_value is None else round(total_cost - current_value, 2)
     realized_consumption_cost = None
     profit_loss = None
     if asset.status == "sold" and sale_price is not None:
@@ -144,13 +131,11 @@ def calculate_asset_metrics(asset: LedgerAsset) -> dict[str, Any]:
         profit_loss = round(sale_price - total_cost, 2)
 
     cash_daily_cost = round(total_cost / use_days, 2) if use_days and use_days > 0 else None
-    net_daily_cost = round(net_consumption_cost / use_days, 2) if use_days and use_days > 0 and net_consumption_cost is not None else None
     realized_daily_cost = (
         round(realized_consumption_cost / use_days, 2)
         if use_days and use_days > 0 and realized_consumption_cost is not None
         else None
     )
-    residual_rate = round(current_value / total_cost, 4) if total_cost > 0 and current_value is not None else None
 
     target_progress = None
     days_to_target = None
@@ -166,13 +151,10 @@ def calculate_asset_metrics(asset: LedgerAsset) -> dict[str, Any]:
     return {
         "holding_days": holding_days,
         "use_days": use_days,
-        "total_cost": round(total_cost, 2),
-        "net_consumption_cost": net_consumption_cost,
+        "total_cost": total_cost,
         "realized_consumption_cost": realized_consumption_cost,
         "cash_daily_cost": cash_daily_cost,
-        "net_daily_cost": net_daily_cost,
         "realized_daily_cost": realized_daily_cost,
-        "residual_rate": residual_rate,
         "profit_loss": profit_loss,
         "target_progress": target_progress,
         "days_to_target": days_to_target,
@@ -196,7 +178,6 @@ def _asset_to_payload(asset: LedgerAsset, include_metrics: bool = True) -> dict[
         "end_date": asset.end_date,
         "purchase_price": _round_money(_coerce_money(asset.purchase_price)),
         "extra_cost": _round_money(_coerce_money(asset.extra_cost)),
-        "current_value": _round_money(_current_value_for_metrics(asset)),
         "sale_price": _round_money(_coerce_money(asset.sale_price)),
         "target_daily_cost": _round_money(_coerce_money(asset.target_daily_cost)),
         "expected_use_days": asset.expected_use_days,
@@ -229,7 +210,12 @@ def _asset_summary_payload(asset: LedgerAsset) -> dict[str, Any]:
         "model": payload["model"],
         "location": payload["location"],
         "purchase_date": payload["purchase_date"],
-        "current_value": payload["current_value"],
+        "start_use_date": payload["start_use_date"],
+        "end_date": payload["end_date"],
+        "purchase_price": payload["purchase_price"],
+        "extra_cost": payload["extra_cost"],
+        "sale_price": payload["sale_price"],
+        "target_daily_cost": payload["target_daily_cost"],
         "usage_count": payload["usage_count"],
         "include_in_net_worth": payload["include_in_net_worth"],
         "tags": payload["tags"],
@@ -249,48 +235,11 @@ def _asset_event_to_payload(row: LedgerAssetEvent) -> dict[str, Any]:
         "event_date": row.event_date,
         "title": row.title,
         "amount": _round_money(_coerce_money(row.amount)),
-        "value_after": _round_money(_coerce_money(row.value_after)),
         "note": row.note,
         "metadata": decode_json_dict(row.metadata_json),
         "owner_role": row.owner_role,
         "created_at": row.created_at,
     }
-
-
-def _asset_valuation_to_payload(row: LedgerAssetValuation) -> dict[str, Any]:
-    return {
-        "id": row.id,
-        "asset_id": row.asset_id,
-        "valuation_date": row.valuation_date,
-        "value": _round_money(_coerce_money(row.value)),
-        "valuation_type": row.valuation_type,
-        "source": row.source,
-        "note": row.note,
-        "owner_role": row.owner_role,
-        "created_at": row.created_at,
-    }
-
-
-def _append_valuation(
-    db: Session,
-    asset: LedgerAsset,
-    valuation_date: date,
-    value: float,
-    valuation_type: str,
-    source: Optional[str],
-    note: Optional[str],
-) -> LedgerAssetValuation:
-    valuation = LedgerAssetValuation(
-        asset_id=asset.id,
-        valuation_date=valuation_date,
-        value=float(value),
-        valuation_type=valuation_type,
-        source=_normalize_text(source),
-        note=note,
-        owner_role=asset.owner_role,
-    )
-    db.add(valuation)
-    return valuation
 
 
 def list_assets(
@@ -359,7 +308,6 @@ def create_asset(db: Session, role: str, payload) -> dict[str, Any]:
         end_date=data.get("end_date"),
         purchase_price=_coerce_money(data.get("purchase_price")),
         extra_cost=_coerce_money(data.get("extra_cost")),
-        current_value=_coerce_money(data.get("current_value")),
         sale_price=_coerce_money(data.get("sale_price")),
         target_daily_cost=_coerce_money(data.get("target_daily_cost")),
         expected_use_days=data.get("expected_use_days"),
@@ -383,7 +331,7 @@ def update_asset(db: Session, role: str, asset_id: int, payload) -> dict[str, An
 
     text_fields = {"name", "asset_type", "category", "brand", "model", "serial_number", "location", "purchase_channel"}
     json_list_fields = {"tags", "images"}
-    money_fields = {"purchase_price", "extra_cost", "current_value", "sale_price", "target_daily_cost"}
+    money_fields = {"purchase_price", "extra_cost", "sale_price", "target_daily_cost"}
 
     for key, value in data.items():
         if key in {"name", "asset_type"}:
@@ -430,7 +378,6 @@ def add_asset_event(db: Session, role: str, asset_id: int, payload) -> dict[str,
         event_date=data["event_date"],
         title=str(data["title"]).strip(),
         amount=_coerce_money(data.get("amount")),
-        value_after=_coerce_money(data.get("value_after")),
         note=data.get("note"),
         metadata_json=encode_json_dict(data.get("metadata")),
         owner_role=asset.owner_role,
@@ -441,10 +388,6 @@ def add_asset_event(db: Session, role: str, asset_id: int, payload) -> dict[str,
     if event_type == "start_use":
         asset.start_use_date = row.event_date
         asset.status = "in_use"
-    elif event_type == "valuation":
-        if row.value_after is not None:
-            asset.current_value = float(row.value_after)
-            _append_valuation(db, asset, row.event_date, float(row.value_after), "manual", "event:valuation", row.note)
     elif event_type in {"repair", "maintenance", "accessory"}:
         if row.amount is not None:
             asset.extra_cost = float(asset.extra_cost or 0) + float(row.amount)
@@ -463,22 +406,16 @@ def add_asset_event(db: Session, role: str, asset_id: int, payload) -> dict[str,
         asset.end_date = row.event_date
         if row.amount is not None:
             asset.sale_price = float(row.amount)
-            asset.current_value = float(row.amount)
-            _append_valuation(db, asset, row.event_date, float(row.amount), "sale", "event:sell", row.note)
     elif event_type == "retire":
         asset.status = "retired"
         asset.end_date = row.event_date
     elif event_type == "dispose":
         asset.status = "disposed"
-        asset.current_value = 0.0
         asset.end_date = row.event_date
-        _append_valuation(db, asset, row.event_date, 0.0, "zero", "event:dispose", row.note)
     elif event_type == "lost":
         asset.status = "lost"
-        asset.current_value = 0.0
         asset.end_date = row.event_date
-        _append_valuation(db, asset, row.event_date, 0.0, "zero", "event:lost", row.note)
-    # note 事件仅新增事件，不回写资产主表。
+    # purchase / note 事件仅记录轨迹，不回写资产主表。
 
     db.commit()
     db.refresh(row)
@@ -488,40 +425,10 @@ def add_asset_event(db: Session, role: str, asset_id: int, payload) -> dict[str,
 def delete_asset_event(db: Session, role: str, asset_id: int, event_id: int) -> dict[str, Any]:
     asset = _get_asset_or_404(db, role, asset_id)
     row = _get_asset_event_or_404(db, asset, event_id)
-    # Phase 1B: 删除事件不回滚资产主表状态或成本，只删除事件记录本身。
+    # 删除事件只移除时间线记录，不自动回滚主表状态或成本。
     db.delete(row)
     db.commit()
     return {"ok": True, "id": event_id}
-
-
-def list_asset_valuations(db: Session, role: str, asset_id: int) -> dict[str, Any]:
-    asset = _get_asset_or_404(db, role, asset_id)
-    rows = (
-        db.query(LedgerAssetValuation)
-        .filter(LedgerAssetValuation.asset_id == asset.id, LedgerAssetValuation.owner_role == asset.owner_role)
-        .order_by(LedgerAssetValuation.valuation_date.desc(), LedgerAssetValuation.id.desc())
-        .all()
-    )
-    return {"items": [_asset_valuation_to_payload(row) for row in rows], "total": len(rows)}
-
-
-def add_asset_valuation(db: Session, role: str, asset_id: int, payload) -> dict[str, Any]:
-    asset = _get_asset_or_404(db, role, asset_id)
-    data = payload.model_dump()
-    row = LedgerAssetValuation(
-        asset_id=asset.id,
-        valuation_date=data["valuation_date"],
-        value=float(data["value"]),
-        valuation_type=data["valuation_type"],
-        source=_normalize_text(data.get("source")),
-        note=data.get("note"),
-        owner_role=asset.owner_role,
-    )
-    asset.current_value = float(row.value)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return _asset_valuation_to_payload(row)
 
 
 def get_asset_summary(db: Session, role: str) -> dict[str, Any]:
@@ -531,10 +438,11 @@ def get_asset_summary(db: Session, role: str) -> dict[str, Any]:
     category_breakdown_map: dict[str, dict[str, Any]] = {}
     top_daily_cost_assets: list[tuple[float, dict[str, Any]]] = []
     top_idle_assets: list[tuple[int, dict[str, Any]]] = []
+    top_extra_cost_assets: list[tuple[float, dict[str, Any]]] = []
 
     total_purchase_cost = 0.0
-    total_current_value = 0.0
-    total_net_consumption_cost = 0.0
+    total_extra_cost = 0.0
+    total_cost = 0.0
     total_realized_profit_loss = 0.0
     active_assets = 0
     idle_assets = 0
@@ -544,15 +452,15 @@ def get_asset_summary(db: Session, role: str) -> dict[str, Any]:
         metrics = calculate_asset_metrics(row)
         summary_payload = _asset_summary_payload(row)
 
-        total_cost = float(metrics.get("total_cost") or 0.0)
-        current_value = float(_current_value_for_metrics(row) or 0.0)
-        net_consumption_cost = metrics.get("net_consumption_cost")
-        profit_loss = metrics.get("profit_loss")
+        purchase_price = float(row.purchase_price or 0.0)
+        extra_cost = float(row.extra_cost or 0.0)
+        row_total_cost = float(metrics.get("total_cost") or 0.0)
+        profit_loss = float(metrics.get("profit_loss") or 0.0)
 
-        total_purchase_cost += total_cost
-        total_current_value += current_value
-        total_net_consumption_cost += float(net_consumption_cost or 0.0)
-        total_realized_profit_loss += float(profit_loss or 0.0)
+        total_purchase_cost += purchase_price
+        total_extra_cost += extra_cost
+        total_cost += row_total_cost
+        total_realized_profit_loss += profit_loss
 
         if row.status in ACTIVE_ASSET_STATUSES:
             active_assets += 1
@@ -566,17 +474,29 @@ def get_asset_summary(db: Session, role: str) -> dict[str, Any]:
         category_key = row.category or "未分类"
         bucket = category_breakdown_map.setdefault(
             category_key,
-            {"category": category_key, "count": 0, "total_purchase_cost": 0.0, "total_current_value": 0.0},
+            {
+                "category": category_key,
+                "count": 0,
+                "total_purchase_cost": 0.0,
+                "total_extra_cost": 0.0,
+                "total_cost": 0.0,
+            },
         )
         bucket["count"] += 1
-        bucket["total_purchase_cost"] += total_cost
-        bucket["total_current_value"] += current_value
+        bucket["total_purchase_cost"] += purchase_price
+        bucket["total_extra_cost"] += extra_cost
+        bucket["total_cost"] += row_total_cost
 
         cash_daily_cost = metrics.get("cash_daily_cost")
         if cash_daily_cost is not None:
             top_daily_cost_assets.append((float(cash_daily_cost), summary_payload))
+
         if row.status == "idle":
-            top_idle_assets.append((int(metrics.get("holding_days") or 0), summary_payload))
+            idle_score = int(metrics.get("holding_days") or 0)
+            top_idle_assets.append((idle_score, summary_payload))
+
+        if extra_cost > 0:
+            top_extra_cost_assets.append((extra_cost, summary_payload))
 
     status_breakdown = [
         {"status": status, "count": count}
@@ -587,12 +507,10 @@ def get_asset_summary(db: Session, role: str) -> dict[str, Any]:
             "category": key,
             "count": int(value["count"]),
             "total_purchase_cost": round(float(value["total_purchase_cost"]), 2),
-            "total_current_value": round(float(value["total_current_value"]), 2),
+            "total_extra_cost": round(float(value["total_extra_cost"]), 2),
+            "total_cost": round(float(value["total_cost"]), 2),
         }
-        for key, value in sorted(
-            category_breakdown_map.items(),
-            key=lambda item: (-float(item[1]["total_purchase_cost"]), item[0]),
-        )
+        for key, value in sorted(category_breakdown_map.items(), key=lambda item: (-float(item[1]["total_cost"]), item[0]))
     ]
 
     return {
@@ -601,11 +519,12 @@ def get_asset_summary(db: Session, role: str) -> dict[str, Any]:
         "idle_assets": idle_assets,
         "sold_assets": sold_assets,
         "total_purchase_cost": round(total_purchase_cost, 2),
-        "total_current_value": round(total_current_value, 2),
-        "total_net_consumption_cost": round(total_net_consumption_cost, 2),
+        "total_extra_cost": round(total_extra_cost, 2),
+        "total_cost": round(total_cost, 2),
         "total_realized_profit_loss": round(total_realized_profit_loss, 2),
         "status_breakdown": status_breakdown,
         "category_breakdown": category_breakdown,
         "top_daily_cost_assets": [payload for _, payload in sorted(top_daily_cost_assets, key=lambda item: item[0], reverse=True)[:5]],
         "top_idle_assets": [payload for _, payload in sorted(top_idle_assets, key=lambda item: item[0], reverse=True)[:5]],
+        "top_extra_cost_assets": [payload for _, payload in sorted(top_extra_cost_assets, key=lambda item: item[0], reverse=True)[:5]],
     }

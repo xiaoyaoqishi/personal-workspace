@@ -59,14 +59,14 @@
 - 导入时间口径统一为“年月日”（导入时不保留时分秒）。
 - 商户词典 `ledger_merchants`（规范名/别名/默认分类/命中次数）支持编辑，并展示最近关联样本。
 - 统一表格读取层支持 `csv/xls/xlsx`（包含 HTML table 风格 `.xls` 导出）。
-- 资产库页面 `/ledger/assets` 已支持仪表盘总览、分析筛选、新增、详情 Drawer、编辑、软删除、生命周期事件、估值记录、卖出复盘与时间线工作台。
+- 资产库页面 `/ledger/assets` 已支持资产长期记录、买入成本、附加成本、使用与闲置、生命周期事件、卖出复盘与日均成本分析，并统一收敛在单页面 Tabs 工作区内。
 - 当前 Ledger 页面包括：
   - 导入中心：`/ledger/imports`
   - 导入校对台：`/ledger/imports/:batchId/review`
   - 基础分析页：`/ledger/analytics`
   - 商户词典页：`/ledger/merchants`
   - 规则管理页：`/ledger/rules`（支持规则新增/编辑/删除，含命中次数与最近命中时间）
-  - 资产库页：`/ledger/assets`（在单页面 Tabs 内完成总览仪表盘、分析复盘、资产 CRUD、生命周期事件与估值记录闭环）
+  - 资产库页：`/ledger/assets`（在单页面 Tabs 内完成资产长期记录、买入成本、附加成本、使用与闲置、生命周期事件、卖出复盘与日均成本分析）
 - 关键接口：
   - `POST /api/ledger/import-batches`、`GET /api/ledger/import-batches`、`GET /api/ledger/import-batches/{id}`
   - `POST /api/ledger/import-batches/{id}/parse`、`/classify`、`/dedupe`、`/commit`

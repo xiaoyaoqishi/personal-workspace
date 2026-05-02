@@ -4,7 +4,6 @@ from models.knowledge import KnowledgeCategory, KnowledgeItem, KnowledgeItemNote
 from models.ledger import (
     LedgerAsset,
     LedgerAssetEvent,
-    LedgerAssetValuation,
     LedgerCategory,
     LedgerImportBatch,
     LedgerImportRow,
@@ -34,7 +33,6 @@ __all__ = [
     "KnowledgeItemTagLink",
     "LedgerAsset",
     "LedgerAssetEvent",
-    "LedgerAssetValuation",
     "LedgerCategory",
     "LedgerImportBatch",
     "LedgerImportRow",
