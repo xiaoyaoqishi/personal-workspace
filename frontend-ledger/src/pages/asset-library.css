@@ -18,31 +18,12 @@
 
 .asset-library-shell {
   width: 100%;
-  max-width: 1160px;
   margin: 0 auto;
-  padding: 0 20px 24px;
+  padding: 0 0 24px;
 }
 
 .asset-library-hero {
   margin-bottom: 12px;
-}
-
-.asset-library-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.asset-library-hero-title {
-  margin: 0 0 6px !important;
-}
-
-.asset-library-hero-subtitle {
-  margin: 0 !important;
-  max-width: 560px;
-  color: #556070;
 }
 
 .asset-library-quick-actions .ant-btn {
@@ -51,7 +32,7 @@
 }
 
 .asset-library-tabs-card > .ant-card-body {
-  padding: 8px 16px 16px;
+  padding: 8px 0 0;
 }
 
 .asset-library-tabs .ant-tabs-nav {

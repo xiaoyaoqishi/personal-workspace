@@ -209,6 +209,7 @@ def _asset_summary_payload(asset: LedgerAsset) -> dict[str, Any]:
         "brand": payload["brand"],
         "model": payload["model"],
         "location": payload["location"],
+        "purchase_channel": payload["purchase_channel"],
         "purchase_date": payload["purchase_date"],
         "start_use_date": payload["start_use_date"],
         "end_date": payload["end_date"],

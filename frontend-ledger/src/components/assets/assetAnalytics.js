@@ -77,23 +77,40 @@ export function buildAssetMetricsSnapshot(asset) {
 
 function buildAssetEntry(asset) {
   const metrics = buildAssetMetricsSnapshot(asset)
+  const assetType = asset?.asset_type || ''
+  const purchasePrice = pickFirstNumber(asset?.purchase_price, 0) ?? 0
+  const extraCost = pickFirstNumber(asset?.extra_cost, 0) ?? 0
+  const salePrice = pickFirstNumber(asset?.sale_price)
+
   return {
     id: asset?.id,
     name: asset?.name || '未命名资产',
     status: asset?.status || 'draft',
     category: asset?.category || '未分类',
-    assetType: asset?.asset_type || '',
-    purchasePrice: pickFirstNumber(asset?.purchase_price, 0) ?? 0,
-    extraCost: pickFirstNumber(asset?.extra_cost, 0) ?? 0,
-    salePrice: pickFirstNumber(asset?.sale_price),
+    assetType,
+    asset_type: assetType,
+    purchasePrice,
+    purchase_price: purchasePrice,
+    extraCost,
+    extra_cost: extraCost,
+    salePrice,
+    sale_price: salePrice,
     totalCost: metrics.total_cost,
+    total_cost: metrics.total_cost,
     cashDailyCost: metrics.cash_daily_cost,
+    cash_daily_cost: metrics.cash_daily_cost,
     realizedConsumptionCost: metrics.realized_consumption_cost,
+    realized_consumption_cost: metrics.realized_consumption_cost,
     realizedDailyCost: metrics.realized_daily_cost,
+    realized_daily_cost: metrics.realized_daily_cost,
     profitLoss: metrics.profit_loss,
+    profit_loss: metrics.profit_loss,
     holdingDays: metrics.holding_days,
+    holding_days: metrics.holding_days,
     useDays: metrics.use_days,
+    use_days: metrics.use_days,
     idleDays: metrics.idle_days,
+    idle_days: metrics.idle_days,
     purchaseDate: asset?.purchase_date || null,
     updatedAt: asset?.updated_at || null,
     includeInNetWorth: Boolean(asset?.include_in_net_worth),

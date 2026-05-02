@@ -36,10 +36,12 @@ import AssetDetailDrawer from '../components/assets/AssetDetailDrawer'
 import AssetEventsPanel from '../components/assets/AssetEventsPanel'
 import AssetForm, { buildAssetFormValues, getDefaultAssetFormValues } from '../components/assets/AssetForm'
 import { buildAssetMetricsSnapshot, computeAssetAnalytics } from '../components/assets/assetAnalytics'
+import PageHeader from '../components/PageHeader'
 import {
   ASSET_CHART_COLORS,
   ASSET_STATUS_CHART_COLORS,
   ASSET_STATUS_OPTIONS,
+  displayEmpty,
   formatDate,
   formatMoney,
   formatNumber,
@@ -461,6 +463,7 @@ export default function AssetsPage() {
     {
       title: '资产',
       key: 'name',
+      width: 180,
       render: (_, row) => (
         <Space direction="vertical" size={4}>
           <Button type="link" className="asset-library-rank-link" onClick={() => openAssetDetail(row.id)}>
@@ -475,8 +478,27 @@ export default function AssetsPage() {
       ),
     },
     {
+      title: '品牌',
+      dataIndex: 'brand',
+      width: 120,
+      render: (value) => displayEmpty(value),
+    },
+    {
+      title: '型号',
+      dataIndex: 'model',
+      width: 160,
+      render: (value) => displayEmpty(value),
+    },
+    {
+      title: '购买渠道',
+      dataIndex: 'purchase_channel',
+      width: 180,
+      render: (value) => displayEmpty(value),
+    },
+    {
       title: '成本',
       key: 'cost',
+      width: 180,
       render: (_, row) => {
         const metrics = buildAssetMetricsSnapshot(row)
         return (
@@ -490,6 +512,7 @@ export default function AssetsPage() {
     {
       title: '使用情况',
       key: 'usage',
+      width: 160,
       render: (_, row) => {
         const metrics = buildAssetMetricsSnapshot(row)
         return (
@@ -503,6 +526,7 @@ export default function AssetsPage() {
     {
       title: '卖出复盘',
       key: 'sale',
+      width: 160,
       render: (_, row) => {
         const metrics = buildAssetMetricsSnapshot(row)
         return (
@@ -545,43 +569,36 @@ export default function AssetsPage() {
     {
       title: '累计投入成本',
       value: formatMoney(summary?.total_cost ?? dashboardAnalytics.portfolioTotals.totalCost),
-      hint: '买入成本 + 附加成本',
       icon: <WalletOutlined />,
     },
     {
       title: '累计买入成本',
       value: formatMoney(summary?.total_purchase_cost ?? dashboardAnalytics.portfolioTotals.totalPurchaseCost),
-      hint: '所有资产买入成本汇总',
       icon: <DatabaseOutlined />,
     },
     {
       title: '累计附加成本',
       value: formatMoney(summary?.total_extra_cost ?? dashboardAnalytics.portfolioTotals.totalExtraCost),
-      hint: '维修、保养、配件等附加投入',
       icon: <PlusOutlined />,
     },
     {
       title: '使用中资产',
       value: formatNumber(summary?.active_assets ?? dashboardAnalytics.portfolioTotals.activeCount),
-      hint: '仅统计当前使用中的资产',
       icon: <UnorderedListOutlined />,
     },
     {
       title: '闲置资产',
       value: formatNumber(summary?.idle_assets ?? dashboardAnalytics.portfolioTotals.idleCount),
-      hint: '优先处理沉没成本',
       icon: <FieldTimeOutlined />,
     },
     {
       title: '已卖出资产',
       value: formatNumber(summary?.sold_assets ?? dashboardAnalytics.portfolioTotals.soldCount),
-      hint: '可回看卖出复盘结果',
       icon: <RiseOutlined />,
     },
     {
       title: '已卖出盈亏',
       value: formatMoney(summary?.total_realized_profit_loss ?? dashboardAnalytics.portfolioTotals.totalRealizedProfitLoss),
-      hint: '仅统计已卖出资产',
       icon: <RiseOutlined />,
     },
   ]
@@ -633,7 +650,7 @@ export default function AssetsPage() {
         />
 
         <AssetQuickList
-          title="高附加成本资产"
+          title="附加成本最高资产"
           items={summary?.top_extra_cost_assets?.length ? summary.top_extra_cost_assets : dashboardAnalytics.topExtraCostAssets.slice(0, 5)}
           emptyText="暂无附加成本较高的资产"
           onOpen={openAssetDetail}
@@ -740,14 +757,17 @@ export default function AssetsPage() {
 
       <div className="asset-library-overview-grid">
         <AssetQuickList
-          title="高附加成本资产"
+          title="附加成本最高资产"
           items={dashboardAnalytics.topExtraCostAssets}
           emptyText="暂无高附加成本资产"
           onOpen={openAssetDetail}
           metricRenderer={(item) => (
             <>
               <strong>{formatMoney(item.extra_cost)}</strong>
-              <Typography.Text type="secondary">占比 {item.metrics?.total_cost ? formatNumber((item.extra_cost / item.metrics.total_cost) * 100, 1) : '--'}%</Typography.Text>
+              <Typography.Text type="secondary">
+                买入 {formatMoney(item.purchase_price)}
+                {item.metrics?.total_cost ? ` · 占比 ${formatNumber((item.extra_cost / item.metrics.total_cost) * 100, 1)}%` : ''}
+              </Typography.Text>
             </>
           )}
         />
@@ -828,7 +848,7 @@ export default function AssetsPage() {
             dataSource={assets}
             columns={assetColumns}
             pagination={false}
-            scroll={{ x: 960 }}
+            scroll={{ x: 1320 }}
           />
         ) : (
           <Empty
@@ -875,30 +895,26 @@ export default function AssetsPage() {
     <div className="asset-library-page">
       <div className="asset-library-shell">
         <div className="asset-library-hero">
-          <div className="asset-library-header">
-            <div>
-              <Typography.Title level={2} className="asset-library-hero-title">
-                资产库
-              </Typography.Title>
-              <Typography.Paragraph className="asset-library-hero-subtitle">
-                记录资产从买入、使用到卖出的完整生命周期。
-              </Typography.Paragraph>
-            </div>
-            <Space size={[8, 8]} wrap className="asset-library-quick-actions">
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateDrawer}>
-                新增资产
-              </Button>
-              <Button icon={<FieldTimeOutlined />} onClick={handleLifecycleQuickAction}>
-                记录事件
-              </Button>
-              <Button icon={<UnorderedListOutlined />} onClick={handleOpenIdle}>
-                查看闲置
-              </Button>
-              <Button icon={<RiseOutlined />} onClick={() => setActiveTab('analysis')}>
-                卖出复盘
-              </Button>
-            </Space>
-          </div>
+          <PageHeader
+            title="资产库"
+            subtitle="记录资产从买入、使用到卖出的完整生命周期"
+            extra={
+              <Space size={[8, 8]} wrap className="asset-library-quick-actions">
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateDrawer}>
+                  新增资产
+                </Button>
+                <Button icon={<FieldTimeOutlined />} onClick={handleLifecycleQuickAction}>
+                  记录事件
+                </Button>
+                <Button icon={<UnorderedListOutlined />} onClick={handleOpenIdle}>
+                  查看闲置
+                </Button>
+                <Button icon={<RiseOutlined />} onClick={() => setActiveTab('analysis')}>
+                  卖出复盘
+                </Button>
+              </Space>
+            }
+          />
         </div>
 
         {summaryError ? <Alert type="error" showIcon message={summaryError} style={{ marginBottom: 16 }} /> : null}

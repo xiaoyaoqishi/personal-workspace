@@ -166,6 +166,7 @@ class LedgerAssetSummaryOut(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     location: Optional[str] = None
+    purchase_channel: Optional[str] = None
     purchase_date: Optional[date] = None
     start_use_date: Optional[date] = None
     end_date: Optional[date] = None

@@ -56,7 +56,9 @@ def test_ledger_assets_create_list_detail_update_soft_delete_flow(admin_login):
 
     listing = client.get("/api/ledger/assets")
     assert listing.status_code == 200
-    assert any(item["id"] == asset_id for item in listing.json()["items"])
+    listed_asset = next((item for item in listing.json()["items"] if item["id"] == asset_id), None)
+    assert listed_asset is not None
+    assert listed_asset["purchase_channel"] == "apple-store"
 
     detail = client.get(f"/api/ledger/assets/{asset_id}")
     assert detail.status_code == 200

@@ -43,16 +43,26 @@ function toDateString(value) {
   return nextValue.isValid() ? nextValue.format('YYYY-MM-DD') : null
 }
 
+function isSameDateValue(left, right) {
+  if (!left && !right) return true
+  if (!left || !right) return false
+  const leftDate = dayjs(left)
+  const rightDate = dayjs(right)
+  if (!leftDate.isValid() || !rightDate.isValid()) return false
+  return leftDate.isSame(rightDate, 'day')
+}
+
 function computePreview(values = {}) {
   const purchasePrice = toNumberOrNull(values.purchase_price) ?? 0
   const extraCost = toNumberOrNull(values.extra_cost) ?? 0
   const targetDailyCost = toNumberOrNull(values.target_daily_cost)
   const totalCost = purchasePrice + extraCost
+  const effectiveStartUseDate = values.start_use_date || values.purchase_date
 
   let useDays = null
   let cashDailyCost = null
-  if (values.start_use_date) {
-    const startDate = dayjs(values.start_use_date)
+  if (effectiveStartUseDate) {
+    const startDate = dayjs(effectiveStartUseDate)
     if (startDate.isValid()) {
       const diff = dayjs().startOf('day').diff(startDate.startOf('day'), 'day')
       useDays = diff >= 0 ? diff + 1 : 0
@@ -77,9 +87,7 @@ function computePreview(values = {}) {
 function hasAdvancedValues(values = {}) {
   return Boolean(
     (values.status && values.status !== 'in_use') ||
-      toStringOrNull(values.brand) ||
-      toStringOrNull(values.model) ||
-      toStringOrNull(values.purchase_channel) ||
+      (values.start_use_date && !isSameDateValue(values.start_use_date, values.purchase_date)) ||
       toNumberOrNull(values.extra_cost) !== null ||
       toNumberOrNull(values.target_daily_cost) !== null ||
       values.include_in_net_worth === false ||
@@ -167,7 +175,7 @@ export function buildAssetPayload(values) {
     target_daily_cost: toNumberOrNull(values.target_daily_cost),
     include_in_net_worth: values.include_in_net_worth !== false,
     purchase_date: toDateString(values.purchase_date),
-    start_use_date: toDateString(values.start_use_date),
+    start_use_date: toDateString(values.start_use_date || values.purchase_date),
     warranty_until: toDateString(values.warranty_until),
     expected_use_days: values.expected_use_days ?? null,
     location: toStringOrNull(values.location),
@@ -202,7 +210,7 @@ export default function AssetForm({
   const hasAdvancedInfo = useMemo(() => hasAdvancedValues(watchedValues || {}), [watchedValues])
   const hasPurchasePrice = toNumberOrNull(watchedValues?.purchase_price) !== null
   const hasExtraCost = toNumberOrNull(watchedValues?.extra_cost) !== null
-  const hasStartUseDate = Boolean(watchedValues?.start_use_date)
+  const hasEffectiveStartUseDate = Boolean(watchedValues?.start_use_date || watchedValues?.purchase_date)
 
   useEffect(() => {
     if (advancedInitializedRef.current) return
@@ -226,14 +234,8 @@ export default function AssetForm({
           <Form.Item label="状态" name="status">
             <Select options={ASSET_STATUS_OPTIONS} placeholder="默认使用中" />
           </Form.Item>
-          <Form.Item label="品牌" name="brand">
-            <Input placeholder="例如：Apple" />
-          </Form.Item>
-          <Form.Item label="型号" name="model">
-            <Input placeholder="例如：M3 Pro" />
-          </Form.Item>
-          <Form.Item label="购买渠道" name="purchase_channel">
-            <Input placeholder="例如：Apple Store / 京东自营" />
+          <Form.Item label="开始使用日期" name="start_use_date" extra="默认跟随购买日期，仅在晚于购买时修改">
+            <DatePicker style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label="附加成本" name="extra_cost">
             <InputNumber min={0} precision={2} placeholder="维修、配件或运费" style={{ width: '100%' }} />
@@ -286,7 +288,7 @@ export default function AssetForm({
                 <Typography.Title level={4} className="asset-library-section-title">
                   快速录入
                 </Typography.Title>
-                <Typography.Text type="secondary">先填写高频字段，创建后可继续补充事件、卖出和保修信息。</Typography.Text>
+                <Typography.Text type="secondary">先填写高频字段，开始使用日期默认等于购买日期，其他信息可后续补充。</Typography.Text>
               </div>
             </Flex>
 
@@ -306,6 +308,15 @@ export default function AssetForm({
               <Form.Item label="分类" name="category" extra="可稍后补充">
                 <Input placeholder="例如：办公设备 / 家电" />
               </Form.Item>
+              <Form.Item label="品牌" name="brand" extra="可稍后补充">
+                <Input placeholder="例如：Apple" />
+              </Form.Item>
+              <Form.Item label="型号" name="model" extra="可稍后补充">
+                <Input placeholder="例如：MacBook Pro 14 / M3 Pro" />
+              </Form.Item>
+              <Form.Item label="购买渠道" name="purchase_channel" extra="可稍后补充">
+                <Input placeholder="例如：Apple Store / 京东自营" />
+              </Form.Item>
               <Form.Item
                 label="买入成本"
                 name="purchase_price"
@@ -314,13 +325,10 @@ export default function AssetForm({
               >
                 <InputNumber min={0} precision={2} placeholder="0.00" style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item label="购买日期" name="purchase_date" extra="可稍后补充">
+              <Form.Item label="购买日期" name="purchase_date" extra="开始使用默认跟随此日期">
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item label="开始使用日期" name="start_use_date" extra="用于计算日均成本">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-              <Form.Item label="标签" name="tags" extra="输入后回车，可录入多个标签" className="asset-library-form-item-span-2">
+              <Form.Item label="标签" name="tags" extra="输入后回车，可录入多个标签" className="asset-library-form-item-span-3">
                 <Select
                   mode="tags"
                   maxTagCount="responsive"
@@ -355,7 +363,7 @@ export default function AssetForm({
                 />
                 <PreviewValue
                   label="粗略现金日均成本"
-                  value={hasPurchasePrice && hasStartUseDate ? formatMoney(preview.cashDailyCost) : '填写买入成本和开始使用日期后显示'}
+                  value={hasPurchasePrice && hasEffectiveStartUseDate ? formatMoney(preview.cashDailyCost) : '填写买入成本和购买日期后显示'}
                 />
               </div>
 
@@ -369,9 +377,9 @@ export default function AssetForm({
                 </div>
               ) : null}
 
-              {!hasPurchasePrice || !hasStartUseDate ? (
+              {!hasPurchasePrice || !hasEffectiveStartUseDate ? (
                 <Typography.Text type="secondary" className="asset-library-preview-note">
-                  填写买入成本和开始使用日期后显示日均成本。
+                  填写买入成本和购买日期后显示日均成本。
                 </Typography.Text>
               ) : (
                 <Typography.Text type="secondary" className="asset-library-preview-note">
