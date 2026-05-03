@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import dayjs from 'dayjs'
 import { Alert, Button, DatePicker, Flex, Form, Input, InputNumber, Select, Space, Typography } from 'antd'
-import { ASSET_EVENT_TYPE_OPTIONS, getAssetEventHint, getAssetEventTypeLabel } from './assetConstants'
+import { ASSET_EVENT_TYPE_OPTIONS, getAssetEventHint, getAssetEventTypeLabel, shanghaiNow } from './assetConstants'
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined || value === '') return null
@@ -24,7 +24,7 @@ function toTextOrNull(value) {
 export function getDefaultAssetEventFormValues() {
   return {
     event_type: 'note',
-    event_date: dayjs(),
+    event_date: shanghaiNow(),
     title: '',
     amount: null,
     note: '',

@@ -1,4 +1,11 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const CHINA_TIMEZONE = 'Asia/Shanghai'
 
 export const ASSET_STATUS_LABELS = {
   draft: '草稿',
@@ -155,7 +162,7 @@ export function formatPercent(value) {
 
 export function formatDate(value) {
   if (!value) return EMPTY_VALUE
-  const date = dayjs(value)
+  const date = toShanghaiDayjs(value)
   if (!date.isValid()) {
     return String(value)
   }
@@ -164,11 +171,30 @@ export function formatDate(value) {
 
 export function formatDateTime(value) {
   if (!value) return EMPTY_VALUE
-  const date = dayjs(value)
+  const date = toShanghaiDayjs(value)
   if (!date.isValid()) {
     return String(value)
   }
   return date.format('YYYY-MM-DD HH:mm')
+}
+
+function hasExplicitTimezone(value) {
+  if (typeof value !== 'string') return false
+  return /([zZ]|[+-]\d{2}:?\d{2})$/.test(value.trim())
+}
+
+export function toShanghaiDayjs(value) {
+  if (value === null || value === undefined || value === '') {
+    return dayjs('')
+  }
+  if (hasExplicitTimezone(value)) {
+    return dayjs(value).tz(CHINA_TIMEZONE)
+  }
+  return dayjs.tz(value, CHINA_TIMEZONE)
+}
+
+export function shanghaiNow() {
+  return dayjs().tz(CHINA_TIMEZONE)
 }
 
 export function formatNumber(value, digits = 0) {

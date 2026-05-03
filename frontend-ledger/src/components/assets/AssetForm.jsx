@@ -15,7 +15,7 @@ import {
   Switch,
   Typography,
 } from 'antd'
-import { ASSET_STATUS_OPTIONS, ASSET_TYPE_OPTIONS, formatMoney, formatPercent } from './assetConstants'
+import { ASSET_STATUS_OPTIONS, ASSET_TYPE_OPTIONS, formatMoney, formatPercent, shanghaiNow } from './assetConstants'
 
 const DEFAULT_ASSET_TYPE = 'electronics'
 
@@ -64,7 +64,7 @@ function computePreview(values = {}) {
   if (effectiveStartUseDate) {
     const startDate = dayjs(effectiveStartUseDate)
     if (startDate.isValid()) {
-      const diff = dayjs().startOf('day').diff(startDate.startOf('day'), 'day')
+      const diff = shanghaiNow().startOf('day').diff(startDate.startOf('day'), 'day')
       useDays = diff >= 0 ? diff + 1 : 0
       cashDailyCost = useDays > 0 ? totalCost / useDays : null
     }

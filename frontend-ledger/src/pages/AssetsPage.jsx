@@ -484,10 +484,10 @@ export default function AssetsPage() {
       render: (value) => displayEmpty(value),
     },
     {
-      title: '型号',
-      dataIndex: 'model',
-      width: 160,
-      render: (value) => displayEmpty(value),
+      title: '购买时间',
+      dataIndex: 'purchase_date',
+      width: 130,
+      render: (value) => formatDate(value),
     },
     {
       title: '购买渠道',
@@ -540,7 +540,8 @@ export default function AssetsPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 220,
+      width: 170,
+      fixed: 'right',
       render: (_, row) => (
         <Space size={8} wrap>
           <Button size="small" icon={<EyeOutlined />} onClick={() => openAssetDetail(row.id)}>
@@ -848,7 +849,7 @@ export default function AssetsPage() {
             dataSource={assets}
             columns={assetColumns}
             pagination={false}
-            scroll={{ x: 1320 }}
+            scroll={{ x: 1260 }}
           />
         ) : (
           <Empty
