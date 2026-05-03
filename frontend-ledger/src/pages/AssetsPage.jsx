@@ -484,6 +484,12 @@ export default function AssetsPage() {
       render: (value) => displayEmpty(value),
     },
     {
+      title: '型号',
+      dataIndex: 'model',
+      width: 140,
+      render: (value) => displayEmpty(value),
+    },
+    {
       title: '购买时间',
       dataIndex: 'purchase_date',
       width: 130,
@@ -492,7 +498,7 @@ export default function AssetsPage() {
     {
       title: '购买渠道',
       dataIndex: 'purchase_channel',
-      width: 180,
+      width: 120,
       render: (value) => displayEmpty(value),
     },
     {
@@ -849,7 +855,7 @@ export default function AssetsPage() {
             dataSource={assets}
             columns={assetColumns}
             pagination={false}
-            scroll={{ x: 1260 }}
+            scroll={{ x: 1380 }}
           />
         ) : (
           <Empty
