@@ -272,7 +272,7 @@ def auth_login(body: LoginBody, response: Response, request: Request):
             db.rollback()
     finally:
         db.close()
-    cookie_secure = bool(COOKIE_SECURE and request.url.scheme == "https")
+    cookie_secure = bool(COOKIE_SECURE)
     response.set_cookie(
         AUTH_COOKIE,
         token,
