@@ -55,6 +55,8 @@ def test_ledger_router_public_handlers_have_backing_services():
         "get_top_merchants",
         "get_monthly_trend",
         "get_unrecognized_breakdown",
+        "get_daily_heatmap",
+        "get_category_detail",
     }:
         assert hasattr(analytics_service, name), f"analytics_service missing handler: {name}"
 
@@ -81,10 +83,14 @@ def test_ledger_router_public_routes_match_current_canonical_handlers():
         "commit_import_batch",
         "list_merchants",
         "create_merchant",
+        "merge_merchants",
         "update_merchant",
+        "delete_merchant",
         "list_rules",
         "create_rule",
+        "rule_dry_run",
         "update_rule",
+        "toggle_rule",
         "delete_rule",
         "analytics_summary",
         "analytics_category_breakdown",
@@ -92,6 +98,8 @@ def test_ledger_router_public_routes_match_current_canonical_handlers():
         "analytics_top_merchants",
         "analytics_monthly_trend",
         "analytics_unrecognized_breakdown",
+        "analytics_daily_heatmap",
+        "analytics_category_detail",
     }
 
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -446,7 +446,33 @@ def list_import_batches(db: Session, role: str) -> dict[str, Any]:
     q = db.query(LedgerImportBatch)
     q = apply_owner_scope(q, LedgerImportBatch, role, owner_role=owner_role)
     rows = q.order_by(LedgerImportBatch.id.desc()).all()
-    return {"items": [_batch_to_item(x) for x in rows], "total": len(rows)}
+
+    batch_ids = [x.id for x in rows]
+    status_counts: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    if batch_ids:
+        agg = (
+            db.query(
+                LedgerImportRow.batch_id,
+                LedgerImportRow.review_status,
+                func.count(LedgerImportRow.id).label("cnt"),
+            )
+            .filter(LedgerImportRow.batch_id.in_(batch_ids))
+            .group_by(LedgerImportRow.batch_id, LedgerImportRow.review_status)
+            .all()
+        )
+        for batch_id, review_status, cnt in agg:
+            status_counts[int(batch_id)][str(review_status)] = int(cnt)
+
+    items: list[dict[str, Any]] = []
+    for x in rows:
+        item = _batch_to_item(x)
+        sc = status_counts[int(x.id)]
+        item["committable_count"] = sum(sc.get(s, 0) for s in COMMIT_ELIGIBLE_REVIEW_STATUSES)
+        item["pending_count"] = sc.get(PENDING_REVIEW_STATUS, 0)
+        item["duplicate_count"] = sc.get(DUPLICATE_REVIEW_STATUS, 0)
+        items.append(item)
+
+    return {"items": items, "total": len(items)}
 
 
 def get_import_batch(db: Session, role: str, batch_id: int) -> dict[str, Any]:
@@ -790,6 +816,34 @@ def review_bulk_confirm(db: Session, role: str, batch_id: int, payload) -> dict[
         row.review_status = CONFIRMED_REVIEW_STATUS
         row.review_note = (row.review_note or "") + ("; " if row.review_note else "") + "人工确认"
         updated += 1
+
+    if updated > 0:
+        existing_merchants = db.query(LedgerMerchant).filter(
+            LedgerMerchant.owner_role == batch.owner_role,
+            LedgerMerchant.is_deleted == False,  # noqa: E712
+        ).all()
+        confirmed_row_ids = {int(row.id) for row in rows if row.review_status == CONFIRMED_REVIEW_STATUS}
+        touched = upsert_merchant_from_rows(
+            batch.owner_role,
+            rows,
+            existing_merchants,
+            counted_row_ids=set(),
+            sync_row_ids=confirmed_row_ids,
+            allowed_statuses={CONFIRMED_REVIEW_STATUS},
+        )
+        for merchant in touched:
+            db.add(merchant)
+        db.flush()
+
+        merchant_id_by_name = {
+            merchant.canonical_name: merchant.id
+            for merchant in existing_merchants + touched
+            if merchant.canonical_name
+        }
+        for row in rows:
+            canonical = (row.merchant_normalized or row.merchant_raw or "").strip()
+            if canonical and merchant_id_by_name.get(canonical):
+                row.merchant_id = merchant_id_by_name[canonical]
     _refresh_batch_metrics(db, batch)
     db.commit()
     return {"updated_count": updated}

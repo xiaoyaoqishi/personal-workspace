@@ -1,342 +1,320 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert,
   Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
   Popconfirm,
   Select,
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
+  Tooltip,
+  Typography,
   message,
+  Input,
 } from 'antd'
-import { createRule, deleteRule, listRules, updateRule } from '../api/ledger'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
+import { createRule, deleteRule, listCategories, listRules, toggleRule, updateRule } from '../api/ledger'
+import EmptyBlock from '../components/EmptyBlock'
 import PageHeader from '../components/PageHeader'
+import RuleDryRunDrawer from '../components/rules/RuleDryRunDrawer'
+import RuleStatsCards from '../components/rules/RuleStatsCards'
+import RuleWizard from '../components/rules/RuleWizard'
+import SkeletonCard from '../components/SkeletonCard'
 
-const RULE_TYPE_OPTIONS = [
-  { label: '来源识别', value: 'source' },
-  { label: '商户归一', value: 'merchant' },
-  { label: '分类', value: 'category' },
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
+
+const { Text } = Typography
+
+const TAB_ITEMS = [
+  { key: 'all', label: '全部' },
+  { key: 'source', label: '来源识别' },
+  { key: 'merchant', label: '商户归一' },
+  { key: 'category', label: '分类规则' },
 ]
 
-const MATCH_MODE_OPTIONS = [
-  { label: '包含', value: 'contains' },
-  { label: '前缀', value: 'prefix' },
-  { label: '完全匹配', value: 'exact' },
-  { label: '正则', value: 'regex' },
-]
-
-const RULE_FORM_HELP = [
-  { key: '规则类型', text: '决定规则作用：来源识别用于补全来源信息，商户归一用于统一商户名，分类用于自动落分类。通常先建商户归一，再建分类。' },
-  { key: '优先级', text: '数字越小越先执行。建议：通用规则用 100+，强约束规则用 1-50。' },
-  { key: '启用', text: '关闭后规则保留但不生效。建议先关闭调试，再开启上线。' },
-  { key: '置信度', text: '表示该规则结果可信度，范围 0-1。建议常规填 0.7-0.95。' },
-  { key: '匹配方式', text: '包含适合关键词；前缀适合固定开头；完全匹配最严格；正则适合复杂模式。' },
-  { key: '匹配文本', text: '要匹配的关键内容。建议先用短关键词验证，再逐步加长。' },
-  { key: '来源条件', text: '限制来源渠道（如微信、支付宝）。留空表示不限。' },
-  { key: '平台条件', text: '限制交易平台（如美团、拼多多）。留空表示不限。' },
-  { key: '方向条件', text: '限制收入/支出方向。留空表示不限制。' },
-  { key: '金额下限', text: '匹配金额最小值。可用于屏蔽小额噪声。' },
-  { key: '金额上限', text: '匹配金额最大值。与金额下限组合形成区间。' },
-  { key: '目标平台', text: '规则命中后回填的平台名称。通常用于来源识别规则。' },
-  { key: '目标商户', text: '规则命中后统一成的商户名。通常用于商户归一规则。' },
-  { key: '目标交易类型', text: '规则命中后设置的交易类型（例如支出、转账）。留空则不改。' },
-  { key: '目标场景', text: '规则命中后设置的消费场景（如餐饮、购物）。如果方向不明确，前端不会暗示系统自动把新分类建成 expense。' },
-  { key: '目标分类编号', text: '规则命中后写入的分类编号。建议与分类管理中的编号保持一致。' },
-  { key: '目标子分类编号', text: '可选。用于更细颗粒度分类。' },
-  { key: '说明', text: '给规则写备注，建议写“规则目的 + 适用范围”。' },
-]
-
-function ruleTypeText(v) {
-  if (v === 'source') return '来源识别'
-  if (v === 'merchant') return '商户归一'
-  if (v === 'category') return '分类'
-  return v || '-'
+const RULE_TYPE_COLOR = {
+  source: 'blue',
+  merchant: 'green',
+  category: 'purple',
+  combo: 'orange',
 }
 
-function matchModeText(v) {
-  if (v === 'contains') return '包含'
-  if (v === 'prefix') return '前缀'
-  if (v === 'exact') return '完全匹配'
-  if (v === 'regex') return '正则'
-  return v || '-'
+function ruleTypeLabel(v) {
+  const map = { source: '来源识别', merchant: '商户归一', category: '分类规则', combo: '商户+分类' }
+  return map[v] || v || '-'
 }
 
-function buildTargetSummary(row) {
+function matchModeLabel(v) {
+  const map = { contains: '包含', prefix: '前缀', exact: '完全匹配', regex: '正则' }
+  return map[v] || v || '-'
+}
+
+function buildTargetSummary(row, categories) {
+  const catMap = {}
+  ;(categories || []).forEach((c) => { catMap[c.id] = c.name })
+
   if (row.rule_type === 'source') {
     return [row.target_platform, row.target_txn_kind, row.target_scene].filter(Boolean).join(' / ') || '-'
   }
   if (row.rule_type === 'merchant') {
     return row.target_merchant || '-'
   }
-  return [row.target_scene, row.target_category_id ? `分类#${row.target_category_id}` : null].filter(Boolean).join(' / ') || '-'
+  const parts = []
+  if (row.target_merchant) parts.push(row.target_merchant)
+  if (row.target_category_id) parts.push(catMap[row.target_category_id] || `分类#${row.target_category_id}`)
+  if (row.target_subcategory_id) parts.push(catMap[row.target_subcategory_id] || `子分类#${row.target_subcategory_id}`)
+  return parts.join(' / ') || row.target_scene || '-'
 }
 
 function formatTime(v) {
   if (!v) return '-'
-  const d = new Date(v)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleString('zh-CN', { hour12: false })
+  const d = dayjs(v)
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-'
 }
 
 export default function Rules() {
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState([])
+  const [categories, setCategories] = useState([])
   const [keyword, setKeyword] = useState('')
-  const [ruleTypeFilter, setRuleTypeFilter] = useState('all')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [form] = Form.useForm()
+  const [activeTab, setActiveTab] = useState('all')
+
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardInitial, setWizardInitial] = useState(null)
+  const [wizardLoading, setWizardLoading] = useState(false)
+
+  const [dryRunDrawer, setDryRunDrawer] = useState({ open: false, params: null })
 
   const load = async () => {
     setLoading(true)
     try {
-      const payload = await listRules()
-      setRows(Array.isArray(payload?.items) ? payload.items : [])
+      const [rRes, cRes] = await Promise.all([listRules(), listCategories()])
+      setRows(Array.isArray(rRes?.items) ? rRes.items : [])
+      setCategories(Array.isArray(cRes?.items) ? cRes.items : [])
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
-  const filteredRows = useMemo(() => {
+  const tabRules = useMemo(() => {
+    return activeTab === 'all' ? rows : rows.filter((r) => r.rule_type === activeTab)
+  }, [rows, activeTab])
+
+  const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase()
-    return rows.filter((x) => {
-      if (ruleTypeFilter !== 'all' && x.rule_type !== ruleTypeFilter) return false
-      if (!kw) return true
-      const text = [x.pattern, x.explain_text, x.target_merchant, x.target_scene].filter(Boolean).join(' ').toLowerCase()
+    if (!kw) return tabRules
+    return tabRules.filter((r) => {
+      const text = [r.pattern, r.explain_text, r.target_merchant, r.target_scene].filter(Boolean).join(' ').toLowerCase()
       return text.includes(kw)
     })
-  }, [rows, keyword, ruleTypeFilter])
+  }, [tabRules, keyword])
 
-  const openCreate = () => {
-    setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({
-      rule_type: 'category',
-      priority: 100,
-      enabled: true,
-      match_mode: 'contains',
-      confidence_score: 0.7,
-    })
-    setModalOpen(true)
-  }
-
-  const openEdit = (row) => {
-    setEditing(row)
-    form.setFieldsValue({
-      rule_type: row.rule_type,
-      priority: row.priority,
-      enabled: row.enabled,
-      match_mode: row.match_mode,
-      pattern: row.pattern,
-      source_channel_condition: row.source_channel_condition,
-      platform_condition: row.platform_condition,
-      direction_condition: row.direction_condition,
-      amount_min: row.amount_min,
-      amount_max: row.amount_max,
-      target_platform: row.target_platform,
-      target_merchant: row.target_merchant,
-      target_txn_kind: row.target_txn_kind,
-      target_scene: row.target_scene,
-      target_category_id: row.target_category_id,
-      target_subcategory_id: row.target_subcategory_id,
-      explain_text: row.explain_text,
-      confidence_score: row.confidence_score,
-    })
-    setModalOpen(true)
-  }
-
-  const submit = async () => {
-    const v = await form.validateFields()
-    setSubmitting(true)
+  const handleToggle = async (row, enabled) => {
     try {
-      if (editing?.id) {
-        await updateRule(editing.id, v)
+      await toggleRule(row.id, { enabled })
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, enabled } : r)))
+    } catch {
+      message.error('切换失败')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteRule(id)
+      message.success('规则已删除')
+      await load()
+    } catch {
+      message.error('删除失败')
+    }
+  }
+
+  const handleWizardOk = async (values) => {
+    setWizardLoading(true)
+    try {
+      if (wizardInitial?.id) {
+        await updateRule(wizardInitial.id, values)
         message.success('规则已更新')
       } else {
-        await createRule(v)
-        message.success('规则已新增')
+        await createRule(values)
+        message.success('规则已新建')
       }
-      setModalOpen(false)
+      setWizardOpen(false)
+      setWizardInitial(null)
       await load()
     } finally {
-      setSubmitting(false)
+      setWizardLoading(false)
     }
+  }
+
+  const openCreate = () => { setWizardInitial(null); setWizardOpen(true) }
+  const openEdit = (row) => { setWizardInitial(row); setWizardOpen(true) }
+  const openCopy = (row) => { setWizardInitial({ ...row, id: undefined }); setWizardOpen(true) }
+  const openDryRun = (row) => {
+    setDryRunDrawer({
+      open: true,
+      params: {
+        rule_type: row.rule_type,
+        match_mode: row.match_mode,
+        pattern: row.pattern,
+        source_channel_condition: row.source_channel_condition,
+        platform_condition: row.platform_condition,
+        direction_condition: row.direction_condition,
+        amount_min: row.amount_min,
+        amount_max: row.amount_max,
+      },
+    })
+  }
+
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 60, render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</span> },
+    {
+      title: '类型',
+      dataIndex: 'rule_type',
+      width: 100,
+      render: (v) => <Tag color={RULE_TYPE_COLOR[v] || 'default'}>{ruleTypeLabel(v)}</Tag>,
+    },
+    {
+      title: '启用',
+      dataIndex: 'enabled',
+      width: 72,
+      render: (v, row) => (
+        <Switch
+          size="small"
+          checked={v}
+          onChange={(checked) => handleToggle(row, checked)}
+        />
+      ),
+    },
+    {
+      title: '优先级',
+      dataIndex: 'priority',
+      width: 80,
+      render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</span>,
+    },
+    {
+      title: '匹配方式 / 文本',
+      key: 'match',
+      ellipsis: true,
+      render: (_, row) => (
+        <span>
+          <Tag bordered={false}>{matchModeLabel(row.match_mode)}</Tag>
+          <Text code style={{ fontSize: 12 }}>{row.pattern}</Text>
+        </span>
+      ),
+    },
+    {
+      title: '目标结果',
+      key: 'target',
+      width: 200,
+      ellipsis: true,
+      render: (_, row) => buildTargetSummary(row, categories),
+    },
+    {
+      title: '命中次数',
+      dataIndex: 'hit_count',
+      width: 90,
+      render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v || 0}</span>,
+    },
+    {
+      title: '最近命中',
+      dataIndex: 'last_hit_at',
+      width: 140,
+      render: (v) => formatTime(v),
+    },
+    {
+      title: '操作',
+      key: 'op',
+      width: 200,
+      render: (_, row) => (
+        <Space size={2}>
+          <Button type="link" size="small" onClick={() => openDryRun(row)}>试跑</Button>
+          <Button type="link" size="small" onClick={() => openEdit(row)}>编辑</Button>
+          <Button type="link" size="small" onClick={() => openCopy(row)}>复制</Button>
+          <Popconfirm
+            title="确认删除该规则？"
+            okText="删除"
+            cancelText="取消"
+            onConfirm={() => handleDelete(row.id)}
+          >
+            <Button type="link" size="small" danger>删除</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  if (loading && rows.length === 0) {
+    return (
+      <div className="page-section">
+        <SkeletonCard rows={6} />
+      </div>
+    )
   }
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={12}>
       <PageHeader
         title="规则管理"
-        subtitle="管理来源识别、商户归一、分类规则（支持新增/编辑/删除）"
-        extra={<Button type="primary" onClick={openCreate}>新增规则</Button>}
+        extra={
+          <Button type="primary" onClick={openCreate}>新建规则</Button>
+        }
       />
 
-      <div className="filter-bar">
-        <Space wrap>
-          <Input
-            allowClear
-            placeholder="搜索匹配文本 / 说明 / 目标"
-            style={{ width: 280 }}
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          <Select
-            style={{ width: 170 }}
-            value={ruleTypeFilter}
-            onChange={setRuleTypeFilter}
-            options={[{ label: '全部类型', value: 'all' }, ...RULE_TYPE_OPTIONS]}
-          />
-          <Button onClick={load} loading={loading}>刷新</Button>
-        </Space>
+      <RuleStatsCards rules={rows} />
+
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={TAB_ITEMS}
+        style={{ marginBottom: 0 }}
+      />
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <Input
+          allowClear
+          placeholder="搜索匹配文本 / 说明 / 目标"
+          style={{ width: 280 }}
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+        />
+        <Button onClick={load} loading={loading}>刷新</Button>
       </div>
 
-      <Table
-        rowKey="id"
-        loading={loading}
-        dataSource={filteredRows}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
-        columns={[
-          { title: '编号', dataIndex: 'id', width: 70 },
-          {
-            title: '规则类型',
-            dataIndex: 'rule_type',
-            width: 110,
-            render: (v) => <Tag color={v === 'source' ? 'blue' : v === 'merchant' ? 'green' : 'purple'}>{ruleTypeText(v)}</Tag>,
-          },
-          { title: '优先级', dataIndex: 'priority', width: 90 },
-          { title: '是否启用', dataIndex: 'enabled', width: 90, render: (v) => (v ? '是' : '否') },
-          { title: '匹配方式', dataIndex: 'match_mode', width: 100, render: (v) => matchModeText(v) },
-          { title: '匹配文本', dataIndex: 'pattern', ellipsis: true },
-          { title: '目标结果', key: 'target', width: 220, render: (_, row) => buildTargetSummary(row) },
-          { title: '命中次数', dataIndex: 'hit_count', width: 95, render: (v) => Number(v || 0) },
-          { title: '最近命中时间', dataIndex: 'last_hit_at', width: 170, render: (v) => formatTime(v) },
-          { title: '说明', dataIndex: 'explain_text', ellipsis: true },
-          {
-            title: '操作',
-            key: 'op',
-            width: 180,
-            render: (_, row) => (
-              <Space>
-                <Button type="link" onClick={() => openEdit(row)}>编辑</Button>
-                <Popconfirm
-                  title="确认删除该规则？"
-                  okText="删除"
-                  cancelText="取消"
-                  onConfirm={async () => {
-                    await deleteRule(row.id)
-                    message.success('规则已删除')
-                    await load()
-                  }}
-                >
-                  <Button type="link" danger>删除</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
+      {!loading && rows.length === 0 ? (
+        <EmptyBlock description="还没有规则" actionText="新建第一条规则" onAction={openCreate} />
+      ) : (
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={filtered}
+          columns={columns}
+          pagination={{ pageSize: 20, showSizeChanger: false }}
+          scroll={{ x: 1100 }}
+        />
+      )}
+
+      {wizardOpen && (
+        <RuleWizard
+          open={wizardOpen}
+          initialValues={wizardInitial}
+          categories={categories}
+          onOk={handleWizardOk}
+          onCancel={() => { setWizardOpen(false); setWizardInitial(null) }}
+          confirmLoading={wizardLoading}
+        />
+      )}
+
+      <RuleDryRunDrawer
+        open={dryRunDrawer.open}
+        ruleParams={dryRunDrawer.params}
+        onClose={() => setDryRunDrawer({ open: false, params: null })}
       />
-
-      <Modal
-        title={editing ? `编辑规则 #${editing.id}` : '新增规则'}
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={submit}
-        confirmLoading={submitting}
-        width={880}
-        destroyOnClose
-      >
-        <Alert
-          style={{ marginBottom: 12 }}
-          type="info"
-          showIcon
-          message="填写建议"
-          description={
-            <div>
-              {RULE_FORM_HELP.map((item) => (
-                <div key={item.key}><strong>{item.key}：</strong>{item.text}</div>
-              ))}
-            </div>
-          }
-        />
-        <Alert
-          style={{ marginBottom: 12 }}
-          type="warning"
-          showIcon
-          message="如果规则命中的方向不明确，后端不会把新分类自动创建成支出分类；请明确填写方向条件或保留人工确认。"
-        />
-        <Form form={form} layout="vertical">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(160px, 1fr))', gap: 12 }}>
-            <Form.Item label="规则类型" name="rule_type" rules={[{ required: true, message: '请选择规则类型' }]}> 
-              <Select options={RULE_TYPE_OPTIONS} />
-            </Form.Item>
-            <Form.Item label="优先级" name="priority" rules={[{ required: true, message: '请输入优先级' }]}> 
-              <InputNumber min={0} max={9999} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item label="启用" name="enabled" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item label="置信度" name="confidence_score">
-              <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item label="匹配方式" name="match_mode" rules={[{ required: true, message: '请选择匹配方式' }]}> 
-              <Select options={MATCH_MODE_OPTIONS} />
-            </Form.Item>
-            <Form.Item label="匹配文本" name="pattern" rules={[{ required: true, message: '请输入匹配文本' }]}> 
-              <Input />
-            </Form.Item>
-            <Form.Item label="来源条件" name="source_channel_condition">
-              <Input placeholder="例如：微信" />
-            </Form.Item>
-            <Form.Item label="平台条件" name="platform_condition">
-              <Input placeholder="例如：美团" />
-            </Form.Item>
-
-            <Form.Item label="方向条件" name="direction_condition">
-              <Input placeholder="收入 或 支出" />
-            </Form.Item>
-            <Form.Item label="金额下限" name="amount_min">
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item label="金额上限" name="amount_max">
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item label="目标平台" name="target_platform">
-              <Input placeholder="例如：微信" />
-            </Form.Item>
-
-            <Form.Item label="目标商户" name="target_merchant">
-              <Input />
-            </Form.Item>
-            <Form.Item label="目标交易类型" name="target_txn_kind">
-              <Input placeholder="例如：支出" />
-            </Form.Item>
-            <Form.Item label="目标场景" name="target_scene">
-              <Input placeholder="例如：餐饮" />
-            </Form.Item>
-            <Form.Item label="目标分类编号" name="target_category_id">
-              <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item label="目标子分类编号" name="target_subcategory_id">
-              <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
-          </div>
-          <Form.Item label="说明" name="explain_text">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-        </Form>
-      </Modal>
     </Space>
   )
 }

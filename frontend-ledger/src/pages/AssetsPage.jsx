@@ -753,10 +753,10 @@ export default function AssetsPage() {
           {byTypeData.length ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={byTypeData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis yAxisId="cost" orientation="right" tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                <YAxis yAxisId="cost" orientation="right" tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
                 <Tooltip formatter={(v, name) => name === '件数' ? `${v} 件` : formatMoney(v)} />
                 <Bar yAxisId="count" dataKey="count" name="件数" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
                 <Bar yAxisId="cost" dataKey="avgCost" name="平均成本" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={18} />
@@ -772,9 +772,9 @@ export default function AssetsPage() {
         {byYearData.length ? (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={byYearData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="year" tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+              <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'var(--lk-color-text-muted)' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
               <Tooltip formatter={(v) => [`${v} 件`, '购入数量']} />
               <Bar dataKey="count" name="购入数量" fill="#06b6d4" radius={[4, 4, 0, 0]}>
                 {byYearData.map((entry, idx) => (
@@ -824,7 +824,7 @@ export default function AssetsPage() {
                   <div className="al-rank-row" key={item.id}>
                     <div className="al-rank-header">
                       <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>{item.name}</button>
-                      <span className="al-rank-value" style={{ color: item.ratio > 30 ? '#ef4444' : '#1e293b' }}>{item.ratio}%</span>
+                      <span className="al-rank-value" style={{ color: item.ratio > 30 ? '#ef4444' : 'var(--lk-color-text)' }}>{item.ratio}%</span>
                     </div>
                     <div className="al-rank-bar-bg">
                       <div className="al-rank-bar-fill" style={{ width: `${Math.round((item.ratio / maxRatio) * 100)}%`, background: item.ratio > 30 ? '#ef4444' : '#8b5cf6' }} />
@@ -847,8 +847,8 @@ export default function AssetsPage() {
           {soldWithROI.length ? (
             <ResponsiveContainer width="100%" height={Math.max(220, soldWithROI.length * 40)}>
               <BarChart data={soldWithROI} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: '#475569' }} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}%`} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
                 <Tooltip formatter={(v, name) => [`${v}%`, 'ROI']} labelFormatter={(label) => label} />
                 <Bar dataKey="roi" name="ROI" radius={[0, 4, 4, 0]}>
                   {soldWithROI.map((entry, index) => (
@@ -870,8 +870,8 @@ export default function AssetsPage() {
                 layout="vertical"
                 margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
               >
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `${v}天`} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: '#475569' }} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}天`} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
                 <Tooltip formatter={(v) => [`${v} 天`, '闲置天数']} />
                 <Bar dataKey="idleDaysValue" name="闲置天数" radius={[0, 4, 4, 0]}>
                   {dashboardAnalytics.topIdleAssets.slice(0, 8).map((entry, index) => (
@@ -984,7 +984,7 @@ export default function AssetsPage() {
                 <Tag color={getAssetStatusColor(option.data.status)} style={{ flexShrink: 0, fontSize: 11 }}>
                   {getAssetStatusLabel(option.data.status)}
                 </Tag>
-                {option.data.category ? <span style={{ color: '#94a3b8', fontSize: 11, flexShrink: 0 }}>{option.data.category}</span> : null}
+                {option.data.category ? <span style={{ color: 'var(--lk-color-text-muted)', fontSize: 11, flexShrink: 0 }}>{option.data.category}</span> : null}
               </div>
             )}
           />

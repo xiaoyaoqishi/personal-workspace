@@ -522,14 +522,14 @@ def test_generate_source_rule_and_reprocess_scope(admin_login):
 
 def test_merchant_dictionary_update_with_recent_rows(admin_login):
     csv_text = """摘要,交易日期,交易金额,账户余额,交易地点/附言
-消费,20260123,-6.50,15136.14,财付通-微信支付-三津汤包
+消费,20260123,-6.50,15136.14,财付通-微信支付-三津汤包更新样本
 """
     batch_id = _post_file(admin_login, "merchant-update.csv", csv_text.encode("utf-8"), "text/csv")
     _run_to_dedupe(admin_login, batch_id)
 
     create_resp = admin_login.post(
         "/api/ledger/merchants",
-        json={"canonical_name": "三津汤包", "aliases": ["三津"], "tags": []},
+        json={"canonical_name": "三津汤包更新样本", "aliases": ["三津"], "tags": []},
     )
     assert create_resp.status_code == 200
     merchant_id = create_resp.json()["id"]
@@ -572,6 +572,42 @@ def test_review_reclassify_pending(admin_login):
     assert reclassify_resp.status_code == 200
     payload = reclassify_resp.json()
     assert payload["reclassified_count"] >= 1
+
+
+def test_confirm_and_commit_do_not_duplicate_merchant_dictionary_entries(admin_login):
+    csv_text = """摘要,交易日期,交易金额,账户余额,交易地点/附言
+消费,20260123,-6.50,15136.14,财付通-微信支付-三津汤包
+"""
+    batch_id = _post_file(admin_login, "merchant-confirm-commit.csv", csv_text.encode("utf-8"), "text/csv")
+    _run_to_dedupe(admin_login, batch_id)
+
+    rows = admin_login.get(f"/api/ledger/import-batches/{batch_id}/review-rows").json()["items"]
+    assert len(rows) == 1
+    row = rows[0]
+    canonical = row.get("merchant_normalized")
+    assert canonical
+
+    confirm_resp = admin_login.post(
+        f"/api/ledger/import-batches/{batch_id}/review/bulk-confirm",
+        json={"row_ids": [row["id"]]},
+    )
+    assert confirm_resp.status_code == 200
+    assert confirm_resp.json()["updated_count"] == 1
+
+    merchants_after_confirm = admin_login.get("/api/ledger/merchants")
+    assert merchants_after_confirm.status_code == 200
+    names_after_confirm = [x["canonical_name"] for x in merchants_after_confirm.json()["items"]]
+    assert canonical in names_after_confirm
+    assert names_after_confirm.count(canonical) == 1
+
+    commit_resp = admin_login.post(f"/api/ledger/import-batches/{batch_id}/commit")
+    assert commit_resp.status_code == 200
+
+    merchants_after_commit = admin_login.get("/api/ledger/merchants")
+    assert merchants_after_commit.status_code == 200
+    names_after_commit = [x["canonical_name"] for x in merchants_after_commit.json()["items"]]
+    assert canonical in names_after_commit
+    assert names_after_commit.count(canonical) == 1
 
 
 def test_generate_source_rule_with_other_normalizes_target_platform(admin_login):

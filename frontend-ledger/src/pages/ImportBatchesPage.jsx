@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Modal, Popconfirm, Space, Table, Tag, message } from 'antd'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Checkbox, Drawer, Dropdown, Input, Modal, Progress, Segmented, Space, Table, Tag, Upload, message } from 'antd'
+import { FilterOutlined, QuestionCircleOutlined, ReloadOutlined, TableOutlined, AppstoreOutlined, UploadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 import {
   classifyImportBatch,
   commitImportBatch,
@@ -8,214 +10,385 @@ import {
   deleteImportBatch,
   dedupeImportBatch,
   listImportBatches,
-  listImportReviewRows,
   parseImportBatch,
   reprocessImportBatch,
 } from '../api/ledger'
-import BatchToolbar from '../components/BatchToolbar'
+import BatchCard from '../components/imports/BatchCard'
+import EmptyBlock from '../components/EmptyBlock'
 import PageHeader from '../components/PageHeader'
-import {
-  COMMITTED_BATCH_READONLY_MESSAGE,
-  COMMIT_ELIGIBLE_REVIEW_STATUSES,
-  REVIEW_STATUSES,
-  isCommittedBatch,
-} from '../constants/ledgerReview'
+import PipelineStepsBar from '../components/imports/PipelineStepsBar'
+import SkeletonCard from '../components/SkeletonCard'
+import { isCommittedBatch } from '../constants/ledgerReview'
 import { formatDateTime } from '../utils/date'
+
+const STATUS_COLOR = {
+  uploaded: 'default',
+  parsed: 'processing',
+  classified: 'blue',
+  deduped: 'orange',
+  committed: 'green',
+}
+const STATUS_LABEL = {
+  uploaded: '已上传',
+  parsed: '已解析',
+  classified: '已分类',
+  deduped: '已清理',
+  committed: '已提交',
+}
+
+const HELP_TEXT = [
+  '提交入账只处理 confirmed / approved / accepted 状态的记录；',
+  'pending / ignored / rejected / duplicate 不会入账。',
+  '"清理重复"不执行真实重复检测，仅复位已有重复标记。',
+  '已提交批次只读，如需重处理请先删除（将回滚已入账交易）。',
+]
 
 function buildCommitResultMessage(payload) {
   return `提交完成：入账 ${Number(payload?.committed_count || 0)}，跳过 ${Number(payload?.skipped_count || 0)}，失败 ${Number(payload?.failed_count || 0)}`
 }
 
+const AUTO_PIPELINE_KEY = 'ledger_import_auto_pipeline'
+
 export default function ImportBatchesPage() {
   const navigate = useNavigate()
+  const [initialLoading, setInitialLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState([])
-  const [errorMessage, setErrorMessage] = useState('')
-  const [statsMap, setStatsMap] = useState({})
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('card')
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setErrorMessage('')
+  // FilterBar state
+  const [filterStatus, setFilterStatus] = useState([])
+  const [filterName, setFilterName] = useState('')
+
+  // Pipeline modal state
+  const [pipelineModal, setPipelineModal] = useState({ open: false, batchId: null, fileName: '' })
+  const [pipelineStep, setPipelineStep] = useState(0) // 0=confirm, 1=running, 2=done
+  const [pipelineProgress, setPipelineProgress] = useState(0)
+  const [autoPipeline, setAutoPipeline] = useState(() => {
+    try { return localStorage.getItem(AUTO_PIPELINE_KEY) !== 'false' } catch { return true }
+  })
+
+  // Toast dedup: only show last message per batch
+  const lastMsgRef = useRef({})
+  const showMsg = useCallback((batchId, text, type = 'success') => {
+    if (lastMsgRef.current[batchId]) lastMsgRef.current[batchId]()
+    const hide = message[type](text, 2)
+    lastMsgRef.current[batchId] = hide
+  }, [])
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const payload = await listImportBatches()
-      const items = Array.isArray(payload?.items) ? payload.items : []
-      setRows(items)
-
-      const pair = await Promise.all(
-        items.slice(0, 30).map(async (item) => {
-          const review = await listImportReviewRows(item.id)
-          const reviewRows = Array.isArray(review?.items) ? review.items : []
-          const committableCount = reviewRows.filter((x) => COMMIT_ELIGIBLE_REVIEW_STATUSES.has(x.review_status)).length
-          const pendingCount = reviewRows.filter((x) => x.review_status === REVIEW_STATUSES.PENDING).length
-          const duplicateCount = reviewRows.filter((x) => x.review_status === REVIEW_STATUSES.DUPLICATE).length
-          return [item.id, { committableCount, pendingCount, duplicateCount }]
-        }),
-      )
-      setStatsMap(Object.fromEntries(pair))
-    } catch (error) {
-      setErrorMessage(error?.userMessage || '加载导入批次失败')
+      setRows(Array.isArray(payload?.items) ? payload.items : [])
+    } catch {
+      message.error('加载导入批次失败')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
+      setInitialLoading(false)
     }
   }, [])
 
-  useEffect(() => {
-    load()
-  }, [load])
+  useEffect(() => { load() }, [load])
 
-  const triggerStep = async (batchId, fn, stepName) => {
+  const withLoading = async (fn) => {
     setLoading(true)
+    try { await fn() } finally { setLoading(false) }
+  }
+
+  const runParseAndRecognize = async (batchId) => {
+    await parseImportBatch(batchId)
+    await reprocessImportBatch(batchId)
+  }
+
+  const handleUpload = async (file) => {
+    setLoading(true)
+    let batch
     try {
-      await fn(batchId)
-      message.success(`${stepName} 完成`)
-      await load()
-    } finally {
+      batch = await createImportBatch(file)
+      await load(true)
+    } catch {
+      message.error('上传失败')
       setLoading(false)
+      return
+    }
+    setLoading(false)
+    const batchId = batch?.id
+    const fileName = batch?.file_name || file.name || '账单文件'
+    if (autoPipeline && batchId) {
+      setPipelineStep(0)
+      setPipelineProgress(0)
+      setPipelineModal({ open: true, batchId, fileName })
+    } else {
+      message.success('批次创建成功')
+      load()
     }
   }
 
-  const parseAndRecognize = async (batchId) => {
-    setLoading(true)
+  const runAutoPipeline = async () => {
+    const { batchId } = pipelineModal
+    if (!batchId) return
+    setPipelineStep(1)
+    setPipelineProgress(10)
     try {
       await parseImportBatch(batchId)
+      setPipelineProgress(45)
       await reprocessImportBatch(batchId)
-      message.success('解析并识别完成')
-      await load()
-    } finally {
-      setLoading(false)
+      setPipelineProgress(75)
+      await dedupeImportBatch(batchId)
+      setPipelineProgress(100)
+      setPipelineStep(2)
+      await load(true)
+    } catch {
+      message.error('自动流水线失败，请手动操作')
+      setPipelineModal({ open: false, batchId: null, fileName: '' })
     }
   }
 
-  const canCommit = (row) => Number(statsMap[row.id]?.committableCount || 0) > 0
+  // Filtered rows
+  const filteredRows = rows.filter((row) => {
+    if (filterStatus.length && !filterStatus.includes(row.status)) return false
+    if (filterName && !String(row.file_name || '').toLowerCase().includes(filterName.toLowerCase())) return false
+    return true
+  })
 
-  const statusColor = useMemo(
-    () => ({
-      uploaded: 'default',
-      parsed: 'processing',
-      classified: 'blue',
-      deduped: 'orange',
-      committed: 'green',
-    }),
-    [],
-  )
-  const statusLabel = {
-    uploaded: '已上传',
-    parsed: '已解析',
-    classified: '已分类',
-    deduped: '已清理重复标记',
-    committed: '已提交',
+  const handleCommit = async (batchId) => {
+    await withLoading(async () => {
+      const payload = await commitImportBatch(batchId)
+      showMsg(batchId, buildCommitResultMessage(payload))
+      if (Array.isArray(payload?.errors) && payload.errors.length) {
+        Modal.warning({
+          title: '部分记录未能入账',
+          content: (
+            <div>
+              {payload.errors.slice(0, 5).map((item) => (
+                <div key={`${item.row_id}-${item.error}`}>行 #{item.row_id}：{item.message || item.error || '提交失败'}</div>
+              ))}
+            </div>
+          ),
+        })
+      }
+      await load()
+    })
   }
+
+  const makeHandlers = (row) => ({
+    onReview: () => navigate(`/imports/${row.id}/review`),
+    onParseAndRecognize: () => withLoading(async () => {
+      await runParseAndRecognize(row.id)
+      showMsg(row.id, '解析并识别完成')
+      await load()
+    }),
+    onDedupe: () => withLoading(async () => {
+      await dedupeImportBatch(row.id)
+      showMsg(row.id, '清理重复完成')
+      await load()
+    }),
+    onClassify: () => withLoading(async () => {
+      await classifyImportBatch(row.id)
+      showMsg(row.id, '分类完成')
+      await load()
+    }),
+    onReprocess: () => withLoading(async () => {
+      await reprocessImportBatch(row.id)
+      showMsg(row.id, '重算识别完成')
+      await load()
+    }),
+    onCommit: () => handleCommit(row.id),
+    onDelete: () => withLoading(async () => {
+      await deleteImportBatch(row.id)
+      showMsg(row.id, '删除完成')
+      await load()
+    }),
+  })
+
+  // Table columns for list view
+  const tableColumns = [
+    { title: '文件名', dataIndex: 'file_name', ellipsis: true },
+    { title: '来源', dataIndex: 'source_type_display', width: 100, render: (v, row) => v || row.source_type || '-' },
+    {
+      title: '状态', dataIndex: 'status', width: 100,
+      render: (v) => <Tag color={STATUS_COLOR[v] || 'default'}>{STATUS_LABEL[v] || v}</Tag>,
+    },
+    { title: '总条数', dataIndex: 'total_rows', width: 80, render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v ?? 0}</span> },
+    { title: '待确认', dataIndex: 'pending_count', width: 80, render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v ?? 0}</span> },
+    { title: '可入账', dataIndex: 'committable_count', width: 80, render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v ?? 0}</span> },
+    { title: '创建时间', dataIndex: 'created_at', width: 160, render: (v) => v ? formatDateTime(v) : '-' },
+    {
+      title: '操作', key: 'op', fixed: 'right', width: 180,
+      render: (_, row) => {
+        const h = makeHandlers(row)
+        const committed = isCommittedBatch(row)
+        const moreItems = [
+          ...(committed ? [] : [
+            { key: 'parse', label: '解析识别', onClick: h.onParseAndRecognize },
+            { key: 'dedupe', label: '清理重复', onClick: h.onDedupe },
+            { key: 'reprocess', label: '重算识别', onClick: h.onReprocess },
+          ]),
+          { key: 'delete', label: <span style={{ color: 'var(--lk-color-danger)' }}>删除</span>, onClick: h.onDelete },
+        ]
+        return (
+          <Space>
+            <Button type="link" size="small" onClick={h.onReview}>复核台</Button>
+            {!committed && Number(row.committable_count || 0) > 0 && (
+              <Button type="link" size="small" onClick={h.onCommit}>提交</Button>
+            )}
+            <Dropdown menu={{ items: moreItems }} trigger={['click']}>
+              <Button type="link" size="small">更多</Button>
+            </Dropdown>
+          </Space>
+        )
+      },
+    },
+  ]
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={12}>
       <PageHeader
         title="导入中心"
-        subtitle="以批次推进：上传 -> 解析 -> 分类 -> 清理重复标记 -> 复核确认 -> 提交入账"
-        extra={<BatchToolbar loading={loading} onRefresh={load} onUpload={async (file) => {
-          setLoading(true)
-          try {
-            await createImportBatch(file)
-            message.success('批次创建成功')
-            await load()
-          } finally {
-            setLoading(false)
-          }
-        }} />}
+        subtitle="上传账单 → 自动识别 → 复核入账"
+        extra={
+          <Space>
+            <Upload accept=".csv,.xls,.xlsx" maxCount={1} showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false }}>
+              <Button type="primary" icon={<UploadOutlined />} loading={loading}>上传账单</Button>
+            </Upload>
+            <Button icon={<ReloadOutlined />} onClick={() => load()} loading={loading}>刷新</Button>
+            <Button icon={<QuestionCircleOutlined />} onClick={() => setHelpOpen(true)}>使用说明</Button>
+          </Space>
+        }
       />
 
-      <Alert
-        type="info"
-        showIcon
-        message="提交入账只会处理 confirmed / approved / accepted 状态；pending / ignored / rejected / duplicate 不会入账。“清理重复标记”不会执行真实重复检测，只会复位已有重复标记。"
-      />
-      {rows.some((item) => isCommittedBatch(item)) ? (
-        <Alert
-          type="warning"
-          showIcon
-          message={COMMITTED_BATCH_READONLY_MESSAGE}
-        />
-      ) : null}
+      <PipelineStepsBar />
 
-      {errorMessage ? <Alert type="error" showIcon message={errorMessage} /> : null}
-
-      <Card className="page-card">
-        <Table
-          rowKey="id"
-          loading={loading}
-          dataSource={rows}
-          pagination={{ pageSize: 20, showSizeChanger: false }}
-          columns={[
-            { title: '文件名', dataIndex: 'file_name', ellipsis: true },
-            { title: '来源类型', dataIndex: 'source_type_display', width: 120, render: (v, row) => v || row.source_type || '-' },
-            {
-              title: '状态',
-              dataIndex: 'status',
-              width: 120,
-              render: (v) => <Tag color={statusColor[v] || 'default'}>{statusLabel[v] || v}</Tag>,
+      {/* FilterBar */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', background: 'var(--lk-color-surface)', padding: '12px 16px', borderRadius: 'var(--lk-radius-sm)', border: '1px solid var(--lk-color-border)' }}>
+        <FilterOutlined style={{ color: 'var(--lk-color-text-muted)' }} />
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            multiple: true,
+            selectedKeys: filterStatus,
+            items: Object.entries(STATUS_LABEL).map(([key, label]) => ({ key, label })),
+            onClick: ({ key, domEvent }) => {
+              domEvent.stopPropagation()
+              setFilterStatus((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key])
             },
-            { title: '总条数', dataIndex: 'total_rows', width: 90 },
-            { title: '待确认', key: 'pending', width: 90, render: (_, row) => statsMap[row.id]?.pendingCount ?? row.review_rows ?? 0 },
-            { title: '重复数', key: 'dup', width: 90, render: (_, row) => statsMap[row.id]?.duplicateCount ?? row.duplicate_rows ?? 0 },
-            { title: '可提交', key: 'committable', width: 120, render: (_, row) => statsMap[row.id]?.committableCount ?? 0 },
-            { title: '创建时间', dataIndex: 'created_at', width: 170, render: (v) => (v ? formatDateTime(v) : '-') },
-            {
-              title: '操作',
-              key: 'op',
-              fixed: 'right',
-              width: 560,
-              render: (_, row) => (
-                <Space>
-                  <Button type="link" onClick={() => navigate(`/imports/${row.id}/review`)}>进入校对台</Button>
-                  <Button type="link" disabled={isCommittedBatch(row)} onClick={() => parseAndRecognize(row.id)}>解析并识别</Button>
-                  <Button type="link" disabled={isCommittedBatch(row)} onClick={() => triggerStep(row.id, classifyImportBatch, '分类')}>分类</Button>
-                  <Button type="link" disabled={isCommittedBatch(row)} onClick={() => triggerStep(row.id, dedupeImportBatch, '清理重复标记')}>清理重复标记</Button>
-                  <Button type="link" disabled={isCommittedBatch(row)} onClick={() => triggerStep(row.id, reprocessImportBatch, '重算识别')}>重算识别</Button>
-                  <Button
-                    type="link"
-                    disabled={isCommittedBatch(row) || !canCommit(row)}
-                    onClick={async () => {
-                      setLoading(true)
-                      try {
-                        const payload = await commitImportBatch(row.id)
-                        message.success(buildCommitResultMessage(payload))
-                        if (Array.isArray(payload?.errors) && payload.errors.length) {
-                          Modal.warning({
-                            title: '部分记录未能入账',
-                            content: (
-                              <div>
-                                {payload.errors.slice(0, 5).map((item) => (
-                                  <div key={`${item.row_id}-${item.error}`}>
-                                    行 #{item.row_id}：{item.message || item.error || '提交失败'}
-                                  </div>
-                                ))}
-                              </div>
-                            ),
-                          })
-                        }
-                        await load()
-                      } finally {
-                        setLoading(false)
-                      }
-                    }}
-                  >
-                    提交
-                  </Button>
-                  <Popconfirm
-                    title="删除并回滚导入批次"
-                    description="删除导入批次会回滚该批次生成的已入账交易，并同时删除导入行；操作不可逆。确认继续吗？"
-                    okText="删除"
-                    cancelText="取消"
-                    onConfirm={() => triggerStep(row.id, deleteImportBatch, '删除')}
-                  >
-                    <Button type="link" danger>删除</Button>
-                  </Popconfirm>
-                </Space>
-              ),
-            },
-          ]}
-          scroll={{ x: 1500 }}
+          }}
+        >
+          <Button size="small">
+            状态筛选 {filterStatus.length ? `(${filterStatus.length})` : ''}
+          </Button>
+        </Dropdown>
+        <Input
+          placeholder="搜索文件名"
+          value={filterName}
+          onChange={(e) => setFilterName(e.target.value)}
+          allowClear
+          style={{ width: 200 }}
+          size="small"
         />
-      </Card>
+        {(filterStatus.length > 0 || filterName) && (
+          <Button size="small" type="link" onClick={() => { setFilterStatus([]); setFilterName('') }}>清除筛选</Button>
+        )}
+        <div style={{ marginLeft: 'auto' }}>
+          <Segmented
+            size="small"
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'card', icon: <AppstoreOutlined />, label: '卡片' },
+              { value: 'list', icon: <TableOutlined />, label: '列表' },
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      {initialLoading ? (
+        <SkeletonCard rows={4} />
+      ) : filteredRows.length === 0 ? (
+        <EmptyBlock
+          description={rows.length === 0 ? '还没有导入批次' : '没有匹配的批次'}
+          actionText={rows.length === 0 ? '上传第一份账单' : undefined}
+          onAction={rows.length === 0 ? () => document.querySelector('input[type=file]')?.click() : undefined}
+        />
+      ) : viewMode === 'card' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
+          {filteredRows.map((row) => (
+            <BatchCard
+              key={row.id}
+              batch={row}
+              loading={loading}
+              {...makeHandlers(row)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div style={{ background: 'var(--lk-color-surface)', borderRadius: 'var(--lk-radius-md)', border: '1px solid var(--lk-color-border)', overflow: 'hidden' }}>
+          <Table
+            rowKey="id"
+            loading={loading}
+            dataSource={filteredRows}
+            columns={tableColumns}
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            size="small"
+            scroll={{ x: 1000 }}
+          />
+        </div>
+      )}
+
+      {/* Help Drawer */}
+      <Drawer title="使用说明" open={helpOpen} onClose={() => setHelpOpen(false)} width={360}>
+        <ul style={{ paddingLeft: 20, lineHeight: 2, color: 'var(--lk-color-text-secondary)' }}>
+          {HELP_TEXT.map((text, i) => <li key={i}>{text}</li>)}
+        </ul>
+      </Drawer>
+
+      {/* Auto Pipeline Modal */}
+      <Modal
+        title={`一键处理：${pipelineModal.fileName}`}
+        open={pipelineModal.open}
+        onCancel={() => setPipelineModal({ open: false, batchId: null, fileName: '' })}
+        footer={
+          pipelineStep === 0 ? [
+            <Button key="skip" onClick={() => { setPipelineModal({ open: false, batchId: null, fileName: '' }); load() }}>跳过，稍后手动处理</Button>,
+            <Button key="run" type="primary" onClick={runAutoPipeline}>自动处理（解析 → 识别 → 去重）</Button>,
+          ] : pipelineStep === 2 ? [
+            <Button key="review" type="primary" onClick={() => { setPipelineModal({ open: false, batchId: null, fileName: '' }); navigate(`/imports/${pipelineModal.batchId}/review`) }}>进入复核台</Button>,
+          ] : null
+        }
+        closable={pipelineStep !== 1}
+      >
+        {pipelineStep === 0 && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ color: 'var(--lk-color-text-secondary)' }}>
+              上传成功！是否自动执行：解析识别 → 重算识别 → 清理重复？完成后可直接进入复核台。
+            </div>
+            <Checkbox
+              checked={autoPipeline}
+              onChange={(e) => {
+                setAutoPipeline(e.target.checked)
+                try { localStorage.setItem(AUTO_PIPELINE_KEY, e.target.checked ? 'true' : 'false') } catch {}
+              }}
+            >
+              下次上传后默认自动处理
+            </Checkbox>
+          </Space>
+        )}
+        {pipelineStep === 1 && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ color: 'var(--lk-color-text-secondary)' }}>正在处理中，请稍候…</div>
+            <Progress percent={pipelineProgress} status="active" />
+          </Space>
+        )}
+        {pipelineStep === 2 && (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ color: 'var(--lk-color-success)', fontWeight: 600 }}>处理完成！</div>
+            <div style={{ color: 'var(--lk-color-text-secondary)' }}>解析识别 → 重算识别 → 清理重复 均已完成，请进入复核台核对。</div>
+          </Space>
+        )}
+      </Modal>
     </Space>
   )
 }

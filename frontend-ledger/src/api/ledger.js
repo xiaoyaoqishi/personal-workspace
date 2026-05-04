@@ -41,3 +41,11 @@ export const getAnalyticsPlatformBreakdown = (params = {}) => apiClient.get('/le
 export const getAnalyticsTopMerchants = (params = {}) => apiClient.get('/ledger/analytics/top-merchants', { params })
 export const getAnalyticsMonthlyTrend = (params = {}) => apiClient.get('/ledger/analytics/monthly-trend', { params })
 export const getAnalyticsUnrecognizedBreakdown = (params = {}) => apiClient.get('/ledger/analytics/unrecognized-breakdown', { params })
+export const mergeMerchants = (payload) => apiClient.post('/ledger/merchants/merge', payload)
+export const deleteMerchant = (id) => apiClient.delete(`/ledger/merchants/${id}`)
+export const dryRunRule = (payload) => apiClient.post('/ledger/rules/dry-run', payload)
+export const toggleRule = (id, payload) => apiClient.post(`/ledger/rules/${id}/toggle`, payload)
+
+export const getAnalyticsDailyHeatmap = (params = {}) => apiClient.get('/ledger/analytics/daily-heatmap', { params })
+
+export const getAnalyticsCategoryDetail = (params = {}) => apiClient.get('/ledger/analytics/category-detail', { params })

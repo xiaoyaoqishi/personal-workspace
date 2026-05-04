@@ -105,14 +105,17 @@ def upsert_merchant_from_rows(
     existing: list[LedgerMerchant],
     counted_row_ids: set[int] | None = None,
     sync_row_ids: set[int] | None = None,
+    allowed_statuses: set[str] | None = None,
 ) -> list[LedgerMerchant]:
     merchant_map: dict[str, LedgerMerchant] = {x.canonical_name: x for x in existing if x.canonical_name}
     touched: list[LedgerMerchant] = []
     counted_ids = counted_row_ids or set()
     sync_ids = sync_row_ids or counted_ids
+    accepted_statuses = {str(x).strip().lower() for x in (allowed_statuses or {COMMITTED_REVIEW_STATUS})}
 
     for row in rows:
-        if row.review_status != COMMITTED_REVIEW_STATUS or int(row.id) not in sync_ids:
+        status = str(row.review_status or "").strip().lower()
+        if status not in accepted_statuses or int(row.id) not in sync_ids:
             continue
         canonical = (row.merchant_normalized or row.merchant_raw or "").strip()
         if not canonical:

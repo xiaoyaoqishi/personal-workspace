@@ -1,6 +1,7 @@
 import { Button, Space, Table, Tag } from 'antd'
 import { REVIEW_STATUS_META } from '../constants/ledgerReview'
 import { formatDate } from '../utils/date'
+import QuickRowActions from './review/QuickRowActions'
 
 function unresolved(text = '待识别') {
   return <Tag color="error">{text}</Tag>
@@ -21,6 +22,7 @@ export default function ReviewTable({
   selectedRowKeys,
   onSelectionChange,
   onViewDetail,
+  quickActionsProps,
 }) {
   const buildFilters = (items, getter, limit = 120) => {
     const map = new Map()
@@ -132,10 +134,24 @@ export default function ReviewTable({
           title: '操作',
           key: 'op',
           fixed: 'right',
-          width: 100,
+          width: 280,
           render: (_, row) => (
             <Space>
-              <Button type="link" onClick={() => onViewDetail?.(row)}>详情</Button>
+              <Button type="link" size="small" onClick={() => onViewDetail?.(row)}>详情</Button>
+              {quickActionsProps && (
+                <QuickRowActions
+                  row={row}
+                  batchCommitted={quickActionsProps.batchCommitted}
+                  categories={quickActionsProps.categories}
+                  merchants={quickActionsProps.merchants}
+                  onConfirm={quickActionsProps.onConfirm}
+                  onIgnore={quickActionsProps.onIgnore}
+                  onReject={quickActionsProps.onReject}
+                  onCategory={quickActionsProps.onCategory}
+                  onMerchant={quickActionsProps.onMerchant}
+                  onRule={quickActionsProps.onRule}
+                />
+              )}
             </Space>
           ),
         },

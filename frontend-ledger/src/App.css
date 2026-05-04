@@ -1,233 +1,348 @@
-:root {
-  color: #2f3540;
-  background: #f4f6f8;
-}
+/* ============================================================
+   Ledger App Global Styles (M1 — uses design tokens)
+   ============================================================ */
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-}
-
+/* Layout */
 body {
-  min-width: 1200px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background: #f4f6f8;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
+  background: var(--lk-color-bg);
+  color: var(--lk-color-text);
+  min-width: 1100px;
+}
+
+#root {
+  height: 100vh;
 }
 
 .ledger-layout {
-  min-height: 100%;
   display: flex;
+  height: 100vh;
+  overflow: hidden;
 }
 
-.ledger-content-wrap {
-  flex: 1;
-  min-width: 0;
-  padding: 20px 24px;
-  overflow: auto;
-}
-
+/* ---- Sidebar ---- */
 .ledger-sidebar {
-  width: 56px;
-  min-width: 56px;
-  background: #2c3e50;
+  width: 72px;
+  min-width: 72px;
+  background: var(--lk-color-surface);
+  border-right: 1px solid var(--lk-color-border);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 0;
+  padding: 0;
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: 2px 0 8px rgba(15, 23, 42, 0.04);
 }
 
-.icon-sidebar-back {
+/* Brand mark at top */
+.sidebar-brand {
+  width: 72px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 12px;
-  border-radius: 8px;
-  transition: all 0.2s;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--lk-color-border);
+}
+
+.sidebar-brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--lk-color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  cursor: pointer;
+  user-select: none;
   text-decoration: none;
 }
 
-.icon-sidebar-back:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.icon-sidebar-tabs {
+/* Navigation groups */
+.sidebar-nav {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+  scrollbar-width: none;
+}
+.sidebar-nav::-webkit-scrollbar { display: none; }
+
+.sidebar-group {
+  margin-bottom: 4px;
 }
 
+.sidebar-group-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--lk-color-text-muted);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 10px 4px 4px;
+  user-select: none;
+}
+
+/* Individual nav item */
 .icon-tab {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0;
+  justify-content: center;
+  width: 72px;
+  height: 62px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.55);
-  transition: all 0.2s;
+  color: var(--lk-color-text-secondary);
   text-decoration: none;
-  position: relative;
-  border: 0;
+  transition: color 0.15s, background 0.15s;
+  border: none;
   background: transparent;
+  padding: 0;
+  gap: 4px;
+  border-radius: 0;
 }
 
 .icon-tab:hover {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--lk-color-primary);
+  background: var(--lk-color-primary-soft);
 }
 
 .icon-tab.active {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--lk-color-primary);
+  background: var(--lk-color-primary-soft);
 }
 
-.icon-tab.active::before {
+/* Active indicator: 3px bar on the right edge */
+.icon-tab.active::after {
   content: '';
   position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 3px;
-  background: #3498db;
-  border-radius: 0 2px 2px 0;
+  height: 28px;
+  background: var(--lk-color-primary);
+  border-radius: 3px 0 0 3px;
 }
 
-.icon-tab-icon {
-  font-size: 18px;
-  margin-bottom: 3px;
+.icon-tab .tab-icon {
+  font-size: 20px;
+  line-height: 1;
 }
 
-.icon-tab-label {
+.icon-tab .tab-label {
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 64px;
+  text-align: center;
+}
+
+/* Sidebar bottom: logout */
+.sidebar-bottom {
+  width: 100%;
+  border-top: 1px solid var(--lk-color-border);
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sidebar-logout-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 72px;
+  height: 56px;
+  color: var(--lk-color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  border-radius: 0;
   font-size: 10px;
 }
 
-.icon-sidebar-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 8px;
-  width: 100%;
+.sidebar-logout-btn:hover {
+  color: var(--lk-color-danger);
+  background: #fff1f2;
 }
 
-.icon-tab-button {
-  width: 100%;
+.sidebar-logout-btn .tab-icon {
+  font-size: 18px;
 }
 
+/* ---- Content Area ---- */
+.ledger-content-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: var(--lk-color-bg);
+}
+
+/* ---- Page Header ---- */
+.page-header {
+  padding: var(--lk-space-5) var(--lk-space-6) var(--lk-space-4);
+  background: var(--lk-color-surface);
+  border-bottom: 1px solid var(--lk-color-border);
+}
+
+.page-header-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--lk-color-text);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.page-header-subtitle {
+  font-size: var(--lk-font-13);
+  color: var(--lk-color-text-secondary);
+  margin: 4px 0 0;
+}
+
+/* ---- Page Cards ---- */
 .page-section {
-  margin-top: 14px;
+  padding: var(--lk-space-5) var(--lk-space-6);
 }
 
 .page-card {
-  border-radius: 10px;
+  background: var(--lk-color-surface);
+  border-radius: 14px;
+  box-shadow: var(--lk-shadow-card);
+  padding: var(--lk-space-5);
+  border: 1px solid var(--lk-color-border);
 }
 
 .page-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--lk-space-3);
   flex-wrap: wrap;
-  margin-bottom: 12px;
 }
 
+/* ---- Filter Bar ---- */
+.filter-bar {
+  background: var(--lk-color-surface-2);
+  border: 1px solid var(--lk-color-border);
+  border-radius: var(--lk-radius-md);
+  padding: var(--lk-space-4);
+  display: flex;
+  gap: var(--lk-space-3);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: var(--lk-space-4);
+}
+
+/* ---- Dashboard Grid ---- */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.dashboard-panels {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.table-muted {
-  opacity: 0.58;
-}
-
-.category-indent {
-  padding-left: 18px;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.amount-income {
-  color: #1f8b4c;
-  font-weight: 600;
-}
-
-.amount-expense {
-  color: #cf1322;
-  font-weight: 600;
-}
-
-.amount-neutral {
-  color: #1f2a37;
-}
-
-.filter-bar {
-  background: #fff;
-  border: 1px solid #e4ebf2;
-  border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-.review-row-duplicate > td {
-  background: #fff7e6 !important;
-}
-
-.review-row-pending > td {
-  background: #f6ffed !important;
-}
-
-.review-explain-line {
-  display: inline-block;
-  max-width: 200px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  color: #4b5563;
-}
-
-.review-json-block {
-  margin-bottom: 0;
-}
-
-.review-json-block pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--lk-space-4);
 }
 
 @media (max-width: 1400px) {
   .dashboard-grid {
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
+}
 
-  .dashboard-panels {
-    grid-template-columns: 1fr;
-  }
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lk-space-5);
+}
+
+/* ---- Review / Duplicate Row Highlights ---- */
+.review-row-duplicate {
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+.review-row-pending {
+  background: rgba(245, 158, 11, 0.06) !important;
+}
+
+/* Review detail */
+.review-json-block {
+  background: var(--lk-color-surface-2);
+  border: 1px solid var(--lk-color-border);
+  border-radius: var(--lk-radius-sm);
+  padding: var(--lk-space-4);
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  font-size: var(--lk-font-13);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 320px;
+  overflow-y: auto;
+  color: var(--lk-color-text-secondary);
+}
+
+/* ---- Text Utilities ---- */
+.truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.text-muted {
+  color: var(--lk-color-text-muted);
+}
+
+.text-secondary {
+  color: var(--lk-color-text-secondary);
+}
+
+/* ---- Theme & Compact Sidebar Buttons (M5) ---- */
+.sidebar-theme-btn,
+.sidebar-compact-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 72px;
+  height: 56px;
+  color: var(--lk-color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  border-radius: 0;
+  font-size: 10px;
+}
+
+.sidebar-theme-btn:hover {
+  color: var(--lk-color-primary);
+  background: var(--lk-color-primary-soft);
+}
+
+.sidebar-compact-btn:hover {
+  color: var(--lk-color-primary);
+  background: var(--lk-color-primary-soft);
+}
+
+.sidebar-theme-btn .tab-icon,
+.sidebar-compact-btn .tab-icon {
+  font-size: 18px;
+}
+
+/* Fix sidebar-logout-btn hover: use token instead of hardcoded #fff1f2 */
+.sidebar-logout-btn:hover {
+  color: var(--lk-color-danger);
+  background: color-mix(in srgb, var(--lk-color-danger) 10%, transparent);
 }

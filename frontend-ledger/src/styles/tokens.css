@@ -1,0 +1,122 @@
+/* ===========================
+   Ledger Design Tokens (M1)
+   =========================== */
+
+:root {
+  /* --- Color: Background --- */
+  --lk-color-bg: #f5f7fb;
+  --lk-color-surface: #ffffff;
+  --lk-color-surface-2: #f8fafc;
+
+  /* --- Color: Border --- */
+  --lk-color-border: #e6ebf3;
+
+  /* --- Color: Text --- */
+  --lk-color-text: #0f172a;
+  --lk-color-text-secondary: #475569;
+  --lk-color-text-muted: #94a3b8;
+
+  /* --- Color: Brand --- */
+  --lk-color-primary: #4f46e5;
+  --lk-color-primary-soft: #eef2ff;
+
+  /* --- Color: Semantic --- */
+  --lk-color-success: #10b981;
+  --lk-color-danger: #ef4444;
+  --lk-color-warning: #f59e0b;
+  --lk-color-info: #3b82f6;
+
+  /* --- Color: Category Palette (10 colors, HSL uniform) --- */
+  --lk-cat-1: hsl(230, 55%, 60%);
+  --lk-cat-2: hsl(266, 55%, 60%);
+  --lk-cat-3: hsl(302, 45%, 55%);
+  --lk-cat-4: hsl(338, 65%, 58%);
+  --lk-cat-5: hsl(14, 70%, 55%);
+  --lk-cat-6: hsl(38, 75%, 52%);
+  --lk-cat-7: hsl(72, 55%, 48%);
+  --lk-cat-8: hsl(152, 55%, 45%);
+  --lk-cat-9: hsl(184, 60%, 45%);
+  --lk-cat-10: hsl(210, 65%, 55%);
+
+  /* --- Radius --- */
+  --lk-radius-sm: 8px;
+  --lk-radius-md: 12px;
+  --lk-radius-lg: 16px;
+
+  /* --- Shadow --- */
+  --lk-shadow-card: 0 6px 20px rgba(15, 23, 42, 0.06);
+  --lk-shadow-pop: 0 12px 32px rgba(15, 23, 42, 0.12);
+
+  /* --- Spacing --- */
+  --lk-space-1: 4px;
+  --lk-space-2: 8px;
+  --lk-space-3: 12px;
+  --lk-space-4: 16px;
+  --lk-space-5: 20px;
+  --lk-space-6: 24px;
+
+  /* --- Font Size --- */
+  --lk-font-12: 12px;
+  --lk-font-13: 13px;
+  --lk-font-14: 14px;
+  --lk-font-16: 16px;
+  --lk-font-20: 20px;
+  --lk-font-28: 28px;
+  --lk-font-32: 32px;
+}
+
+/* ===========================
+   Dark Mode Overrides (M5)
+   =========================== */
+[data-theme="dark"] {
+  --lk-color-bg: #0f172a;
+  --lk-color-surface: #1e293b;
+  --lk-color-surface-2: #1e2a3b;
+  --lk-color-border: #2d3f58;
+  --lk-color-text: #f1f5f9;
+  --lk-color-text-secondary: #94a3b8;
+  --lk-color-text-muted: #64748b;
+  --lk-color-primary-soft: #1e1b4b;
+
+  /* Semantic — slightly brightened for dark backgrounds */
+  --lk-color-success: #34d399;
+  --lk-color-danger: #f87171;
+  --lk-color-warning: #fbbf24;
+  --lk-color-info: #60a5fa;
+
+  /* Shadow */
+  --lk-shadow-card: 0 6px 20px rgba(0, 0, 0, 0.3);
+  --lk-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================
+   Compact Mode Overrides (M5)
+   =========================== */
+[data-compact="true"] {
+  --lk-space-3: 8px;
+  --lk-space-6: 16px;
+  --lk-font-14: 13px;
+  --lk-font-16: 14px;
+}
+
+[data-compact="true"] .page-card {
+  padding: 14px;
+}
+
+[data-compact="true"] .ant-table-cell {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+[data-compact="true"] .ledger-sidebar {
+  width: 60px;
+  min-width: 60px;
+}
+
+[data-compact="true"] .sidebar-brand,
+[data-compact="true"] .icon-tab,
+[data-compact="true"] .sidebar-logout-btn,
+[data-compact="true"] .sidebar-theme-btn,
+[data-compact="true"] .sidebar-compact-btn {
+  width: 60px;
+}

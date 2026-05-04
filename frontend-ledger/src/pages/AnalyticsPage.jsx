@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, DatePicker, Progress, Space, Statistic, Table, Tag } from 'antd'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button, Card, DatePicker, Segmented, Space } from 'antd'
+import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   getAnalyticsCategoryBreakdown,
+  getAnalyticsCategoryDetail,
+  getAnalyticsDailyHeatmap,
   getAnalyticsMonthlyTrend,
   getAnalyticsPlatformBreakdown,
   getAnalyticsSummary,
@@ -10,65 +13,154 @@ import {
   getAnalyticsUnrecognizedBreakdown,
 } from '../api/ledger'
 import PageHeader from '../components/PageHeader'
+import KpiCards from '../components/analytics/KpiCards'
+import TrendChart from '../components/analytics/TrendChart'
+import CategoryPieChart from '../components/analytics/CategoryPieChart'
+import PlatformBarChart from '../components/analytics/PlatformBarChart'
+import MerchantTopChart from '../components/analytics/MerchantTopChart'
+import CalendarHeatmap from '../components/analytics/CalendarHeatmap'
+import UnrecognizedSection from '../components/analytics/UnrecognizedSection'
+import CategoryDrillDrawer from '../components/analytics/CategoryDrillDrawer'
+import SkeletonCard from '../components/SkeletonCard'
+import { useThemeContext } from '../App'
 
 const { RangePicker } = DatePicker
 
-function moneyText(v) {
-  return `¥${Number(v || 0).toFixed(2)}`
-}
+// ---- Preset helpers ----
+const PRESETS = [
+  { label: '今日', value: 'today' },
+  { label: '本周', value: 'week' },
+  { label: '本月', value: 'month' },
+  { label: '上月', value: 'last_month' },
+  { label: '近30天', value: '30d' },
+  { label: '近90天', value: '90d' },
+  { label: '今年', value: 'year' },
+  { label: '自定义', value: 'custom' },
+]
 
-function percentText(v) {
-  return `${(Number(v || 0) * 100).toFixed(1)}%`
-}
-
-function getDefaultCurrentMonthRange() {
+function presetToRange(preset) {
   const now = dayjs()
-  return [now.startOf('month'), now.endOf('day')]
+  switch (preset) {
+    case 'today':
+      return [now.startOf('day'), now.endOf('day')]
+    case 'week':
+      return [now.startOf('week'), now.endOf('week')]
+    case 'month':
+      return [now.startOf('month'), now.endOf('day')]
+    case 'last_month':
+      return [now.subtract(1, 'month').startOf('month'), now.subtract(1, 'month').endOf('month')]
+    case '30d':
+      return [now.subtract(29, 'day'), now]
+    case '90d':
+      return [now.subtract(89, 'day'), now]
+    case 'year':
+      return [now.startOf('year'), now.endOf('day')]
+    default:
+      return [now.startOf('month'), now.endOf('day')]
+  }
+}
+
+function exportCsv(data, filename) {
+  if (!data || data.length === 0) return
+  const keys = Object.keys(data[0])
+  const rows = data.map((row) => keys.map((k) => row[k] ?? '').join(','))
+  const blob = new Blob([[keys.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export default function AnalyticsPage() {
+  const { isDark } = useThemeContext()
   const [loading, setLoading] = useState(false)
-  const [dateRange, setDateRange] = useState(getDefaultCurrentMonthRange)
+  const [preset, setPreset] = useState('month')
+  const [customRange, setCustomRange] = useState(null)
+  const [granularity, setGranularity] = useState('month')
+
   const [summary, setSummary] = useState(null)
-  const [category, setCategory] = useState([])
-  const [platform, setPlatform] = useState([])
+  const [category, setCategory] = useState({ items: [], total: 0 })
+  const [platform, setPlatform] = useState({ items: [], total: 0 })
   const [topMerchants, setTopMerchants] = useState([])
-  const [monthlyTrend, setMonthlyTrend] = useState([])
+  const [trend, setTrend] = useState({ items: [], categories: [] })
+  const [heatmap, setHeatmap] = useState({ items: [], max_expense: 0 })
   const [unrecognized, setUnrecognized] = useState(null)
 
+  // Drill state
+  const [drillCategory, setDrillCategory] = useState(null)
+  const [drillDetail, setDrillDetail] = useState(null)
+  const [drillLoading, setDrillLoading] = useState(false)
+
+  const dateRange = useMemo(() => {
+    if (preset === 'custom' && customRange) return customRange
+    return presetToRange(preset)
+  }, [preset, customRange])
+
   const queryParams = useMemo(() => {
-    if (!dateRange || dateRange.length !== 2 || !dateRange[0] || !dateRange[1]) return {}
+    if (!dateRange || !dateRange[0] || !dateRange[1]) return {}
     return {
       date_from: dateRange[0].format('YYYY-MM-DD'),
       date_to: dateRange[1].format('YYYY-MM-DD'),
     }
   }, [dateRange])
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (!queryParams.date_from) return
     setLoading(true)
     try {
-      const [summaryPayload, categoryPayload, platformPayload, merchantPayload, trendPayload, unrecognizedPayload] = await Promise.all([
+      const [sumRes, catRes, platRes, merRes, trendRes, heatRes, unrec] = await Promise.all([
         getAnalyticsSummary(queryParams),
         getAnalyticsCategoryBreakdown(queryParams),
         getAnalyticsPlatformBreakdown(queryParams),
         getAnalyticsTopMerchants({ ...queryParams, limit: 10 }),
-        getAnalyticsMonthlyTrend(queryParams),
+        getAnalyticsMonthlyTrend({ ...queryParams, granularity }),
+        getAnalyticsDailyHeatmap(queryParams),
         getAnalyticsUnrecognizedBreakdown(queryParams),
       ])
-      setSummary(summaryPayload || {})
-      setCategory(Array.isArray(categoryPayload?.items) ? categoryPayload.items : [])
-      setPlatform(Array.isArray(platformPayload?.items) ? platformPayload.items : [])
-      setTopMerchants(Array.isArray(merchantPayload?.items) ? merchantPayload.items : [])
-      setMonthlyTrend(Array.isArray(trendPayload?.items) ? trendPayload.items : [])
-      setUnrecognized(unrecognizedPayload || {})
+      setSummary(sumRes || {})
+      setCategory({ items: catRes?.items || [], total: catRes?.total || 0 })
+      setPlatform({ items: platRes?.items || [], total: platRes?.total || 0 })
+      setTopMerchants(merRes?.items || [])
+      setTrend({ items: trendRes?.items || [], categories: trendRes?.categories || [] })
+      setHeatmap({ items: heatRes?.items || [], max_expense: heatRes?.max_expense || 0 })
+      setUnrecognized(unrec || {})
     } finally {
       setLoading(false)
     }
-  }
+  }, [queryParams, granularity])
 
   useEffect(() => {
     load()
-  }, [queryParams.date_from, queryParams.date_to])
+  }, [load])
+
+  const handleDrill = useCallback(
+    async (categoryName) => {
+      setDrillCategory(categoryName)
+      setDrillLoading(true)
+      try {
+        const res = await getAnalyticsCategoryDetail({ ...queryParams, category_name: categoryName })
+        setDrillDetail(res || {})
+      } finally {
+        setDrillLoading(false)
+      }
+    },
+    [queryParams]
+  )
+
+  const handleCloseDrill = () => {
+    setDrillCategory(null)
+    setDrillDetail(null)
+  }
+
+  if (loading && !summary) {
+    return (
+      <div className="page-section">
+        <SkeletonCard rows={8} />
+      </div>
+    )
+  }
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={12}>
@@ -76,129 +168,131 @@ export default function AnalyticsPage() {
         title="基础分析"
         subtitle="基于已入账交易的稳定口径统计"
         extra={
-          <Space>
-            <RangePicker value={dateRange} onChange={(v) => setDateRange(v)} />
-            <Button onClick={load} loading={loading}>刷新</Button>
+          <Space wrap>
+            <Segmented
+              size="small"
+              options={PRESETS}
+              value={preset}
+              onChange={(v) => {
+                setPreset(v)
+                if (v !== 'custom') setCustomRange(null)
+              }}
+            />
+            {preset === 'custom' && (
+              <RangePicker
+                size="small"
+                value={customRange}
+                onChange={(v) => setCustomRange(v)}
+              />
+            )}
+            <Button size="small" icon={<ReloadOutlined />} onClick={load} loading={loading}>
+              刷新
+            </Button>
           </Space>
         }
       />
 
-      <div className="dashboard-grid">
-        <Card className="page-card"><Statistic title="总支出" value={Number(summary?.总支出 || 0)} precision={2} prefix="¥" /></Card>
-        <Card className="page-card"><Statistic title="交易数" value={Number(summary?.交易数 || 0)} /></Card>
-        <Card className="page-card"><Statistic title="已识别率" value={Number(summary?.已识别率 || 0) * 100} precision={1} suffix="%" /></Card>
-        <Card className="page-card"><Statistic title="未识别数 / 金额" value={`${Number(summary?.未识别数 || 0)} / ${moneyText(summary?.未识别金额)}`} /></Card>
-      </div>
+      {/* KPI Cards */}
+      <KpiCards summary={summary} loading={loading} />
 
+      {/* Trend */}
+      <Card
+        className="page-card"
+        title="收支趋势"
+        loading={loading}
+        extra={
+          <Button
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() =>
+              exportCsv(
+                trend.items.map((i) => ({ 周期: i.period, 支出: i.total_expense, 收入: i.total_income })),
+                'trend.csv'
+              )
+            }
+          >
+            导出
+          </Button>
+        }
+      >
+        <TrendChart
+          items={trend.items}
+          granularity={granularity}
+          onGranularityChange={setGranularity}
+          isDark={isDark}
+        />
+      </Card>
+
+      {/* Category + Platform */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <Card className="page-card" title="分类占比（支出）" loading={loading}>
-          <Table
-            rowKey="分类名称"
-            size="small"
-            pagination={false}
-            dataSource={category}
-            columns={[
-              { title: '分类名称', dataIndex: '分类名称' },
-              { title: '金额', dataIndex: '金额', width: 140, render: (v) => moneyText(v) },
-              {
-                title: '占比',
-                dataIndex: '占比',
-                width: 180,
-                render: (v) => <Progress percent={Number((Number(v || 0) * 100).toFixed(1))} size="small" />,
-              },
-            ]}
+        <Card
+          className="page-card"
+          title="分类占比（支出）"
+          loading={loading}
+          extra={
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => exportCsv(category.items, 'category_breakdown.csv')}
+            >
+              导出
+            </Button>
+          }
+        >
+          <CategoryPieChart
+            items={category.items}
+            total={category.total}
+            onDrill={handleDrill}
+            isDark={isDark}
           />
         </Card>
 
-        <Card className="page-card" title="平台占比（支出）" loading={loading}>
-          <Table
-            rowKey="平台名称"
-            size="small"
-            pagination={false}
-            dataSource={platform}
-            columns={[
-              { title: '平台名称', dataIndex: '平台名称' },
-              { title: '金额', dataIndex: '金额', width: 140, render: (v) => moneyText(v) },
-              {
-                title: '占比',
-                dataIndex: '占比',
-                width: 180,
-                render: (v) => <Progress percent={Number((Number(v || 0) * 100).toFixed(1))} size="small" />,
-              },
-            ]}
-          />
+        <Card
+          className="page-card"
+          title="平台占比（支出）"
+          loading={loading}
+          extra={
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => exportCsv(platform.items, 'platform_breakdown.csv')}
+            >
+              导出
+            </Button>
+          }
+        >
+          <PlatformBarChart items={platform.items} isDark={isDark} />
         </Card>
       </div>
 
+      {/* Merchant Top */}
       <Card className="page-card" title="高频商户 Top 10" loading={loading}>
-        <Table
-          rowKey="商户名称"
-          size="small"
-          pagination={false}
-          dataSource={topMerchants}
-          columns={[
-            { title: '商户名称', dataIndex: '商户名称' },
-            { title: '次数', dataIndex: '次数', width: 100 },
-            { title: '总金额', dataIndex: '总金额', width: 160, render: (v) => moneyText(v) },
-          ]}
+        <MerchantTopChart items={topMerchants} isDark={isDark} />
+      </Card>
+
+      {/* Calendar Heatmap */}
+      <Card className="page-card" title="日消费热图" loading={loading}>
+        <CalendarHeatmap
+          items={heatmap.items}
+          maxExpense={heatmap.max_expense}
+          dateFrom={queryParams.date_from}
+          dateTo={queryParams.date_to}
+          isDark={isDark}
         />
       </Card>
 
-      <Card className="page-card" title="月度趋势（总支出 + 重点分类）" loading={loading}>
-        <Table
-          rowKey="月份"
-          size="small"
-          pagination={false}
-          dataSource={monthlyTrend}
-          columns={[
-            { title: '月份', dataIndex: '月份', width: 100 },
-            { title: '总支出', dataIndex: '总支出', width: 140, render: (v) => moneyText(v) },
-            { title: '餐饮', dataIndex: '餐饮', width: 120, render: (v) => moneyText(v) },
-            { title: '买菜商超', dataIndex: '买菜商超', width: 120, render: (v) => moneyText(v) },
-            { title: '交通', dataIndex: '交通', width: 120, render: (v) => moneyText(v) },
-            { title: '购物', dataIndex: '购物', width: 120, render: (v) => moneyText(v) },
-          ]}
-        />
-      </Card>
-
+      {/* Unrecognized */}
       <Card className="page-card" title="未识别分析" loading={loading}>
-        <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <Space wrap>
-            <Tag color="warning">未识别条数：{Number(unrecognized?.未识别条数 || 0)}</Tag>
-            <Tag color="warning">未识别金额：{moneyText(unrecognized?.未识别金额 || 0)}</Tag>
-            <Tag color="warning">未识别金额占比：{percentText(unrecognized?.未识别金额占比 || 0)}</Tag>
-          </Space>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Card size="small" title="未识别商户 Top">
-              <Table
-                rowKey="商户"
-                size="small"
-                pagination={false}
-                dataSource={Array.isArray(unrecognized?.未识别商户Top) ? unrecognized?.未识别商户Top : []}
-                columns={[
-                  { title: '商户', dataIndex: '商户' },
-                  { title: '次数', dataIndex: '次数', width: 90 },
-                  { title: '金额', dataIndex: '金额', width: 120, render: (v) => moneyText(v) },
-                ]}
-              />
-            </Card>
-            <Card size="small" title="未识别摘要 Top">
-              <Table
-                rowKey="摘要"
-                size="small"
-                pagination={false}
-                dataSource={Array.isArray(unrecognized?.未识别摘要Top) ? unrecognized?.未识别摘要Top : []}
-                columns={[
-                  { title: '摘要', dataIndex: '摘要', ellipsis: true },
-                  { title: '次数', dataIndex: '次数', width: 90 },
-                  { title: '金额', dataIndex: '金额', width: 120, render: (v) => moneyText(v) },
-                ]}
-              />
-            </Card>
-          </div>
-        </Space>
+        <UnrecognizedSection data={unrecognized} />
       </Card>
+
+      {/* Drill Drawer */}
+      <CategoryDrillDrawer
+        open={!!drillCategory}
+        categoryName={drillCategory}
+        detail={drillLoading ? null : drillDetail}
+        onClose={handleCloseDrill}
+      />
     </Space>
   )
 }

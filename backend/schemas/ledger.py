@@ -15,6 +15,9 @@ class LedgerImportBatchItem(BaseModel):
     matched_rows: int
     review_rows: int
     duplicate_rows: int
+    committable_count: int = 0
+    pending_count: int = 0
+    duplicate_count: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -100,8 +103,13 @@ class LedgerMerchantItem(BaseModel):
     aliases: list[str]
     default_category_id: Optional[int] = None
     default_subcategory_id: Optional[int] = None
+    default_category_name: Optional[str] = None
+    default_subcategory_name: Optional[str] = None
     tags: list[str]
     hit_count: int
+    recent_30d_count: int = 0
+    recent_30d_amount: float = 0.0
+    last_seen_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -267,3 +275,32 @@ class LedgerGeneratedRulesResponse(BaseModel):
     conflict_rule_count: int = 0
     created_rule_summaries: list[dict[str, Any]] = Field(default_factory=list)
     reprocess_result: dict[str, Any] = Field(default_factory=dict)
+
+
+class LedgerMerchantMergeRequest(BaseModel):
+    source_ids: list[int] = Field(min_length=1)
+    target_id: int = Field(ge=1)
+
+
+class LedgerRuleDryRunRequest(BaseModel):
+    rule_type: str = Field(default="category")
+    match_mode: str = Field(default="contains")
+    pattern: str = Field(min_length=1)
+    source_channel_condition: Optional[str] = None
+    platform_condition: Optional[str] = None
+    direction_condition: Optional[str] = None
+    amount_min: Optional[float] = None
+    amount_max: Optional[float] = None
+    target_platform: Optional[str] = None
+    target_merchant: Optional[str] = None
+    target_txn_kind: Optional[str] = None
+    target_scene: Optional[str] = None
+    target_category_id: Optional[int] = None
+    target_subcategory_id: Optional[int] = None
+    explain_text: Optional[str] = None
+    confidence_score: float = Field(default=0.7)
+    limit: int = Field(default=50, ge=1, le=500)
+
+
+class LedgerRuleToggleRequest(BaseModel):
+    enabled: bool
