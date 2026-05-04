@@ -37,3 +37,16 @@ class MonitorSiteResult(Base):
     error = Column(Text, nullable=True)
 
     site = relationship("MonitorSite")
+
+
+class MonitorServerSample(Base):
+    __tablename__ = "monitor_server_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sampled_at = Column(DateTime, index=True)
+    cpu = Column(Float, nullable=True)
+    mem = Column(Float, nullable=True)
+    net_up = Column(Float, nullable=True)  # KB/s
+    net_down = Column(Float, nullable=True)  # KB/s
+    disk_read = Column(Float, nullable=True)  # MB/s
+    disk_write = Column(Float, nullable=True)  # MB/s

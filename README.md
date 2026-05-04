@@ -60,6 +60,7 @@
 - Merchant dictionary (`ledger_merchants`) supports editing canonical name/aliases/default categories and displays recent linked samples.
 - Unified tabular parser supports `csv/xls/xlsx` (including HTML-table style `.xls` exports).
 - Asset library (`/ledger/assets`) now supports long-term asset records, purchase cost, extra cost, usage and idle tracking, lifecycle events, sold review, and cash daily cost analysis within one tabbed page.
+- Asset library lifecycle and analysis views now include a compact top-mounted event form, first-5 event collapse with show-all toggle, hover-only event delete action, richer lifecycle selector metrics, and expanded analysis charts for type mix, purchase-year trend, in-use efficiency, extra-cost ratio, ROI, and idle days.
 - Current ledger pages include:
   - Import Center (`/ledger/imports`) for batch lifecycle operations.
   - Import Review Workbench (`/ledger/imports/:batchId/review`) with explain visibility and batch actions.

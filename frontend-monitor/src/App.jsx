@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
-import { Alert, Badge, Button, Card, DatePicker, Empty, Input, message, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tag, Typography } from 'antd';
+import { Alert, Badge, Button, Card, DatePicker, Empty, Form, Input, InputNumber, message, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tabs, Tag, Tooltip as AntTooltip, Typography } from 'antd';
 import {
   DesktopOutlined,
   FileSearchOutlined,
@@ -39,9 +39,9 @@ function getUsageLevel(value) {
 
 function getUsageColor(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '#94a3b8';
-  if (value < 60) return '#4f8a5b';
-  if (value < 80) return '#c48a36';
-  return '#c45c5c';
+  if (value < 60) return '#22c55e';
+  if (value < 80) return '#f59e0b';
+  return '#ef4444';
 }
 
 function formatPercent(value) {
@@ -104,6 +104,14 @@ function ServerPanel() {
   const [lastRefreshAt, setLastRefreshAt] = useState('');
   const [online, setOnline] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [samplePage, setSamplePage] = useState(1);
+  const [sampleTotal, setSampleTotal] = useState(0);
+  const [sampleRows, setSampleRows] = useState([]);
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const SAMPLE_SIZE = 50;
+  const [trendRange, setTrendRange] = useState('7d');
+  const [trendData2, setTrendData2] = useState([]);
+  const [trendLoading, setTrendLoading] = useState(false);
 
   const pushHistoryRow = (next) => {
     const row = {
@@ -157,9 +165,49 @@ function ServerPanel() {
     }
   };
 
+  const loadSamples = async (page = 1) => {
+    setSampleLoading(true);
+    try {
+      const res = await monitorApi.serverSamples({ page, size: SAMPLE_SIZE });
+      if (!mountedRef.current) return;
+      const d = res.data || {};
+      setSampleRows(Array.isArray(d.items) ? d.items : []);
+      setSampleTotal(Number(d.total || 0));
+      setSamplePage(Number(d.page || page));
+    } finally {
+      if (mountedRef.current) setSampleLoading(false);
+    }
+  };
+
+  const loadTrend = async (range = trendRange) => {
+    setTrendLoading(true);
+    const now = dayjs();
+    let date_from; let date_to; let granularity;
+    date_to = now.format('YYYY-MM-DD');
+    if (range === '1d') {
+      date_from = now.format('YYYY-MM-DD');
+      granularity = 'hour';
+    } else if (range === '7d') {
+      date_from = now.subtract(6, 'day').format('YYYY-MM-DD');
+      granularity = 'hour';
+    } else {
+      date_from = now.subtract(29, 'day').format('YYYY-MM-DD');
+      granularity = 'day';
+    }
+    try {
+      const res = await monitorApi.serverTrend({ granularity, date_from, date_to });
+      if (!mountedRef.current) return;
+      setTrendData2(Array.isArray(res.data) ? res.data : []);
+    } finally {
+      if (mountedRef.current) setTrendLoading(false);
+    }
+  };
+
   useEffect(() => {
     mountedRef.current = true;
     loadAll();
+    loadSamples();
+    loadTrend();
     const timer = setInterval(() => {
       loadRealtime();
     }, POLL_MS);
@@ -181,216 +229,317 @@ function ServerPanel() {
     [history]
   );
 
+  // ---- metricItems for sp-metrics grid ----
   const cpuPercent = typeof data?.cpu?.percent === 'number' ? data.cpu.percent : null;
-  const memoryPercent = typeof data?.memory?.percent === 'number' ? data.memory.percent : null;
-  const diskPercent = typeof data?.disk_percent === 'number'
-    ? data.disk_percent
-    : typeof data?.disk?.partitions?.[0]?.percent === 'number'
-      ? data.disk.partitions[0].percent
-      : null;
-  const loadRatioPercent =
-    typeof data?.load_avg?.['1m'] === 'number' && Number(data?.cpu?.cores_logical || 0) > 0
-      ? (data.load_avg['1m'] / Number(data.cpu.cores_logical)) * 100
-      : typeof data?.cpu?.load_1 === 'number' && Number(data?.cpu?.cores_logical || 0) > 0
-        ? (data.cpu.load_1 / Number(data.cpu.cores_logical)) * 100
-        : null;
+  const memPercent = typeof data?.memory?.percent === 'number' ? data.memory.percent : null;
+  const diskPercent = typeof data?.disk_percent === 'number' ? data.disk_percent : null;
+  const swapPercent = typeof data?.memory?.swap_percent === 'number' ? data.memory.swap_percent : null;
+  const load1 = typeof data?.load_avg?.['1m'] === 'number'
+    ? data.load_avg['1m']
+    : typeof data?.cpu?.load_1 === 'number' ? data.cpu.load_1 : null;
+  const load5 = typeof data?.load_avg?.['5m'] === 'number'
+    ? data.load_avg['5m']
+    : typeof data?.cpu?.load_5 === 'number' ? data.cpu.load_5 : null;
+  const load15 = typeof data?.load_avg?.['15m'] === 'number'
+    ? data.load_avg['15m']
+    : typeof data?.cpu?.load_15 === 'number' ? data.cpu.load_15 : null;
+  const diskRead = typeof data?.disk?.io_read_speed === 'number' ? data.disk.io_read_speed : null;   // MB/s
+  const diskWrite = typeof data?.disk?.io_write_speed === 'number' ? data.disk.io_write_speed : null; // MB/s
+  const netUp = typeof data?.network?.speed_up === 'number' ? data.network.speed_up : null;     // KB/s
+  const netDown = typeof data?.network?.speed_down === 'number' ? data.network.speed_down : null; // KB/s
 
   const metricItems = [
     {
       key: 'cpu',
-      title: 'CPU 使用率',
-      value: formatPercent(cpuPercent),
+      title: 'CPU',
+      value: cpuPercent != null ? `${Math.round(cpuPercent)}%` : '—',
       percent: cpuPercent,
-      note: `逻辑核心 ${data?.cpu?.cores_logical || '--'}，${getUsageLevel(cpuPercent)}运行区间`,
+      note: load1 != null ? `负载 ${load1.toFixed(2)}` : `逻辑核心 ${data?.cpu?.cores_logical || '--'}`,
     },
     {
-      key: 'memory',
-      title: '内存使用率',
-      value: formatPercent(memoryPercent),
-      percent: memoryPercent,
-      note: data?.memory?.used_fmt && data?.memory?.total_fmt ? `${data.memory.used_fmt} / ${data.memory.total_fmt}` : '暂未返回内存详情',
+      key: 'mem',
+      title: '内存',
+      value: memPercent != null ? `${Math.round(memPercent)}%` : '—',
+      percent: memPercent,
+      note: data?.memory?.used_fmt && data?.memory?.total_fmt
+        ? `${data.memory.used_fmt} / ${data.memory.total_fmt}`
+        : '—',
     },
     {
       key: 'disk',
-      title: '磁盘使用率',
-      value: formatPercent(diskPercent),
+      title: '磁盘',
+      value: diskPercent != null ? `${Math.round(diskPercent)}%` : '—',
       percent: diskPercent,
-      note:
-        typeof data?.disk_used_gb === 'number' && typeof data?.disk_total_gb === 'number'
-          ? `${data.disk_used_gb.toFixed(1)} GB / ${data.disk_total_gb.toFixed(1)} GB`
-          : '暂无数据',
+      note: typeof data?.disk_used_gb === 'number' && typeof data?.disk_total_gb === 'number'
+        ? `${data.disk_used_gb.toFixed(1)} / ${data.disk_total_gb.toFixed(1)} GB`
+        : '—',
     },
     {
       key: 'load',
-      title: '系统负载',
-      value:
-        typeof data?.load_avg?.['1m'] === 'number'
-          ? data.load_avg['1m'].toFixed(2)
-          : typeof data?.cpu?.load_1 === 'number'
-            ? data.cpu.load_1.toFixed(2)
-            : '暂无数据',
-      percent: loadRatioPercent,
-      note:
-        typeof data?.load_avg?.['5m'] === 'number' && typeof data?.load_avg?.['15m'] === 'number'
-          ? `5m ${data.load_avg['5m'].toFixed(2)} / 15m ${data.load_avg['15m'].toFixed(2)}`
-          : '暂无数据',
-    },
-  ];
-
-  const sampleColumns = [
-    {
-      title: '时间',
-      dataIndex: 'ts',
-      key: 'ts',
-      render: (value) => formatTime(value),
+      title: '负载',
+      value: load1 != null ? load1.toFixed(2) : '—',
+      percent: null,
+      note: load5 != null && load15 != null ? `5m ${load5.toFixed(2)} / 15m ${load15.toFixed(2)}` : '—',
     },
     {
-      title: 'CPU%',
-      dataIndex: 'cpu',
-      key: 'cpu',
-      render: (value) => (
-        <div className="sample-metric-cell">
-          <Progress percent={Math.max(0, Math.min(100, Number(value || 0)))} size="small" strokeColor={getUsageColor(Number(value || 0))} showInfo={false} />
-          <Tag bordered={false} color={getUsageLevel(Number(value || 0)) === '危险' ? 'error' : getUsageLevel(Number(value || 0)) === '偏高' ? 'warning' : 'success'}>
-            {formatPercent(Number(value || 0))}
-          </Tag>
-        </div>
-      ),
+      key: 'swap',
+      title: 'Swap',
+      value: swapPercent != null ? `${Math.round(swapPercent)}%` : '—',
+      percent: swapPercent,
+      note: data?.memory?.swap_used_fmt && data?.memory?.swap_total_fmt
+        ? `${data.memory.swap_used_fmt} / ${data.memory.swap_total_fmt}`
+        : '—',
     },
     {
-      title: '内存%',
-      dataIndex: 'mem',
-      key: 'mem',
-      render: (value) => (
-        <div className="sample-metric-cell">
-          <Progress percent={Math.max(0, Math.min(100, Number(value || 0)))} size="small" strokeColor={getUsageColor(Number(value || 0))} showInfo={false} />
-          <Tag bordered={false} color={getUsageLevel(Number(value || 0)) === '危险' ? 'error' : getUsageLevel(Number(value || 0)) === '偏高' ? 'warning' : 'success'}>
-            {formatPercent(Number(value || 0))}
-          </Tag>
-        </div>
-      ),
+      key: 'diskio',
+      title: '磁盘 IO',
+      value: diskRead != null ? `${diskRead} MB/s` : '—',
+      percent: null,
+      note: diskWrite != null ? `写 ${diskWrite} MB/s` : '—',
+    },
+    {
+      key: 'netup',
+      title: '网络上行',
+      value: data?.network?.speed_up_fmt || (netUp != null ? `${netUp} KB/s` : '—'),
+      percent: null,
+      note: `累计 ${data?.network?.bytes_sent_fmt || '--'}`,
+    },
+    {
+      key: 'netdown',
+      title: '网络下行',
+      value: data?.network?.speed_down_fmt || (netDown != null ? `${netDown} KB/s` : '—'),
+      percent: null,
+      note: `累计 ${data?.network?.bytes_recv_fmt || '--'}`,
     },
   ];
 
   return (
-    <div className="monitor-page">
-      {error.realtime ? <Alert type="error" showIcon message={error.realtime} style={{ marginBottom: 12 }} /> : null}
-      {error.history ? <Alert type="error" showIcon message={error.history} style={{ marginBottom: 12 }} /> : null}
+    <div className="sp-root">
+      {error.realtime && <Alert type="error" showIcon message={error.realtime} style={{ marginBottom: 0 }} />}
+      {error.history && <Alert type="error" showIcon message={error.history} style={{ marginBottom: 0 }} />}
 
-      <Card className="monitor-hero" bordered={false}>
-        <div className="monitor-hero-main">
-          <span className="monitor-hero-kicker">Operations Console</span>
-          <h2>服务器监控</h2>
-          <p>实时查看主机运行状态、资源使用率与最近采样趋势</p>
+      {/* 状态栏 */}
+      <div className="sp-statusbar">
+        <div className="sp-statusbar-host">
+          <div className="sp-statusbar-hostname">{data?.system?.hostname || '—'}</div>
+          <div className="sp-statusbar-os">{data?.system?.os || '—'}</div>
         </div>
-        <div className="monitor-hero-actions">
-          <div className="hero-badge-row">
-            <Badge status={online === false ? 'error' : online ? 'success' : 'processing'} text={online === false ? '离线' : online ? '在线' : '连接中'} />
-            <Tag bordered={false} color="blue">
-              自动刷新 {POLL_MS / 1000} 秒
-            </Tag>
+
+        <div className="sp-statusbar-services">
+          {data?.services
+            ? Object.entries(data.services).map(([svc, running]) => (
+                <span key={svc} className="sp-svc-item">
+                  <span className={`sp-svc-dot ${running ? 'up' : 'down'}`} />
+                  {svc}
+                </span>
+              ))
+            : null}
+        </div>
+
+        <div className="sp-statusbar-right">
+          <Badge
+            status={online === false ? 'error' : online ? 'success' : 'processing'}
+            text={<span style={{ color: '#cbd5e1', fontSize: 12 }}>{online === false ? '离线' : online ? '在线' : '连接中'}</span>}
+          />
+          <div className="sp-meta-item">
+            <span>运行时长</span>
+            <strong>{data?.system?.uptime || formatDuration(data?.uptime_seconds || data?.system?.uptime_seconds) || '—'}</strong>
           </div>
-          <div className="hero-meta-item">
-            <span>最近刷新时间</span>
+          <div className="sp-meta-item">
+            <span>最近刷新</span>
             <strong>{formatTime(lastRefreshAt || data?.sampled_at || data?.system?.time)}</strong>
           </div>
-          <Button type="primary" icon={<ReloadOutlined />} loading={refreshing} onClick={() => loadAll({ withSpinner: true })}>
-            手动刷新
+          <Button
+            size="small"
+            ghost
+            icon={<ReloadOutlined />}
+            loading={refreshing}
+            onClick={() => loadAll({ withSpinner: true })}
+            style={{ borderColor: 'rgba(255,255,255,0.25)', color: '#e2e8f0' }}
+          >
+            刷新
           </Button>
-          <div className="hero-auto-refresh">自动刷新已开启，轮询间隔 {POLL_MS / 1000} 秒。</div>
         </div>
-      </Card>
+      </div>
 
-      <div className="metric-grid">
+      {/* 8 格指标 */}
+      <div className="sp-metrics">
         {metricItems.map((item) => {
-          const level = getUsageLevel(item.percent);
+          const lvl = getUsageLevel(item.percent);
+          const lvlKey = lvl === '危险' ? 'danger' : lvl === '偏高' ? 'high' : lvl === '正常' ? 'normal' : 'na';
           const color = getUsageColor(item.percent);
           return (
-            <Card key={item.key} className="metric-card" bordered={false}>
-              <div className="metric-card-header">
-                <span>{item.title}</span>
-                <Tag bordered={false} color={level === '危险' ? 'error' : level === '偏高' ? 'warning' : level === '正常' ? 'success' : 'default'}>
-                  {level}
-                </Tag>
+            <div key={item.key} className={`sp-metric-tile level-${lvlKey}`}>
+              <div className="sp-tile-header">
+                <span className="sp-tile-label">{item.title}</span>
+                <span className={`sp-tile-dot ${lvlKey}`} />
               </div>
-              <div className="metric-value" style={{ color }}>
-                {item.value}
-              </div>
-              <Progress percent={typeof item.percent === 'number' ? Math.max(0, Math.min(100, Math.round(item.percent))) : 0} strokeColor={color} showInfo={false} />
-              <div className="metric-subtitle">{item.note}</div>
-            </Card>
+              <div className={`sp-tile-value ${lvlKey}`}>{item.value}</div>
+              {typeof item.percent === 'number' && (
+                <Progress
+                  percent={Math.max(0, Math.min(100, Math.round(item.percent)))}
+                  strokeColor={color}
+                  showInfo={false}
+                  size="small"
+                  style={{ margin: '4px 0' }}
+                />
+              )}
+              <div className="sp-tile-note">{item.note}</div>
+            </div>
           );
         })}
       </div>
 
-      <div className="monitor-main-grid">
-        <Card className="trend-card" title="资源使用趋势" bordered={false}>
-          <div className="chart-card-header">
-            <span>最近 30 条采样中的 CPU / 内存变化</span>
-          </div>
-          <div className="mini-line-chart">
-            {trendData.length ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={trendData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe3ec" />
-                  <XAxis dataKey="ts" tick={{ fill: '#66758a', fontSize: 12 }} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#66758a', fontSize: 12 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="cpu" name="CPU" stroke="#4f8a5b" strokeWidth={2.2} dot={false} />
-                  <Line type="monotone" dataKey="mem" name="内存" stroke="#5278a6" strokeWidth={2.2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无采样数据" />
-            )}
-          </div>
-        </Card>
-
-        <Card className="host-info-card" title="主机信息" bordered={false}>
-          <div className="host-info-grid">
-            <div className="host-info-item">
-              <span>主机名</span>
-              <strong>{data?.system?.hostname || '--'}</strong>
-            </div>
-            <div className="host-info-item host-info-item-wide">
-              <span>操作系统</span>
-              <Paragraph ellipsis={{ rows: 2, tooltip: data?.system?.os || '' }}>{data?.system?.os || '--'}</Paragraph>
-            </div>
-            <div className="host-info-item">
-              <span>平台</span>
-              <strong>{data?.platform || '--'}</strong>
-            </div>
-            <div className="host-info-item">
-              <span>架构</span>
-              <strong>{data?.architecture || data?.system?.arch || '--'}</strong>
-            </div>
-            <div className="host-info-item">
-              <span>当前采样时间</span>
-              <strong>{formatTime(data?.sampled_at || data?.system?.time)}</strong>
-            </div>
-            <div className="host-info-item">
-              <span>运行时长</span>
-              <strong>{data?.system?.uptime || formatDuration(data?.uptime_seconds || data?.system?.uptime_seconds)}</strong>
-            </div>
-            <div className="host-info-item host-info-item-wide">
-              <span>系统字符串</span>
-              <Paragraph ellipsis={{ rows: 2, tooltip: data?.system?.kernel || '' }}>{data?.system?.kernel || '--'}</Paragraph>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="sample-table-card" title="最近采样明细" bordered={false}>
-        <Table
-          rowKey={(row) => `${row.ts}-${row.cpu}-${row.mem}`}
-          dataSource={[...history].reverse().slice(0, 20)}
+      {/* 主内容 Tabs */}
+      <div className="sp-main">
+        <Tabs
           size="small"
-          pagination={false}
-          columns={sampleColumns}
-          locale={{ emptyText: '暂无采样数据' }}
+          items={[
+            {
+              key: 'realtime',
+              label: '实时趋势',
+              children: trendData.length ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={trendData} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="ts" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="cpu" name="CPU %" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="mem" name="内存 %" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无实时数据" style={{ marginTop: 40 }} />
+              ),
+            },
+            {
+              key: 'history',
+              label: '历史趋势',
+              children: (
+                <div>
+                  <Space style={{ marginBottom: 12 }}>
+                    {[{ label: '今天', value: '1d' }, { label: '近7天', value: '7d' }, { label: '近30天', value: '30d' }].map((opt) => (
+                      <Button
+                        key={opt.value}
+                        size="small"
+                        type={trendRange === opt.value ? 'primary' : 'default'}
+                        onClick={() => { setTrendRange(opt.value); loadTrend(opt.value); }}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </Space>
+                  {trendLoading ? (
+                    <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>加载中...</div>
+                  ) : trendData2.length ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={trendData2} margin={{ top: 4, right: 12, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="ts" tick={{ fill: '#94a3b8', fontSize: 11 }} interval="preserveStartEnd" />
+                        <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Line type="monotone" dataKey="avg_cpu" name="CPU 均值" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="max_cpu" name="CPU 峰值" stroke="#3b82f6" strokeWidth={1} strokeDasharray="4 2" dot={false} />
+                        <Line type="monotone" dataKey="avg_mem" name="内存 均值" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="max_mem" name="内存 峰值" stroke="#8b5cf6" strokeWidth={1} strokeDasharray="4 2" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无历史数据" style={{ marginTop: 40 }} />
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: 'process',
+              label: '进程',
+              children: (
+                <Table
+                  rowKey="pid"
+                  dataSource={data?.processes || []}
+                  size="small"
+                  pagination={false}
+                  columns={[
+                    { title: 'PID', dataIndex: 'pid', key: 'pid', width: 70 },
+                    { title: '进程名', dataIndex: 'name', key: 'name', ellipsis: true },
+                    {
+                      title: 'CPU %',
+                      dataIndex: 'cpu',
+                      key: 'cpu',
+                      width: 90,
+                      render: (v) => (
+                        <span style={{ color: v > 50 ? '#ef4444' : v > 20 ? '#f59e0b' : '#22c55e', fontWeight: 600 }}>
+                          {v}%
+                        </span>
+                      ),
+                    },
+                    { title: '内存 %', dataIndex: 'mem', key: 'mem', width: 90, render: (v) => `${v}%` },
+                    { title: '用户', dataIndex: 'user', key: 'user', ellipsis: true, width: 110 },
+                  ]}
+                  locale={{ emptyText: '暂无进程数据' }}
+                />
+              ),
+            },
+            {
+              key: 'host',
+              label: '主机信息',
+              children: (
+                <div className="sp-host-grid">
+                  {[
+                    { label: '主机名', value: data?.system?.hostname },
+                    { label: '操作系统', value: data?.system?.os },
+                    { label: '平台', value: data?.platform },
+                    { label: '架构', value: data?.architecture || data?.system?.arch },
+                    { label: 'CPU 核心', value: data?.cpu?.cores_logical ? `${data.cpu.cores_logical} 逻辑核` : null },
+                    { label: 'CPU 频率', value: data?.cpu?.freq_current ? `${data.cpu.freq_current} MHz` : null },
+                    { label: '运行时长', value: data?.system?.uptime || formatDuration(data?.uptime_seconds || data?.system?.uptime_seconds) },
+                    { label: '启动时间', value: data?.system?.boot_time },
+                    { label: '内核版本', value: data?.system?.kernel },
+                    { label: '采样时间', value: formatTime(data?.sampled_at || data?.system?.time) },
+                  ]
+                    .filter((row) => row.value)
+                    .map((row) => (
+                      <div key={row.label} className="sp-host-row">
+                        <span className="sp-host-key">{row.label}</span>
+                        <span className="sp-host-val" title={String(row.value)}>{row.value}</span>
+                      </div>
+                    ))}
+                </div>
+              ),
+            },
+            {
+              key: 'samples',
+              label: '采样记录',
+              children: (
+                <Table
+                  rowKey="id"
+                  loading={sampleLoading}
+                  dataSource={sampleRows}
+                  size="small"
+                  pagination={{
+                    current: samplePage,
+                    pageSize: SAMPLE_SIZE,
+                    total: sampleTotal,
+                    showTotal: (n) => `共 ${n} 条`,
+                    onChange: (p) => loadSamples(p),
+                  }}
+                  columns={[
+                    { title: '时间', dataIndex: 'ts', key: 'ts', width: 160 },
+                    { title: 'CPU %', dataIndex: 'cpu', key: 'cpu', width: 80, render: (v) => v != null ? `${v}%` : '—' },
+                    { title: '内存 %', dataIndex: 'mem', key: 'mem', width: 80, render: (v) => v != null ? `${v}%` : '—' },
+                    { title: '上行', dataIndex: 'net_up', key: 'net_up', width: 100, render: (v) => v != null ? `${v} KB/s` : '—' },
+                    { title: '下行', dataIndex: 'net_down', key: 'net_down', width: 100, render: (v) => v != null ? `${v} KB/s` : '—' },
+                  ]}
+                  locale={{ emptyText: '暂无采样数据' }}
+                />
+              ),
+            },
+          ]}
         />
-      </Card>
+      </div>
     </div>
   );
 }
@@ -400,6 +549,7 @@ function SitePanel() {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', url: '', enabled: true, interval_sec: 60, timeout_sec: 8 });
+  const [modalOpen, setModalOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -424,64 +574,27 @@ function SitePanel() {
     else await monitorApi.createSite(form);
     setEditing(null);
     setForm({ name: '', url: '', enabled: true, interval_sec: 60, timeout_sec: 8 });
+    setModalOpen(false);
     await load();
   };
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={12}>
-      <Card title={editing ? '编辑站点' : '新增站点'}>
-        <Space wrap>
-          <Input
-            placeholder="名称"
-            value={form.name}
-            onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-            style={{ width: 160 }}
-          />
-          <Input
-            placeholder="URL (http/https)"
-            value={form.url}
-            onChange={(e) => setForm((s) => ({ ...s, url: e.target.value }))}
-            style={{ width: 320 }}
-          />
-          <Input
-            type="number"
-            placeholder="间隔秒"
-            value={form.interval_sec}
-            onChange={(e) => setForm((s) => ({ ...s, interval_sec: Number(e.target.value || 60) }))}
-            style={{ width: 110 }}
-          />
-          <Input
-            type="number"
-            placeholder="超时秒"
-            value={form.timeout_sec}
-            onChange={(e) => setForm((s) => ({ ...s, timeout_sec: Number(e.target.value || 8) }))}
-            style={{ width: 110 }}
-          />
-          <Space size={6}>
-            <span>启用</span>
-            <Switch
-              checked={!!form.enabled}
-              checkedChildren="启用"
-              unCheckedChildren="停用"
-              onChange={(checked) => setForm((s) => ({ ...s, enabled: checked }))}
-            />
-          </Space>
-          <Button type="primary" onClick={submit}>
-            {editing ? '保存' : '创建'}
+      <Card
+        title="巡检目标"
+        extra={
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditing(null);
+              setForm({ name: '', url: '', enabled: true, interval_sec: 60, timeout_sec: 8 });
+              setModalOpen(true);
+            }}
+          >
+            新增站点
           </Button>
-          {editing && (
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setForm({ name: '', url: '', enabled: true, interval_sec: 60, timeout_sec: 8 });
-              }}
-            >
-              取消
-            </Button>
-          )}
-        </Space>
-      </Card>
-      <Card title="巡检目标">
+        }
+      >
         <Table
           rowKey="id"
           loading={loading}
@@ -490,7 +603,23 @@ function SitePanel() {
           pagination={false}
           columns={[
             { title: '名称', dataIndex: 'name', key: 'name' },
-            { title: 'URL', dataIndex: 'url', key: 'url' },
+            {
+              title: 'URL',
+              dataIndex: 'url',
+              key: 'url',
+              ellipsis: { showTitle: false },
+              render: (_, r) => (
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={r.url}
+                  style={{ maxWidth: 260, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
+                >
+                  {r.url}
+                </a>
+              ),
+            },
             {
               title: '启用',
               key: 'enabled',
@@ -499,14 +628,45 @@ function SitePanel() {
             {
               title: '巡检',
               key: 'status',
-              render: (_, r) => (
-                <Tag color={r.last_ok ? 'green' : r.last_ok === false ? 'red' : 'default'}>
-                  {r.last_ok ? '正常' : r.last_ok === false ? '异常' : '未检'}
-                </Tag>
-              ),
+              render: (_, r) =>
+                r.last_ok === false ? (
+                  <AntTooltip title={r.last_error || '无错误信息'}>
+                    <Tag color="red">异常</Tag>
+                  </AntTooltip>
+                ) : r.last_ok === true ? (
+                  <Tag color="green">正常</Tag>
+                ) : (
+                  <Tag color="default">未检</Tag>
+                ),
             },
-            { title: '状态码', dataIndex: 'last_status_code', key: 'last_status_code' },
-            { title: '耗时ms', dataIndex: 'last_response_ms', key: 'last_response_ms' },
+            {
+              title: '状态码',
+              key: 'last_status_code',
+              render: (_, r) => {
+                const code = r.last_status_code;
+                if (code == null) return <span style={{ color: '#bbb' }}>--</span>;
+                if (code >= 500) return <Tag color="error">{code}</Tag>;
+                if (code >= 400) return <Tag color="warning">{code}</Tag>;
+                return <Tag color="success">{code}</Tag>;
+              },
+            },
+            {
+              title: '耗时',
+              key: 'last_response_ms',
+              render: (_, r) => r.last_response_ms != null ? `${r.last_response_ms} ms` : '--',
+            },
+            {
+              title: '上次检查',
+              key: 'last_checked_at',
+              render: (_, r) => r.last_checked_at
+                ? dayjs(r.last_checked_at).format('MM-DD HH:mm')
+                : <span style={{ color: '#aaa' }}>未检查</span>,
+            },
+            {
+              title: '间隔',
+              key: 'interval_sec',
+              render: (_, r) => `${r.interval_sec}s`,
+            },
             {
               title: '操作',
               key: 'op',
@@ -533,6 +693,7 @@ function SitePanel() {
                         interval_sec: r.interval_sec,
                         timeout_sec: r.timeout_sec,
                       });
+                      setModalOpen(true);
                     }}
                   >
                     编辑
@@ -554,6 +715,64 @@ function SitePanel() {
           ]}
         />
       </Card>
+      <Modal
+        title={editing ? `编辑站点 · ${editing.name}` : '新增站点'}
+        open={modalOpen}
+        onCancel={() => {
+          setModalOpen(false);
+          setEditing(null);
+          setForm({ name: '', url: '', enabled: true, interval_sec: 60, timeout_sec: 8 });
+        }}
+        onOk={submit}
+        okText={editing ? '保存' : '创建'}
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form layout="vertical" style={{ marginTop: 8 }}>
+          <Form.Item label="名称" required>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+              placeholder="站点名称"
+            />
+          </Form.Item>
+          <Form.Item label="URL" required>
+            <Input
+              value={form.url}
+              onChange={(e) => setForm((s) => ({ ...s, url: e.target.value }))}
+              placeholder="https://example.com"
+            />
+          </Form.Item>
+          <Form.Item label="巡检间隔">
+            <InputNumber
+              min={10}
+              max={3600}
+              value={form.interval_sec}
+              onChange={(v) => setForm((s) => ({ ...s, interval_sec: v ?? 60 }))}
+              addonAfter="秒"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          <Form.Item label="超时时间">
+            <InputNumber
+              min={1}
+              max={60}
+              value={form.timeout_sec}
+              onChange={(v) => setForm((s) => ({ ...s, timeout_sec: v ?? 8 }))}
+              addonAfter="秒"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          <Form.Item label="启用">
+            <Switch
+              checked={!!form.enabled}
+              checkedChildren="启用"
+              unCheckedChildren="停用"
+              onChange={(checked) => setForm((s) => ({ ...s, enabled: checked }))}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }

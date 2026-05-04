@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Empty, Flex, Form, List, Popconfirm, Spin, Tag, Timeline, Typography, message } from 'antd'
+import { Alert, Button, Card, Empty, Form, List, Popconfirm, Spin, Tag, Timeline, message } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { createAssetEvent, deleteAssetEvent, listAssetEvents } from '../../api/assets'
 import AssetEventForm, { getDefaultAssetEventFormValues } from './AssetEventForm'
@@ -20,21 +20,23 @@ function buildEventSuccessMessage(eventType) {
 
 function EventRecord({ event, onDelete, deleting = false, showDelete = true }) {
   return (
-    <div className={`asset-library-record-card${TERMINAL_EVENT_TYPES.has(event.event_type) ? ' is-terminal' : ''}`}>
-      <Flex justify="space-between" align="flex-start" gap={12} wrap>
-        <div style={{ flex: 1 }}>
-          <Flex wrap gap={8} style={{ marginBottom: 8 }}>
-            <Tag color={getAssetEventTypeColor(event.event_type)}>{getAssetEventTypeLabel(event.event_type)}</Tag>
-            <Typography.Text type="secondary">{formatDate(event.event_date)}</Typography.Text>
-            <Typography.Text type="secondary">创建于 {formatDateTime(event.created_at)}</Typography.Text>
-          </Flex>
-          <Typography.Text strong>{event.title}</Typography.Text>
-          <div className="asset-library-record-meta">
-            <span>金额 {formatMoney(event.amount)}</span>
-          </div>
-          {event.note ? <Typography.Paragraph className="asset-library-record-note">{event.note}</Typography.Paragraph> : null}
+    <div className={`al-event-card${TERMINAL_EVENT_TYPES.has(event.event_type) ? ' is-terminal' : ''}`}>
+      <div className="al-event-card-main">
+        <div className="al-event-card-top">
+          <Tag color={getAssetEventTypeColor(event.event_type)} style={{ fontSize: 12 }}>
+            {getAssetEventTypeLabel(event.event_type)}
+          </Tag>
+          <span className="al-event-date">{formatDate(event.event_date)}</span>
+          {event.amount != null && Number(event.amount) !== 0 ? (
+            <span className="al-event-amount">{formatMoney(event.amount)}</span>
+          ) : null}
+          <span className="al-event-time">{formatDateTime(event.created_at)}</span>
         </div>
-        {showDelete ? (
+        {event.title ? <div className="al-event-title">{event.title}</div> : null}
+        {event.note ? <div className="al-event-note">{event.note}</div> : null}
+      </div>
+      {showDelete ? (
+        <div className="al-event-card-actions">
           <Popconfirm
             title="删除事件"
             description="删除事件只会移除事件记录，不会自动回滚资产主表状态或成本。确认继续吗？"
@@ -42,12 +44,10 @@ function EventRecord({ event, onDelete, deleting = false, showDelete = true }) {
             cancelText="取消"
             onConfirm={() => onDelete(event.id)}
           >
-            <Button size="small" danger icon={<DeleteOutlined />} loading={deleting}>
-              删除事件
-            </Button>
+            <Button size="small" danger icon={<DeleteOutlined />} loading={deleting} />
           </Popconfirm>
-        ) : null}
-      </Flex>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -66,6 +66,7 @@ export default function AssetEventsPanel({
   const [submitting, setSubmitting] = useState(false)
   const [formOpen, setFormOpen] = useState(defaultFormOpen)
   const [deletingId, setDeletingId] = useState(null)
+  const [showAll, setShowAll] = useState(false)
 
   const resetForm = () => {
     form.resetFields()
@@ -97,6 +98,7 @@ export default function AssetEventsPanel({
 
   useEffect(() => {
     setFormOpen(defaultFormOpen)
+    setShowAll(false)
     loadEvents()
     resetForm()
   }, [assetId, defaultFormOpen])
@@ -152,6 +154,18 @@ export default function AssetEventsPanel({
       }
     >
       {error ? <Alert type="error" showIcon message={error} className="asset-library-inline-alert" /> : null}
+
+      {formOpen && assetId ? (
+        <div className="al-event-form-block">
+          <AssetEventForm
+            form={form}
+            onSubmit={handleCreate}
+            submitting={submitting}
+            onCancel={defaultFormOpen ? undefined : () => setFormOpen(false)}
+          />
+        </div>
+      ) : null}
+
       {!assetId ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="请选择资产后查看生命周期事件" />
       ) : loading ? (
@@ -160,40 +174,43 @@ export default function AssetEventsPanel({
         </div>
       ) : showTimeline ? (
         events.length ? (
-          <Timeline
-            className="asset-library-timeline"
-            items={events.map((event) => ({
-              color: TERMINAL_EVENT_TYPES.has(event.event_type) ? 'red' : getAssetEventTypeColor(event.event_type),
-              children: <EventRecord event={event} deleting={deletingId === event.id} onDelete={handleDelete} />,
-            }))}
-          />
+          <>
+            <Timeline
+              className="asset-library-timeline"
+              items={(showAll ? events : events.slice(0, 5)).map((event) => ({
+                color: TERMINAL_EVENT_TYPES.has(event.event_type) ? 'red' : getAssetEventTypeColor(event.event_type),
+                children: <EventRecord event={event} deleting={deletingId === event.id} onDelete={handleDelete} />,
+              }))}
+            />
+            {events.length > 5 ? (
+              <button className="al-show-all-btn" onClick={() => setShowAll((p) => !p)}>
+                {showAll ? '收起' : `显示全部 ${events.length} 条事件`}
+              </button>
+            ) : null}
+          </>
         ) : (
           emptyNode
         )
       ) : events.length ? (
-        <List
-          className="asset-library-record-list"
-          dataSource={events}
-          renderItem={(event) => (
-            <List.Item className="asset-library-record-list-item">
-              <EventRecord event={event} deleting={deletingId === event.id} onDelete={handleDelete} />
-            </List.Item>
-          )}
-        />
+        <>
+          <List
+            className="asset-library-record-list"
+            dataSource={showAll ? events : events.slice(0, 5)}
+            renderItem={(event) => (
+              <List.Item className="asset-library-record-list-item">
+                <EventRecord event={event} deleting={deletingId === event.id} onDelete={handleDelete} />
+              </List.Item>
+            )}
+          />
+          {events.length > 5 ? (
+            <button className="al-show-all-btn" onClick={() => setShowAll((p) => !p)}>
+              {showAll ? '收起' : `显示全部 ${events.length} 条事件`}
+            </button>
+          ) : null}
+        </>
       ) : (
         emptyNode
       )}
-
-      {formOpen && assetId ? (
-        <Card className="asset-library-inline-form-card" size="small" title="新增生命周期事件" bordered={false}>
-          <AssetEventForm
-            form={form}
-            onSubmit={handleCreate}
-            submitting={submitting}
-            onCancel={defaultFormOpen ? undefined : () => setFormOpen(false)}
-          />
-        </Card>
-      ) : null}
     </Card>
   )
 }

@@ -12,3 +12,8 @@ dist/
 .dev-run/
 
 .dev-logs/
+# Local AI assistant config
+.mcp.json
+mcp.json
+.claude/
+.codex/

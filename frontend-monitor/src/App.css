@@ -294,6 +294,29 @@ body {
   padding: 18px 18px 16px;
 }
 
+.metric-card.level-normal {
+  border-left: 4px solid #4f8a5b;
+}
+
+.metric-card.level-high {
+  border-left: 4px solid #c48a36;
+}
+
+.metric-card.level-danger {
+  border-left: 4px solid #c45c5c;
+}
+
+.metric-card.level-na {
+  border-left: 4px solid #d0d7df;
+}
+
+.hero-services-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
 .metric-card-header {
   display: flex;
   align-items: center;
@@ -503,4 +526,205 @@ body {
     grid-template-columns: 1fr;
     gap: 6px;
   }
+}
+
+/* ======= ServerPanel Redesign ======= */
+
+.sp-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sp-statusbar {
+  background: #1a2332;
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 56px;
+}
+
+.sp-statusbar-host { flex-shrink: 0; }
+.sp-statusbar-hostname {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.sp-statusbar-os {
+  font-size: 11px;
+  color: #94a3b8;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-statusbar-services {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.sp-svc-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.sp-svc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sp-svc-dot.up   { background: #22c55e; box-shadow: 0 0 5px #22c55e88; }
+.sp-svc-dot.down { background: #ef4444; }
+
+.sp-statusbar-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sp-meta-item {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.sp-meta-item strong {
+  display: block;
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Metrics grid */
+.sp-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.sp-metric-tile {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #e2e8f0;
+  transition: box-shadow 0.2s;
+}
+.sp-metric-tile:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+}
+.sp-metric-tile.level-normal { border-left-color: #22c55e; }
+.sp-metric-tile.level-high   { border-left-color: #f59e0b; }
+.sp-metric-tile.level-danger { border-left-color: #ef4444; }
+.sp-metric-tile.level-na     { border-left-color: #cbd5e1; }
+
+.sp-tile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sp-tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+.sp-tile-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.sp-tile-dot.normal { background: #22c55e; }
+.sp-tile-dot.high   { background: #f59e0b; }
+.sp-tile-dot.danger { background: #ef4444; }
+
+.sp-tile-value {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.sp-tile-value.normal { color: #22c55e; }
+.sp-tile-value.high   { color: #f59e0b; }
+.sp-tile-value.danger { color: #ef4444; }
+.sp-tile-value.na     { color: #94a3b8; }
+
+.sp-tile-note {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Main tabs card */
+.sp-main {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0 16px 16px;
+}
+
+.sp-main .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.sp-main .ant-tabs-tab {
+  font-size: 13px;
+  padding: 10px 4px;
+}
+
+/* Host info in tab */
+.sp-host-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+}
+.sp-host-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.sp-host-row:nth-child(odd) { padding-right: 20px; }
+.sp-host-key {
+  font-size: 12px;
+  color: #94a3b8;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.sp-host-val {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .sp-metrics { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 860px) {
+  .sp-metrics { grid-template-columns: repeat(2, 1fr); }
+  .sp-statusbar { flex-wrap: wrap; gap: 10px; }
+  .sp-statusbar-services { justify-content: flex-start; }
 }

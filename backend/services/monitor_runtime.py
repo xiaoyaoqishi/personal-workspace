@@ -28,6 +28,8 @@ _net_speed = {"up": 0.0, "down": 0.0}
 _disk_speed = {"read": 0.0, "write": 0.0}
 _MONITOR_RUNTIME_INITIALIZED = False
 
+_sample_counter = 0
+
 
 def _current_username() -> str:
     return context.username()
@@ -97,6 +99,29 @@ def _seconds_fmt(s):
     return " ".join(parts)
 
 
+def _persist_sample_to_db(row: dict):
+    from models.monitor import MonitorServerSample
+
+    db = SessionLocal()
+    try:
+        db.add(
+            MonitorServerSample(
+                sampled_at=row["ts"],
+                cpu=row.get("cpu"),
+                mem=row.get("mem"),
+                net_up=row.get("net_up"),
+                net_down=row.get("net_down"),
+                disk_read=row.get("disk_read"),
+                disk_write=row.get("disk_write"),
+            )
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _sample():
     global _prev_net, _prev_disk_io, _prev_ts, _net_speed, _disk_speed
     now = _time.time()
@@ -135,6 +160,20 @@ def _sample():
             "net_down": round(_net_speed["down"] / 1024, 1),
         }
     )
+    global _sample_counter
+    _sample_counter += 1
+    if _sample_counter % 12 == 0:
+        _persist_sample_to_db(
+            {
+                "ts": datetime.now(),
+                "cpu": cpu_pct,
+                "mem": mem.percent,
+                "net_up": round(_net_speed["up"] / 1024, 1),
+                "net_down": round(_net_speed["down"] / 1024, 1),
+                "disk_read": round(_disk_speed["read"] / 1024 / 1024, 2),
+                "disk_write": round(_disk_speed["write"] / 1024 / 1024, 2),
+            }
+        )
 
 
 def _monitor_loop():
@@ -564,3 +603,89 @@ def monitor_site_results(site_id: int, limit: int = Query(100, ge=1, le=500), db
         }
         for x in rows
     ]
+
+
+def monitor_server_samples(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    _require_admin()
+    from models.monitor import MonitorServerSample
+
+    total = db.query(MonitorServerSample).count()
+    rows = (
+        db.query(MonitorServerSample)
+        .order_by(MonitorServerSample.sampled_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    items = [
+        {
+            "id": r.id,
+            "ts": r.sampled_at.strftime("%Y-%m-%d %H:%M:%S") if r.sampled_at else None,
+            "cpu": r.cpu,
+            "mem": r.mem,
+            "net_up": r.net_up,
+            "net_down": r.net_down,
+            "disk_read": r.disk_read,
+            "disk_write": r.disk_write,
+        }
+        for r in rows
+    ]
+    return {"total": total, "page": page, "size": size, "items": items}
+
+
+def monitor_server_trend(
+    granularity: str = Query("hour", pattern="^(hour|day)$"),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    _require_admin()
+    from sqlalchemy import func as sqlfunc
+    from models.monitor import MonitorServerSample
+
+    q = db.query(MonitorServerSample)
+    if date_from:
+        try:
+            q = q.filter(MonitorServerSample.sampled_at >= datetime.strptime(date_from, "%Y-%m-%d"))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import timedelta
+
+            end = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+            q = q.filter(MonitorServerSample.sampled_at < end)
+        except ValueError:
+            pass
+    rows = q.order_by(MonitorServerSample.sampled_at.asc()).all()
+    # Group in Python
+    from collections import defaultdict
+
+    buckets = defaultdict(list)
+    for r in rows:
+        if not r.sampled_at:
+            continue
+        if granularity == "hour":
+            key = r.sampled_at.strftime("%Y-%m-%d %H:00")
+        else:
+            key = r.sampled_at.strftime("%Y-%m-%d")
+        buckets[key].append(r)
+    result = []
+    for key in sorted(buckets.keys()):
+        group = buckets[key]
+        cpus = [x.cpu for x in group if x.cpu is not None]
+        mems = [x.mem for x in group if x.mem is not None]
+        result.append(
+            {
+                "ts": key,
+                "avg_cpu": round(sum(cpus) / len(cpus), 1) if cpus else None,
+                "max_cpu": round(max(cpus), 1) if cpus else None,
+                "avg_mem": round(sum(mems) / len(mems), 1) if mems else None,
+                "max_mem": round(max(mems), 1) if mems else None,
+            }
+        )
+    return result

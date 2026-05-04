@@ -5,10 +5,8 @@ import {
   Card,
   Drawer,
   Empty,
-  Flex,
   Form,
   Input,
-  List,
   Popconfirm,
   Select,
   Space,
@@ -21,7 +19,6 @@ import {
 } from 'antd'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  DatabaseOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
@@ -29,7 +26,6 @@ import {
   PlusOutlined,
   RiseOutlined,
   UnorderedListOutlined,
-  WalletOutlined,
 } from '@ant-design/icons'
 import { createAsset, deleteAsset, getAsset, getAssetSummary, listAssets, updateAsset } from '../api/assets'
 import AssetDetailDrawer from '../components/assets/AssetDetailDrawer'
@@ -38,8 +34,6 @@ import AssetForm, { buildAssetFormValues, getDefaultAssetFormValues } from '../c
 import { buildAssetMetricsSnapshot, computeAssetAnalytics } from '../components/assets/assetAnalytics'
 import PageHeader from '../components/PageHeader'
 import {
-  ASSET_CHART_COLORS,
-  ASSET_STATUS_CHART_COLORS,
   ASSET_STATUS_OPTIONS,
   displayEmpty,
   formatDate,
@@ -50,6 +44,9 @@ import {
   getAssetTypeLabel,
 } from '../components/assets/assetConstants'
 import './asset-library.css'
+
+const STATUS_COLORS = { in_use: '#3b82f6', idle: '#f59e0b', sold: '#22c55e', draft: '#94a3b8' }
+const CATEGORY_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#f97316', '#84cc16']
 
 const PAGE_LIMIT = 24
 
@@ -106,148 +103,8 @@ async function fetchAllAssetCatalogPages() {
   return allItems
 }
 
-function SummaryMetricCard({ title, value, hint, icon, loading = false }) {
-  return (
-    <Card className="asset-library-kpi-card" loading={loading} bordered={false}>
-      <Flex justify="space-between" align="flex-start" gap={12}>
-        <Space direction="vertical" size={4}>
-          <Typography.Text className="asset-library-kpi-label">{title}</Typography.Text>
-          <Typography.Title level={3} className="asset-library-kpi-value">
-            {value}
-          </Typography.Title>
-          {hint ? <Typography.Text type="secondary">{hint}</Typography.Text> : null}
-        </Space>
-        <div className="asset-library-kpi-icon">{icon}</div>
-      </Flex>
-    </Card>
-  )
-}
-
-function PanelEmpty({ description }) {
-  return (
-    <div className="asset-library-chart-empty">
-      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={description} />
-    </div>
-  )
-}
-
 function AssetStatusTag({ value }) {
   return <Tag color={getAssetStatusColor(value)}>{getAssetStatusLabel(value)}</Tag>
-}
-
-function AssetQuickList({ title, items, emptyText, metricRenderer, onOpen }) {
-  return (
-    <Card title={title} bordered={false} className="asset-library-panel-card">
-      {items.length ? (
-        <List
-          dataSource={items}
-          renderItem={(item) => (
-            <List.Item className="asset-library-rank-item">
-              <div className="asset-library-rank-main">
-                <Button type="link" className="asset-library-rank-link" onClick={() => onOpen(item.id)}>
-                  {item.name}
-                </Button>
-                <div className="asset-library-rank-meta">
-                  <AssetStatusTag value={item.status} />
-                  {item.category ? <span>{item.category}</span> : null}
-                  <span>{getAssetTypeLabel(item.asset_type)}</span>
-                </div>
-              </div>
-              <div className="asset-library-rank-value">{metricRenderer(item)}</div>
-            </List.Item>
-          )}
-        />
-      ) : (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} />
-      )}
-    </Card>
-  )
-}
-
-function LifecycleSummaryCard({ asset, onViewDetail, onEdit }) {
-  if (!asset) {
-    return (
-      <Card bordered={false} className="asset-library-panel-card">
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="请选择资产后查看生命周期信息" />
-      </Card>
-    )
-  }
-
-  const metrics = buildAssetMetricsSnapshot(asset)
-
-  return (
-    <Card
-      bordered={false}
-      className="asset-library-panel-card"
-      extra={
-        <Space size={[8, 8]} wrap>
-          <Button icon={<EyeOutlined />} onClick={() => onViewDetail(asset.id)}>
-            查看详情
-          </Button>
-          <Button icon={<EditOutlined />} onClick={() => onEdit(asset.id)}>
-            编辑资产
-          </Button>
-        </Space>
-      }
-    >
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Flex justify="space-between" align="flex-start" gap={16} wrap>
-          <div>
-            <Typography.Title level={4} className="asset-library-section-title asset-library-asset-title-ellipsis">
-              <span title={asset.name}>{asset.name}</span>
-            </Typography.Title>
-            <Space wrap size={[8, 8]}>
-              <AssetStatusTag value={asset.status} />
-              <Tag>{getAssetTypeLabel(asset.asset_type)}</Tag>
-              {asset.category ? <Tag>{asset.category}</Tag> : null}
-            </Space>
-          </div>
-          <div className="asset-library-asset-value">
-            <Typography.Text type="secondary">累计投入成本</Typography.Text>
-            <Typography.Title level={3}>{formatMoney(metrics.total_cost)}</Typography.Title>
-          </div>
-        </Flex>
-
-        <div className="asset-library-lifecycle-stat-grid">
-          <Card bordered={false}>
-            <Typography.Text type="secondary">买入成本</Typography.Text>
-            <Typography.Title level={4}>{formatMoney(asset.purchase_price)}</Typography.Title>
-          </Card>
-          <Card bordered={false}>
-            <Typography.Text type="secondary">附加成本</Typography.Text>
-            <Typography.Title level={4}>{formatMoney(asset.extra_cost)}</Typography.Title>
-          </Card>
-          <Card bordered={false}>
-            <Typography.Text type="secondary">现金日均成本</Typography.Text>
-            <Typography.Title level={4}>{formatMoney(metrics.cash_daily_cost)}</Typography.Title>
-          </Card>
-          <Card bordered={false}>
-            <Typography.Text type="secondary">已实现盈亏</Typography.Text>
-            <Typography.Title level={4}>{formatMoney(metrics.profit_loss)}</Typography.Title>
-          </Card>
-        </div>
-
-        <div className="asset-library-overview-grid">
-          <Card bordered={false}>
-            <Typography.Text type="secondary">购买日期</Typography.Text>
-            <Typography.Title level={5}>{formatDate(asset.purchase_date)}</Typography.Title>
-          </Card>
-          <Card bordered={false}>
-            <Typography.Text type="secondary">开始使用</Typography.Text>
-            <Typography.Title level={5}>{formatDate(asset.start_use_date)}</Typography.Title>
-          </Card>
-          <Card bordered={false}>
-            <Typography.Text type="secondary">持有天数</Typography.Text>
-            <Typography.Title level={5}>{formatNumber(metrics.holding_days)}</Typography.Title>
-          </Card>
-          <Card bordered={false}>
-            <Typography.Text type="secondary">使用天数</Typography.Text>
-            <Typography.Title level={5}>{formatNumber(metrics.use_days)}</Typography.Title>
-          </Card>
-        </div>
-      </Space>
-    </Card>
-  )
 }
 
 export default function AssetsPage() {
@@ -257,7 +114,7 @@ export default function AssetsPage() {
   const [summary, setSummary] = useState(null)
   const [loadingList, setLoadingList] = useState(false)
   const [loadingSummary, setLoadingSummary] = useState(false)
-  const [loadingCatalog, setLoadingCatalog] = useState(false)
+  const [, setLoadingCatalog] = useState(false)
   const [listError, setListError] = useState('')
   const [summaryError, setSummaryError] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
@@ -274,6 +131,80 @@ export default function AssetsPage() {
   const [lifecycleFormOpen, setLifecycleFormOpen] = useState(false)
 
   const dashboardAnalytics = useMemo(() => computeAssetAnalytics(allAssets), [allAssets])
+  // 按资产类型分组：数量 + 平均总成本
+  const byTypeData = useMemo(() => {
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const t = entry.assetType || entry.asset_type || 'other'
+      if (!map[t]) map[t] = { type: t, count: 0, totalCost: 0 }
+      map[t].count++
+      map[t].totalCost += entry.totalCost || entry.total_cost || 0
+    })
+    return Object.values(map)
+      .map((x) => ({ ...x, avgCost: x.count ? Math.round(x.totalCost / x.count) : 0, label: getAssetTypeLabel(x.type) }))
+      .sort((a, b) => b.totalCost - a.totalCost)
+  }, [dashboardAnalytics])
+
+  // 购入年份趋势：按年分组的数量
+  const byYearData = useMemo(() => {
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const pd = entry.purchaseDate || entry.purchase_date
+      if (!pd) return
+      const year = String(pd).slice(0, 4)
+      if (!year || year === 'null') return
+      map[year] = (map[year] || 0) + 1
+    })
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).map(([year, count]) => ({ year, count }))
+  }, [dashboardAnalytics])
+
+  // 使用中资产效率（in_use，日均成本排序）
+  const inUseEfficiency = useMemo(() => {
+    return dashboardAnalytics.items
+      .filter((e) => e.status === 'in_use' && (e.cashDailyCost != null || e.cash_daily_cost != null))
+      .sort((a, b) => ((b.cashDailyCost || b.cash_daily_cost || 0) - (a.cashDailyCost || a.cash_daily_cost || 0)))
+      .slice(0, 10)
+      .map((e) => ({
+        ...e,
+        name: e.name || '未命名',
+        cashDailyCost: e.cashDailyCost != null ? e.cashDailyCost : e.cash_daily_cost,
+        totalCost: e.totalCost != null ? e.totalCost : e.total_cost,
+        useDays: e.useDays != null ? e.useDays : e.use_days,
+      }))
+  }, [dashboardAnalytics])
+
+  // 附加成本占比（有附加成本的资产，取前 10）
+  const extraCostRatio = useMemo(() => {
+    return dashboardAnalytics.items
+      .filter((e) => {
+        const extra = e.extraCost != null ? e.extraCost : e.extra_cost
+        const total = e.totalCost != null ? e.totalCost : e.total_cost
+        return extra > 0 && total > 0
+      })
+      .map((e) => {
+        const extra = e.extraCost != null ? e.extraCost : (e.extra_cost || 0)
+        const total = e.totalCost != null ? e.totalCost : (e.total_cost || 0)
+        return { ...e, extraCost: extra, totalCost: total, ratio: Math.round((extra / total) * 100), name: e.name || '未命名' }
+      })
+      .sort((a, b) => b.ratio - a.ratio)
+      .slice(0, 10)
+  }, [dashboardAnalytics])
+
+  // 已卖出 ROI
+  const soldWithROI = useMemo(() => {
+    return dashboardAnalytics.soldProfitLossAssets
+      .filter((e) => {
+        const total = e.totalCost != null ? e.totalCost : e.total_cost
+        return total > 0
+      })
+      .map((e) => {
+        const pl = e.profitLoss != null ? e.profitLoss : (e.profit_loss || 0)
+        const total = e.totalCost != null ? e.totalCost : (e.total_cost || 0)
+        return { ...e, roi: Math.round((pl / total) * 100), name: e.name || '未命名', profitLoss: pl }
+      })
+      .sort((a, b) => b.roi - a.roi)
+  }, [dashboardAnalytics])
+
   const categoryOptions = useMemo(() => {
     const values = new Set()
     allAssets.forEach((item) => {
@@ -572,44 +503,6 @@ export default function AssetsPage() {
     },
   ]
 
-  const overviewItems = [
-    {
-      title: '累计投入成本',
-      value: formatMoney(summary?.total_cost ?? dashboardAnalytics.portfolioTotals.totalCost),
-      icon: <WalletOutlined />,
-    },
-    {
-      title: '累计买入成本',
-      value: formatMoney(summary?.total_purchase_cost ?? dashboardAnalytics.portfolioTotals.totalPurchaseCost),
-      icon: <DatabaseOutlined />,
-    },
-    {
-      title: '累计附加成本',
-      value: formatMoney(summary?.total_extra_cost ?? dashboardAnalytics.portfolioTotals.totalExtraCost),
-      icon: <PlusOutlined />,
-    },
-    {
-      title: '使用中资产',
-      value: formatNumber(summary?.active_assets ?? dashboardAnalytics.portfolioTotals.activeCount),
-      icon: <UnorderedListOutlined />,
-    },
-    {
-      title: '闲置资产',
-      value: formatNumber(summary?.idle_assets ?? dashboardAnalytics.portfolioTotals.idleCount),
-      icon: <FieldTimeOutlined />,
-    },
-    {
-      title: '已卖出资产',
-      value: formatNumber(summary?.sold_assets ?? dashboardAnalytics.portfolioTotals.soldCount),
-      icon: <RiseOutlined />,
-    },
-    {
-      title: '已卖出盈亏',
-      value: formatMoney(summary?.total_realized_profit_loss ?? dashboardAnalytics.portfolioTotals.totalRealizedProfitLoss),
-      icon: <RiseOutlined />,
-    },
-  ]
-
   const categoryBreakdown = Array.isArray(summary?.category_breakdown) && summary.category_breakdown.length
     ? summary.category_breakdown.map((item) => ({
         ...item,
@@ -632,167 +525,366 @@ export default function AssetsPage() {
     : dashboardAnalytics.byStatus.map((item) => ({ key: item.key, status: item.key, count: item.count }))
 
   const overviewTab = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <div className="asset-library-kpi-grid asset-library-kpi-grid-overview">
-        {overviewItems.map((item) => (
-          <SummaryMetricCard key={item.title} loading={loadingSummary} {...item} />
+    <div className="al-overview-root">
+      <div className="al-stat-strip">
+        {[
+          { label: '累计投入', value: formatMoney(summary?.total_cost ?? dashboardAnalytics.portfolioTotals.totalCost) },
+          { label: '买入成本', value: formatMoney(summary?.total_purchase_cost ?? dashboardAnalytics.portfolioTotals.totalPurchaseCost) },
+          { label: '附加成本', value: formatMoney(summary?.total_extra_cost ?? dashboardAnalytics.portfolioTotals.totalExtraCost) },
+          {
+            label: '已实现盈亏',
+            value: formatMoney(summary?.total_realized_profit_loss ?? dashboardAnalytics.portfolioTotals.totalRealizedProfitLoss),
+            color:
+              (summary?.total_realized_profit_loss ?? dashboardAnalytics.portfolioTotals.totalRealizedProfitLoss) >= 0
+                ? '#22c55e'
+                : '#ef4444',
+          },
+          { label: '使用中', value: formatNumber(summary?.active_assets ?? dashboardAnalytics.portfolioTotals.activeCount), color: '#3b82f6' },
+          { label: '闲置', value: formatNumber(summary?.idle_assets ?? dashboardAnalytics.portfolioTotals.idleCount), color: '#f59e0b' },
+          { label: '已卖出', value: formatNumber(summary?.sold_assets ?? dashboardAnalytics.portfolioTotals.soldCount), color: '#22c55e' },
+        ].map((item, idx) => (
+          <div key={item.label} className={`al-stat-item${idx >= 4 ? ' al-stat-item-count' : ''}`}>
+            <span className="al-stat-label">{item.label}</span>
+            <span className="al-stat-value" style={item.color ? { color: item.color } : {}}>
+              {item.value}
+            </span>
+          </div>
         ))}
       </div>
 
-      <div className="asset-library-overview-grid">
-        <AssetQuickList
-          title="日均成本较高资产"
-          items={summary?.top_daily_cost_assets?.length ? summary.top_daily_cost_assets : dashboardAnalytics.topDailyCostAssets.slice(0, 5)}
-          emptyText="暂无可计算日均成本的资产"
-          onOpen={openAssetDetail}
-          metricRenderer={(item) => {
-            const metrics = buildAssetMetricsSnapshot(item)
-            return (
-              <>
-                <strong>{formatMoney(metrics.cash_daily_cost)}</strong>
-                <Typography.Text type="secondary">投入 {formatMoney(metrics.total_cost)}</Typography.Text>
-              </>
-            )
-          }}
-        />
-
-        <AssetQuickList
-          title="附加成本最高资产"
-          items={summary?.top_extra_cost_assets?.length ? summary.top_extra_cost_assets : dashboardAnalytics.topExtraCostAssets.slice(0, 5)}
-          emptyText="暂无附加成本较高的资产"
-          onOpen={openAssetDetail}
-          metricRenderer={(item) => (
-            <>
-              <strong>{formatMoney(item.extra_cost)}</strong>
-              <Typography.Text type="secondary">买入 {formatMoney(item.purchase_price)}</Typography.Text>
-            </>
-          )}
-        />
-      </div>
-    </Space>
-  )
-
-  const analysisTab = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <div className="asset-library-overview-grid">
-        <Card title="分类投入成本分析" bordered={false} className="asset-library-panel-card">
-          <div className="asset-library-chart-wrap">
-            {categoryBreakdown.length ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={categoryBreakdown}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} />
-                  <Tooltip formatter={(value) => formatMoney(value)} />
-                  <Bar dataKey="purchaseCost" name="买入成本" fill={ASSET_CHART_COLORS[0]} radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="extraCost" name="附加成本" fill={ASSET_CHART_COLORS[2]} radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <PanelEmpty description="暂无分类成本数据" />
-            )}
-          </div>
-        </Card>
-
-        <Card title="状态分布" bordered={false} className="asset-library-panel-card">
-          <div className="asset-library-chart-wrap">
-            {statusBreakdown.length ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={statusBreakdown} dataKey="count" nameKey="status" innerRadius={72} outerRadius={108} paddingAngle={2}>
-                    {statusBreakdown.map((item) => (
-                      <Cell key={item.status} fill={ASSET_STATUS_CHART_COLORS[item.status] || ASSET_CHART_COLORS[0]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatNumber(value)} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <PanelEmpty description="暂无状态分布数据" />
-            )}
-          </div>
+      <div className="al-overview-main">
+        <div className="al-card">
+          <div className="al-card-title">状态分布</div>
           {statusBreakdown.length ? (
-            <div className="asset-library-legend-list">
-              {statusBreakdown.map((item) => (
-                <div key={item.status} className="asset-library-legend-item">
-                  <span
-                    className="asset-library-legend-dot"
-                    style={{ backgroundColor: ASSET_STATUS_CHART_COLORS[item.status] || ASSET_CHART_COLORS[0] }}
-                  />
-                  <span>{getAssetStatusLabel(item.status)}</span>
-                  <strong>{formatNumber(item.count)}</strong>
+            <>
+              <div style={{ position: 'relative' }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={statusBreakdown} dataKey="count" nameKey="status" innerRadius={64} outerRadius={100} paddingAngle={3}>
+                      {statusBreakdown.map((item) => (
+                        <Cell key={item.status} fill={STATUS_COLORS[item.status] || '#94a3b8'} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v, name) => [formatNumber(v), getAssetStatusLabel(name)]} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="al-donut-center">
+                  <span className="al-donut-total">{statusBreakdown.reduce((s, i) => s + (i.count || 0), 0)}</span>
+                  <span className="al-donut-label">资产总数</span>
+                </div>
+              </div>
+              <div className="al-legend-grid">
+                {statusBreakdown.map((item) => {
+                  const total = statusBreakdown.reduce((s, i) => s + (i.count || 0), 0)
+                  return (
+                    <div key={item.status} className="al-legend-row">
+                      <span className="al-legend-dot" style={{ background: STATUS_COLORS[item.status] || '#94a3b8' }} />
+                      <span className="al-legend-name">{getAssetStatusLabel(item.status)}</span>
+                      <span className="al-legend-count">{item.count}</span>
+                      <span className="al-legend-pct">{total ? Math.round((item.count / total) * 100) : 0}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无状态分布数据" />
+          )}
+        </div>
+
+        <div className="al-card">
+          <div className="al-card-title">
+            <span>闲置预警</span>
+            {dashboardAnalytics.topIdleAssets.length > 0 && (
+              <span style={{ background: '#f59e0b', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 12, fontWeight: 600 }}>
+                {summary?.idle_assets ?? dashboardAnalytics.portfolioTotals.idleCount}
+              </span>
+            )}
+          </div>
+          {dashboardAnalytics.topIdleAssets.length ? (
+            <div className="al-idle-list">
+              {dashboardAnalytics.topIdleAssets.slice(0, 8).map((item) => (
+                <div className="al-idle-row" key={item.id}>
+                  <div className="al-idle-main">
+                    <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>
+                      {item.name}
+                    </button>
+                    <span className="al-idle-meta">
+                      {item.category} · {getAssetTypeLabel(item.asset_type)}
+                    </span>
+                  </div>
+                  <div className="al-idle-right">
+                    <span className="al-idle-days" style={{ color: (item.idle_days || item.idleDays || 0) > 90 ? '#ef4444' : '#f59e0b' }}>
+                      {item.idle_days || item.idleDays || 0} 天
+                    </span>
+                    <span className="al-idle-cost">{formatMoney(buildAssetMetricsSnapshot(item).total_cost)}</span>
+                  </div>
                 </div>
               ))}
             </div>
-          ) : null}
-        </Card>
-      </div>
-
-      <div className="asset-library-overview-grid">
-        <AssetQuickList
-          title="日均成本排行"
-          items={dashboardAnalytics.topDailyCostAssets}
-          emptyText="暂无可计算日均成本的资产"
-          onOpen={openAssetDetail}
-          metricRenderer={(item) => {
-            const metrics = buildAssetMetricsSnapshot(item)
-            return (
-              <>
-                <strong>{formatMoney(metrics.cash_daily_cost)}</strong>
-                <Typography.Text type="secondary">使用 {formatNumber(metrics.use_days)} 天</Typography.Text>
-              </>
-            )
-          }}
-        />
-
-        <AssetQuickList
-          title="闲置资产"
-          items={summary?.top_idle_assets?.length ? summary.top_idle_assets : dashboardAnalytics.topIdleAssets.slice(0, 5)}
-          emptyText="暂无闲置资产"
-          onOpen={openAssetDetail}
-          metricRenderer={(item) => {
-            const metrics = buildAssetMetricsSnapshot(item)
-            return (
-              <>
-                <strong>{formatNumber(metrics.idle_days)}</strong>
-                <Typography.Text type="secondary">投入 {formatMoney(metrics.total_cost)}</Typography.Text>
-              </>
-            )
-          }}
-        />
-      </div>
-
-      <div className="asset-library-overview-grid">
-        <AssetQuickList
-          title="附加成本最高资产"
-          items={dashboardAnalytics.topExtraCostAssets}
-          emptyText="暂无高附加成本资产"
-          onOpen={openAssetDetail}
-          metricRenderer={(item) => (
-            <>
-              <strong>{formatMoney(item.extra_cost)}</strong>
-              <Typography.Text type="secondary">
-                买入 {formatMoney(item.purchase_price)}
-                {item.metrics?.total_cost ? ` · 占比 ${formatNumber((item.extra_cost / item.metrics.total_cost) * 100, 1)}%` : ''}
-              </Typography.Text>
-            </>
+          ) : (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无闲置资产" />
           )}
-        />
-
-        <AssetQuickList
-          title="已卖出盈亏复盘"
-          items={dashboardAnalytics.soldProfitLossAssets}
-          emptyText="暂无已卖出复盘数据"
-          onOpen={openAssetDetail}
-          metricRenderer={(item) => (
-            <>
-              <strong>{formatMoney(item.profit_loss)}</strong>
-              <Typography.Text type="secondary">卖出 {formatMoney(item.sale_price)}</Typography.Text>
-            </>
-          )}
-        />
+        </div>
       </div>
-    </Space>
+
+      <div className="al-overview-main">
+        <div className="al-card">
+          <div className="al-card-title">日均成本排行</div>
+          {dashboardAnalytics.topDailyCostAssets.length
+            ? (() => {
+                const items = dashboardAnalytics.topDailyCostAssets.slice(0, 5)
+                const maxDailyCost = Math.max(...items.map((i) => buildAssetMetricsSnapshot(i).cash_daily_cost || 0), 1)
+                return (
+                  <div className="al-rank-list">
+                    {items.map((item) => {
+                      const metrics = buildAssetMetricsSnapshot(item)
+                      return (
+                        <div className="al-rank-row" key={item.id}>
+                          <div className="al-rank-header">
+                            <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>
+                              {item.name}
+                            </button>
+                            <span className="al-rank-value">{formatMoney(metrics.cash_daily_cost)}/天</span>
+                          </div>
+                          <div className="al-rank-bar-bg">
+                            <div
+                              className="al-rank-bar-fill"
+                              style={{ width: `${Math.round((metrics.cash_daily_cost / maxDailyCost) * 100)}%`, background: '#3b82f6' }}
+                            />
+                          </div>
+                          <span className="al-rank-sub">
+                            投入 {formatMoney(metrics.total_cost)} · 使用 {metrics.use_days || 0} 天
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()
+            : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无日均成本数据" />}
+        </div>
+
+        <div className="al-card">
+          <div className="al-card-title">附加成本排行</div>
+          {dashboardAnalytics.topExtraCostAssets.length
+            ? (() => {
+                const items = dashboardAnalytics.topExtraCostAssets.slice(0, 5)
+                const maxExtraCost = Math.max(...items.map((i) => i.extra_cost || 0), 1)
+                return (
+                  <div className="al-rank-list">
+                    {items.map((item) => {
+                      const metrics = buildAssetMetricsSnapshot(item)
+                      const pct = metrics.total_cost ? Math.round((item.extra_cost / metrics.total_cost) * 100) : 0
+                      return (
+                        <div className="al-rank-row" key={item.id}>
+                          <div className="al-rank-header">
+                            <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>
+                              {item.name}
+                            </button>
+                            <span className="al-rank-value">{formatMoney(item.extra_cost)}</span>
+                          </div>
+                          <div className="al-rank-bar-bg">
+                            <div
+                              className="al-rank-bar-fill"
+                              style={{ width: `${Math.round((item.extra_cost / maxExtraCost) * 100)}%`, background: '#8b5cf6' }}
+                            />
+                          </div>
+                          <span className="al-rank-sub">总投入 {formatMoney(metrics.total_cost)} · 占比 {pct}%</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()
+            : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无附加成本数据" />}
+        </div>
+      </div>
+    </div>
+  )
+
+  const analysisTab = (
+    <div className="al-analysis-root">
+
+      {/* Row 1: 两列 */}
+      <div className="al-overview-main">
+
+        {/* 分类成本占比饼图 */}
+        <div className="al-card">
+          <div className="al-card-title">分类成本占比</div>
+          {categoryBreakdown.length ? (
+            <>
+              <div style={{ position: 'relative' }}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={categoryBreakdown} dataKey="totalCost" nameKey="category" innerRadius={52} outerRadius={88} paddingAngle={2}>
+                      {categoryBreakdown.map((item, idx) => (
+                        <Cell key={item.category} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => formatMoney(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="al-donut-center">
+                  <span className="al-donut-total" style={{ fontSize: 16 }}>{categoryBreakdown.length}</span>
+                  <span className="al-donut-label">分类</span>
+                </div>
+              </div>
+              <div className="al-legend-grid">
+                {(() => {
+                  const total = categoryBreakdown.reduce((s, i) => s + (i.totalCost || 0), 0)
+                  return categoryBreakdown.map((item, idx) => (
+                    <div key={item.category} className="al-legend-row">
+                      <span className="al-legend-dot" style={{ background: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }} />
+                      <span className="al-legend-name">{item.category}</span>
+                      <span className="al-legend-count">{formatMoney(item.totalCost)}</span>
+                      <span className="al-legend-pct">{total ? Math.round((item.totalCost / total) * 100) : 0}%</span>
+                    </div>
+                  ))
+                })()}
+              </div>
+            </>
+          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无分类数据" />}
+        </div>
+
+        {/* 资产类型分布 */}
+        <div className="al-card">
+          <div className="al-card-title">资产类型分布</div>
+          {byTypeData.length ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={byTypeData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis yAxisId="cost" orientation="right" tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <Tooltip formatter={(v, name) => name === '件数' ? `${v} 件` : formatMoney(v)} />
+                <Bar yAxisId="count" dataKey="count" name="件数" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
+                <Bar yAxisId="cost" dataKey="avgCost" name="平均成本" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无类型数据" />}
+        </div>
+      </div>
+
+      {/* Row 2: 购入年份趋势（全宽） */}
+      <div className="al-card">
+        <div className="al-card-title">购入年份趋势</div>
+        {byYearData.length ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={byYearData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="year" tick={{ fontSize: 12, fill: '#94a3b8' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+              <Tooltip formatter={(v) => [`${v} 件`, '购入数量']} />
+              <Bar dataKey="count" name="购入数量" fill="#06b6d4" radius={[4, 4, 0, 0]}>
+                {byYearData.map((entry, idx) => (
+                  <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无购入记录" />}
+      </div>
+
+      {/* Row 3: 两列 */}
+      <div className="al-overview-main">
+
+        {/* 使用中资产效率 */}
+        <div className="al-card">
+          <div className="al-card-title">使用中资产 · 日均成本</div>
+          {inUseEfficiency.length ? (
+            <div className="al-rank-list">
+              {(() => {
+                const maxVal = Math.max(...inUseEfficiency.map((i) => i.cashDailyCost || 0), 1)
+                return inUseEfficiency.map((item) => (
+                  <div className="al-rank-row" key={item.id}>
+                    <div className="al-rank-header">
+                      <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>{item.name}</button>
+                      <span className="al-rank-value">{formatMoney(item.cashDailyCost)}/天</span>
+                    </div>
+                    <div className="al-rank-bar-bg">
+                      <div className="al-rank-bar-fill" style={{ width: `${Math.round(((item.cashDailyCost || 0) / maxVal) * 100)}%`, background: '#3b82f6' }} />
+                    </div>
+                    <span className="al-rank-sub">使用 {item.useDays || 0} 天 · 投入 {formatMoney(item.totalCost)}</span>
+                  </div>
+                ))
+              })()}
+            </div>
+          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无使用中资产" />}
+        </div>
+
+        {/* 附加成本占比 */}
+        <div className="al-card">
+          <div className="al-card-title">附加成本占比</div>
+          {extraCostRatio.length ? (
+            <div className="al-rank-list">
+              {(() => {
+                const maxRatio = Math.max(...extraCostRatio.map((i) => i.ratio || 0), 1)
+                return extraCostRatio.map((item) => (
+                  <div className="al-rank-row" key={item.id}>
+                    <div className="al-rank-header">
+                      <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>{item.name}</button>
+                      <span className="al-rank-value" style={{ color: item.ratio > 30 ? '#ef4444' : '#1e293b' }}>{item.ratio}%</span>
+                    </div>
+                    <div className="al-rank-bar-bg">
+                      <div className="al-rank-bar-fill" style={{ width: `${Math.round((item.ratio / maxRatio) * 100)}%`, background: item.ratio > 30 ? '#ef4444' : '#8b5cf6' }} />
+                    </div>
+                    <span className="al-rank-sub">附加 {formatMoney(item.extraCost)} · 总投入 {formatMoney(item.totalCost)}</span>
+                  </div>
+                ))
+              })()}
+            </div>
+          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无附加成本数据" />}
+        </div>
+      </div>
+
+      {/* Row 4: 两列 */}
+      <div className="al-overview-main">
+
+        {/* 已卖出盈亏 + ROI */}
+        <div className="al-card">
+          <div className="al-card-title">已卖出 · 盈亏与 ROI</div>
+          {soldWithROI.length ? (
+            <ResponsiveContainer width="100%" height={Math.max(220, soldWithROI.length * 40)}>
+              <BarChart data={soldWithROI} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `${v}%`} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: '#475569' }} />
+                <Tooltip formatter={(v, name) => [`${v}%`, 'ROI']} labelFormatter={(label) => label} />
+                <Bar dataKey="roi" name="ROI" radius={[0, 4, 4, 0]}>
+                  {soldWithROI.map((entry, index) => (
+                    <Cell key={index} fill={(entry.roi || 0) >= 0 ? '#22c55e' : '#ef4444'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已卖出复盘数据" />}
+        </div>
+
+        {/* 闲置资产 */}
+        <div className="al-card">
+          <div className="al-card-title">闲置资产 · 天数分析</div>
+          {dashboardAnalytics.topIdleAssets.length ? (
+            <ResponsiveContainer width="100%" height={Math.max(220, dashboardAnalytics.topIdleAssets.slice(0, 8).length * 40)}>
+              <BarChart
+                data={dashboardAnalytics.topIdleAssets.slice(0, 8).map((item) => ({ ...item, idleDaysValue: item.idleDays || item.idle_days || 0 }))}
+                layout="vertical"
+                margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+              >
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => `${v}天`} />
+                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: '#475569' }} />
+                <Tooltip formatter={(v) => [`${v} 天`, '闲置天数']} />
+                <Bar dataKey="idleDaysValue" name="闲置天数" radius={[0, 4, 4, 0]}>
+                  {dashboardAnalytics.topIdleAssets.slice(0, 8).map((entry, index) => (
+                    <Cell key={index} fill={(entry.idleDays || entry.idle_days || 0) > 90 ? '#ef4444' : '#f59e0b'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无闲置资产数据" />}
+        </div>
+      </div>
+
+    </div>
   )
 
   const assetsTab = (
@@ -868,34 +960,72 @@ export default function AssetsPage() {
   )
 
   const lifecycleTab = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card bordered={false} className="asset-library-panel-card">
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <Typography.Text type="secondary">选择一项资产后，可继续记录使用、闲置、附加成本和卖出事件。</Typography.Text>
+    <div className="al-lifecycle-root">
+
+      {/* 顶部选择器 bar */}
+      <div className="al-lc-header">
+        <div className="al-lc-selector">
           <Select
             showSearch
             value={selectedAssetId || undefined}
-            options={allAssets.map((item) => ({ value: item.id, label: item.name }))}
-            onChange={(value) => {
-              setSelectedAssetId(value)
-              setLifecycleFormOpen(false)
-            }}
-            placeholder="选择资产"
+            onChange={(value) => { setSelectedAssetId(value); setLifecycleFormOpen(false) }}
+            placeholder="选择资产开始记录..."
             optionFilterProp="label"
+            style={{ width: '100%' }}
+            options={allAssets.map((item) => ({
+              value: item.id,
+              label: item.name,
+              status: item.status,
+              category: item.category,
+            }))}
+            optionRender={(option) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{option.data.label}</span>
+                <Tag color={getAssetStatusColor(option.data.status)} style={{ flexShrink: 0, fontSize: 11 }}>
+                  {getAssetStatusLabel(option.data.status)}
+                </Tag>
+                {option.data.category ? <span style={{ color: '#94a3b8', fontSize: 11, flexShrink: 0 }}>{option.data.category}</span> : null}
+              </div>
+            )}
           />
-        </Space>
-      </Card>
+        </div>
+        {lifecycleAsset ? (
+          <div className="al-lc-actions">
+            <Button size="small" icon={<EyeOutlined />} onClick={() => openAssetDetail(lifecycleAsset.id)}>详情</Button>
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEditDrawer(lifecycleAsset.id)}>编辑</Button>
+          </div>
+        ) : null}
+      </div>
 
-      <LifecycleSummaryCard asset={lifecycleAsset} onViewDetail={openAssetDetail} onEdit={openEditDrawer} />
+      {/* 指标条（有资产时展示） */}
+      {lifecycleAsset ? (() => {
+        const metrics = buildAssetMetricsSnapshot(lifecycleAsset)
+        return (
+          <div className="al-stat-row">
+            {[
+              { label: '累计投入', value: formatMoney(metrics.total_cost) },
+              { label: '日均成本', value: metrics.cash_daily_cost != null ? `${formatMoney(metrics.cash_daily_cost)}/天` : '--' },
+              { label: '使用天数', value: metrics.use_days != null ? `${metrics.use_days} 天` : '--' },
+              { label: '已实现盈亏', value: formatMoney(metrics.profit_loss), color: metrics.profit_loss != null ? (metrics.profit_loss >= 0 ? '#22c55e' : '#ef4444') : undefined },
+            ].map((s) => (
+              <div key={s.label} className="al-stat-row-item">
+                <span className="al-stat-row-label">{s.label}</span>
+                <span className="al-stat-row-value" style={s.color ? { color: s.color } : {}}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        )
+      })() : null}
 
+      {/* 事件面板 */}
       <AssetEventsPanel
         assetId={selectedAssetId}
         onAssetMutated={handleAssetMutated}
-        title="生命周期事件"
+        title="事件时间线"
         showTimeline
         defaultFormOpen={lifecycleFormOpen}
       />
-    </Space>
+    </div>
   )
 
   return (
