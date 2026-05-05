@@ -409,7 +409,7 @@ function parseContent(raw) {
 
 export default function NoteEditor({ note, onUpdate, defaultEditing = false, onOpenWikiLink, jumpAnchor = '' }) {
   const [title, setTitle] = useState(note?.title || '');
-  const [mode, setMode] = useState('read');
+  const [mode, setMode] = useState(defaultEditing ? 'edit' : 'read');
   const [mdSource, setMdSource] = useState('');
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const contentRef = useRef(null);

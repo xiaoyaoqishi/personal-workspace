@@ -7,7 +7,7 @@ import NoteEditor from './NoteEditor';
 import MiniCalendar from './MiniCalendar';
 import dayjs from 'dayjs';
 
-export default function DiaryView({ initialNoteId, initialAnchor, notebooks }) {
+export default function DiaryView({ initialNoteId, initialAnchor, initialAction, initialTemplate, notebooks }) {
   const HISTORY_KEY = 'notes-diary-search-history';
   const [activeNote, setActiveNote] = useState(null);
   const [tree, setTree] = useState({});
@@ -31,9 +31,10 @@ export default function DiaryView({ initialNoteId, initialAnchor, notebooks }) {
   const [summaries, setSummaries] = useState([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
-  const [todayTemplate, setTodayTemplate] = useState('');
   const saveTimer = useRef(null);
   const creatingToday = useRef(false);
+  const handledRouteAction = useRef('');
+  const loadedInitialNoteId = useRef(null);
 
   const loadTree = useCallback(async () => {
     try {
@@ -82,20 +83,19 @@ export default function DiaryView({ initialNoteId, initialAnchor, notebooks }) {
   }, [keyword]);
 
   useEffect(() => {
-    if (initialNoteId === 'today') {
-      handleWriteToday();
-    } else if (typeof initialNoteId === 'string' && initialNoteId.startsWith('today:')) {
-      const key = initialNoteId.split(':')[1] || '';
-      setTodayTemplate(key);
-      setTimeout(() => handleWriteToday(key), 0);
-    } else if (initialNoteId && typeof initialNoteId === 'number') {
-      noteApi.get(initialNoteId).then(r => setActiveNote(r.data)).catch(() => {});
-    }
-  }, [initialNoteId]);
-
-  useEffect(() => {
     setJumpAnchor(initialAnchor || '');
   }, [initialAnchor, initialNoteId]);
+
+  const buildTodayDiaryTitle = useCallback(async () => {
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    const now = dayjs();
+    let weatherIcon = '';
+    try {
+      const w = await getWeather();
+      if (w) weatherIcon = `${w.icon} `;
+    } catch {}
+    return `${weatherIcon}${now.format('YYYY年M月D日')} 星期${weekdays[now.day()]} ${now.format('HH:mm')}`;
+  }, []);
 
   const buildDiaryTemplate = (key) => {
     const now = dayjs().format('HH:mm');
@@ -111,48 +111,68 @@ export default function DiaryView({ initialNoteId, initialAnchor, notebooks }) {
     };
   };
 
-  const handleWriteToday = async (templateKey) => {
+  const handleWriteToday = useCallback(async (templateKey = '') => {
     if (creatingToday.current) return;
     creatingToday.current = true;
     const todayStr = dayjs().format('YYYY-MM-DD');
     try {
       const res = await noteApi.list({ note_type: 'diary', note_date: todayStr });
       if (res.data.length > 0) {
-        setActiveNote(res.data[0]);
+        const existingNote = res.data[0];
+        if ((existingNote.title || '').trim()) {
+          setActiveNote({ ...existingNote, _forceEdit: true });
+        } else {
+          const title = await buildTodayDiaryTitle();
+          const updated = await noteApi.update(existingNote.id, { title });
+          setActiveNote({ ...updated.data, _forceEdit: true });
+          loadTree();
+        }
         setJumpAnchor('');
         setSummaryTitle('');
         setSummaries([]);
       } else {
         const nb = notebooks[0];
         if (!nb) { message.warning('请先创建笔记本'); creatingToday.current = false; return; }
-        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-        const now = dayjs();
-        let weatherIcon = '';
-        try {
-          const w = await getWeather();
-          if (w) weatherIcon = w.icon + ' ';
-        } catch {}
-        const title = `${weatherIcon}${now.format('YYYY年M月D日')} 星期${weekdays[now.day()]} ${now.format('HH:mm')}`;
+        const title = await buildTodayDiaryTitle();
         const newNote = await noteApi.create({
           notebook_id: nb.id,
           title,
-          content: (templateKey || todayTemplate) ? JSON.stringify(buildDiaryTemplate(templateKey || todayTemplate)) : '',
+          content: templateKey ? JSON.stringify(buildDiaryTemplate(templateKey)) : '',
           note_type: 'diary',
           note_date: todayStr,
         });
-        setActiveNote(newNote.data);
+        setActiveNote({ ...newNote.data, _forceEdit: true });
         setJumpAnchor('');
         setSummaryTitle('');
         setSummaries([]);
         loadTree();
-        loadCalendar(selectedDate);
+        loadCalendar(dayjs());
       }
     } catch { message.error('创建日记失败'); }
     finally {
       creatingToday.current = false;
-      setTodayTemplate('');
     }
-  };
+  }, [buildTodayDiaryTitle, loadTree, loadCalendar, notebooks]);
+
+  useEffect(() => {
+    if (!initialNoteId || typeof initialNoteId !== 'number') {
+      loadedInitialNoteId.current = null;
+      return;
+    }
+    if (loadedInitialNoteId.current === initialNoteId) return;
+    loadedInitialNoteId.current = initialNoteId;
+    noteApi.get(initialNoteId).then(r => setActiveNote(r.data)).catch(() => {});
+  }, [initialNoteId]);
+
+  useEffect(() => {
+    if (initialAction !== 'today') return;
+    if (!notebooks.length) return;
+    const templateKey = String(initialTemplate || '').trim();
+    const routeKey = `${initialAction}:${templateKey}:${initialNoteId || ''}`;
+    if (handledRouteAction.current === routeKey) return;
+    handledRouteAction.current = routeKey;
+    handleWriteToday(templateKey);
+  }, [initialAction, initialTemplate, initialNoteId, notebooks, handleWriteToday]);
 
   const handleSelectDate = async (date) => {
     setSelectedDate(date);
@@ -400,7 +420,7 @@ export default function DiaryView({ initialNoteId, initialAnchor, notebooks }) {
             note={activeNote}
             onUpdate={handleUpdateNote}
             jumpAnchor={jumpAnchor}
-            defaultEditing={activeNote.note_date === dayjs().format('YYYY-MM-DD')}
+            defaultEditing={activeNote._forceEdit === true || activeNote.note_date === dayjs().format('YYYY-MM-DD')}
           />
         ) : summaryTitle ? (
           <div className="diary-summary-panel">

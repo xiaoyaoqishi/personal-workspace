@@ -1,50 +1,101 @@
+import { useMemo } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   HomeOutlined,
   EditOutlined,
   FileTextOutlined,
   CheckSquareOutlined,
   DeleteOutlined,
-  SettingOutlined,
   LogoutOutlined,
+  MoonOutlined,
+  SunOutlined,
+  CompressOutlined,
+  ExpandOutlined,
 } from '@ant-design/icons';
+import { useThemeContext } from '../App';
 
-const tabs = [
-  { key: 'home', icon: <HomeOutlined />, label: '首页' },
-  { key: 'diary', icon: <EditOutlined />, label: '日记' },
-  { key: 'doc', icon: <FileTextOutlined />, label: '文档' },
-  { key: 'todo', icon: <CheckSquareOutlined />, label: '待办' },
-  { key: 'recycle', icon: <DeleteOutlined />, label: '回收站' },
+const NAV_GROUPS = [
+  {
+    key: 'main',
+    label: '笔记',
+    items: [
+      { key: '/', icon: <HomeOutlined />, label: '首页', end: true },
+      { key: '/diary', icon: <EditOutlined />, label: '日记' },
+      { key: '/doc', icon: <FileTextOutlined />, label: '文档' },
+    ],
+  },
+  {
+    key: 'tools',
+    label: '工具',
+    items: [
+      { key: '/todo', icon: <CheckSquareOutlined />, label: '待办' },
+      { key: '/recycle', icon: <DeleteOutlined />, label: '回收站' },
+    ],
+  },
 ];
 
-export default function IconSidebar({ activeTab, onTabChange, onOpenSettings }) {
+export default function IconSidebar() {
+  const location = useLocation();
+  const { isDark, toggleTheme, compact, toggleCompact } = useThemeContext();
+
+  const activePath = useMemo(() => {
+    const p = location.pathname;
+    const keys = NAV_GROUPS.flatMap(g => g.items.map(i => i.key));
+    if (p === '/') return '/';
+    return keys.find(k => k !== '/' && (p === k || p.startsWith(k + '/'))) ?? '/';
+  }, [location.pathname]);
+
   return (
-    <div className="icon-sidebar">
-      <a className="icon-sidebar-back" href="/" title="返回工作台">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8l-4 4 4 4M8 12h8"/>
-        </svg>
+    <aside className="nk-sidebar">
+      <a href="/" className="sidebar-brand" title="返回工作台">
+        <span className="sidebar-brand-icon">笔</span>
       </a>
-      <div className="icon-sidebar-tabs">
-        {tabs.map(t => (
-          <div
-            key={t.key}
-            className={`icon-tab ${activeTab === t.key ? 'active' : ''}`}
-            onClick={() => onTabChange(t.key)}
-          >
-            <span className="icon-tab-icon">{t.icon}</span>
-            <span className="icon-tab-label">{t.label}</span>
+
+      <nav className="sidebar-nav">
+        {NAV_GROUPS.map(group => (
+          <div key={group.key} className="sidebar-group">
+            <span className="sidebar-group-label">{group.label}</span>
+            {group.items.map(item => (
+              <NavLink
+                key={item.key}
+                to={item.key}
+                className={`icon-tab${activePath === item.key ? ' active' : ''}`}
+                end={item.end}
+              >
+                <span className="tab-icon">{item.icon}</span>
+                <span className="tab-label">{item.label}</span>
+              </NavLink>
+            ))}
           </div>
         ))}
-      </div>
-      <div className="icon-sidebar-bottom">
-        <div className="icon-tab" onClick={onOpenSettings} title="设置">
-          <span className="icon-tab-icon"><SettingOutlined /></span>
-        </div>
-        <a className="icon-tab" href="/" title="退出">
-          <span className="icon-tab-icon"><LogoutOutlined /></span>
+      </nav>
+
+      <div className="sidebar-bottom">
+        <button
+          className="sidebar-theme-btn"
+          onClick={toggleTheme}
+          title={isDark ? '切换浅色模式' : '切换暗色模式'}
+        >
+          <span className="tab-icon">
+            {isDark ? <SunOutlined /> : <MoonOutlined />}
+          </span>
+          <span className="tab-label">{isDark ? '浅色' : '暗色'}</span>
+        </button>
+        <button
+          className="sidebar-compact-btn"
+          onClick={toggleCompact}
+          title={compact ? '切换宽松模式' : '切换紧凑模式'}
+        >
+          <span className="tab-icon">
+            {compact ? <ExpandOutlined /> : <CompressOutlined />}
+          </span>
+          <span className="tab-label">{compact ? '宽松' : '紧凑'}</span>
+        </button>
+        <a className="sidebar-logout-btn" href="/" title="退出">
+          <span className="tab-icon"><LogoutOutlined /></span>
+          <span className="tab-label">退出</span>
         </a>
       </div>
-    </div>
+    </aside>
   );
 }
