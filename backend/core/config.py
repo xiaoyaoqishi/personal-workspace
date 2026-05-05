@@ -46,6 +46,10 @@ class Settings:
     timezone: ZoneInfo = ZoneInfo("Asia/Shanghai")
     app_title: str = "交易记录系统"
     app_version: str = "2.0.0-refactor"
+    monitor_server_sample_retention_days: int = int(os.environ.get("MONITOR_SERVER_SAMPLE_RETENTION_DAYS", "30"))
+    monitor_site_result_retention_days: int = int(os.environ.get("MONITOR_SITE_RESULT_RETENTION_DAYS", "90"))
+    monitor_rollup_retention_days: int = int(os.environ.get("MONITOR_ROLLUP_RETENTION_DAYS", "365"))
+    monitor_retention_interval_sec: int = int(os.environ.get("MONITOR_RETENTION_INTERVAL_SEC", "3600"))
 
 
 settings = Settings()

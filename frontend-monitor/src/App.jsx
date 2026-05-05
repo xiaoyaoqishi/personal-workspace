@@ -118,11 +118,8 @@ function ServerPanel() {
   const [lastRefreshAt, setLastRefreshAt] = useState('');
   const [online, setOnline] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [samplePage, setSamplePage] = useState(1);
-  const [sampleTotal, setSampleTotal] = useState(0);
   const [sampleRows, setSampleRows] = useState([]);
   const [sampleLoading, setSampleLoading] = useState(false);
-  const SAMPLE_SIZE = 50;
   const [trendRange, setTrendRange] = useState('7d');
   const [trendData2, setTrendData2] = useState([]);
   const [trendLoading, setTrendLoading] = useState(false);
@@ -179,15 +176,23 @@ function ServerPanel() {
     }
   };
 
-  const loadSamples = async (page = 1) => {
+  const loadSamples = async () => {
     setSampleLoading(true);
+    const now = dayjs();
+    const date_from = now.subtract(29, 'day').format('YYYY-MM-DD');
+    const date_to = now.format('YYYY-MM-DD');
     try {
-      const res = await monitorApi.serverSamples({ page, size: SAMPLE_SIZE });
+      const res = await monitorApi.serverTrend({ granularity: 'hour', date_from, date_to });
       if (!mountedRef.current) return;
-      const d = res.data || {};
-      setSampleRows(Array.isArray(d.items) ? d.items : []);
-      setSampleTotal(Number(d.total || 0));
-      setSamplePage(Number(d.page || page));
+      const rows = Array.isArray(res.data) ? res.data : [];
+      setSampleRows(
+        rows
+          .map((item, index) => ({
+            ...item,
+            id: `${item.ts || 'hour'}-${index}`,
+          }))
+          .reverse()
+      );
     } finally {
       if (mountedRef.current) setSampleLoading(false);
     }
@@ -433,6 +438,9 @@ function ServerPanel() {
               label: '历史趋势',
               children: (
                 <div>
+                  <div style={{ marginBottom: 8, color: '#64748b', fontSize: 12 }}>
+                    原始采样保留 30 天，历史趋势来自小时/天级聚合数据。
+                  </div>
                   <Space style={{ marginBottom: 12 }}>
                     {[{ label: '今天', value: '1d' }, { label: '近7天', value: '7d' }, { label: '近30天', value: '30d' }].map((opt) => (
                       <Button
@@ -528,27 +536,30 @@ function ServerPanel() {
               key: 'samples',
               label: '采样记录',
               children: (
-                <Table
-                  rowKey="id"
-                  loading={sampleLoading}
-                  dataSource={sampleRows}
-                  size="small"
-                  pagination={{
-                    current: samplePage,
-                    pageSize: SAMPLE_SIZE,
-                    total: sampleTotal,
-                    showTotal: (n) => `共 ${n} 条`,
-                    onChange: (p) => loadSamples(p),
-                  }}
-                  columns={[
-                    { title: '时间', dataIndex: 'ts', key: 'ts', width: 160 },
-                    { title: 'CPU %', dataIndex: 'cpu', key: 'cpu', width: 80, render: (v) => v != null ? `${v}%` : '—' },
-                    { title: '内存 %', dataIndex: 'mem', key: 'mem', width: 80, render: (v) => v != null ? `${v}%` : '—' },
-                    { title: '上行', dataIndex: 'net_up', key: 'net_up', width: 100, render: (v) => v != null ? `${v} KB/s` : '—' },
-                    { title: '下行', dataIndex: 'net_down', key: 'net_down', width: 100, render: (v) => v != null ? `${v} KB/s` : '—' },
-                  ]}
-                  locale={{ emptyText: '暂无采样数据' }}
-                />
+                <div>
+                  <div style={{ marginBottom: 8, color: '#64748b', fontSize: 12 }}>
+                    按小时展示近 30 天聚合记录；原始分钟级采样保留 30 天用于生成趋势。
+                  </div>
+                  <Table
+                    rowKey="id"
+                    loading={sampleLoading}
+                    dataSource={sampleRows}
+                    size="small"
+                    pagination={{
+                      pageSize: 24,
+                      showTotal: (n) => `共 ${n} 个小时桶`,
+                      showSizeChanger: false,
+                    }}
+                    columns={[
+                      { title: '小时桶', dataIndex: 'ts', key: 'ts', width: 160 },
+                      { title: 'CPU 均值', dataIndex: 'avg_cpu', key: 'avg_cpu', width: 90, render: (v) => v != null ? `${v}%` : '—' },
+                      { title: 'CPU 峰值', dataIndex: 'max_cpu', key: 'max_cpu', width: 90, render: (v) => v != null ? `${v}%` : '—' },
+                      { title: '内存均值', dataIndex: 'avg_mem', key: 'avg_mem', width: 90, render: (v) => v != null ? `${v}%` : '—' },
+                      { title: '内存峰值', dataIndex: 'max_mem', key: 'max_mem', width: 90, render: (v) => v != null ? `${v}%` : '—' },
+                    ]}
+                    locale={{ emptyText: '暂无小时级采样数据' }}
+                  />
+                </div>
               ),
             },
           ]}

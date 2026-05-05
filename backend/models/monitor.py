@@ -50,3 +50,18 @@ class MonitorServerSample(Base):
     net_down = Column(Float, nullable=True)  # KB/s
     disk_read = Column(Float, nullable=True)  # MB/s
     disk_write = Column(Float, nullable=True)  # MB/s
+
+
+class MonitorServerSampleRollup(Base):
+    __tablename__ = "monitor_server_sample_rollups"
+    __table_args__ = (UniqueConstraint("granularity", "bucket_start", name="uq_monitor_rollup_bucket"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    granularity = Column(String(10), nullable=False, index=True)  # hour/day
+    bucket_start = Column(DateTime, nullable=False, index=True)
+    avg_cpu = Column(Float, nullable=True)
+    max_cpu = Column(Float, nullable=True)
+    avg_mem = Column(Float, nullable=True)
+    max_mem = Column(Float, nullable=True)
+    sample_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

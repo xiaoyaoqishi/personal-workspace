@@ -11,7 +11,7 @@ from models.ledger import (
     LedgerRule,
     LedgerTransaction,
 )
-from models.monitor import MonitorServerSample, MonitorSite, MonitorSiteResult
+from models.monitor import MonitorServerSample, MonitorServerSampleRollup, MonitorSite, MonitorSiteResult
 from models.notes import Note, NoteLink, Notebook, TodoItem
 from models.review import (
     Review,
@@ -40,6 +40,7 @@ __all__ = [
     "LedgerRule",
     "LedgerTransaction",
     "MonitorServerSample",
+    "MonitorServerSampleRollup",
     "MonitorSite",
     "MonitorSiteResult",
     "Note",

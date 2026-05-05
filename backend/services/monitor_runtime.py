@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import platform
 import threading
@@ -14,6 +14,7 @@ import psutil
 from sqlalchemy.orm import Session
 
 from core import context
+from core.config import settings
 from core.db import SessionLocal, get_db
 from core.security import ensure_admin
 from models import BrowseLog, MonitorSite, MonitorSiteResult
@@ -29,6 +30,10 @@ _disk_speed = {"read": 0.0, "write": 0.0}
 _MONITOR_RUNTIME_INITIALIZED = False
 
 _sample_counter = 0
+_SERVER_SAMPLE_RETENTION_DAYS = max(1, int(settings.monitor_server_sample_retention_days))
+_SITE_RESULT_RETENTION_DAYS = max(1, int(settings.monitor_site_result_retention_days))
+_ROLLUP_RETENTION_DAYS = max(1, int(settings.monitor_rollup_retention_days))
+_RETENTION_INTERVAL_SEC = max(60, int(settings.monitor_retention_interval_sec))
 
 
 def _current_username() -> str:
@@ -189,6 +194,105 @@ def _monitor_loop():
 _monitor_thread = threading.Thread(target=_monitor_loop, daemon=True)
 
 
+def _rollup_server_samples(db: Session, now: datetime) -> None:
+    from sqlalchemy import text
+
+    raw_cutoff = now - timedelta(days=_ROLLUP_RETENTION_DAYS)
+    for granularity, bucket_expr in (
+        ("hour", "strftime('%Y-%m-%d %H:00:00', sampled_at)"),
+        ("day", "strftime('%Y-%m-%d 00:00:00', sampled_at)"),
+    ):
+        rows = db.execute(
+            text(
+                f"""
+                SELECT
+                    {bucket_expr} AS bucket_ts,
+                    AVG(cpu) AS avg_cpu,
+                    MAX(cpu) AS max_cpu,
+                    AVG(mem) AS avg_mem,
+                    MAX(mem) AS max_mem,
+                    COUNT(*) AS sample_count
+                FROM monitor_server_samples
+                WHERE sampled_at >= :raw_cutoff
+                GROUP BY bucket_ts
+                """
+            ),
+            {"raw_cutoff": raw_cutoff},
+        ).fetchall()
+        for row in rows:
+            if not row[0]:
+                continue
+            bucket_start = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
+            db.execute(
+                text(
+                    """
+                    INSERT INTO monitor_server_sample_rollups
+                    (granularity, bucket_start, avg_cpu, max_cpu, avg_mem, max_mem, sample_count, updated_at)
+                    VALUES
+                    (:granularity, :bucket_start, :avg_cpu, :max_cpu, :avg_mem, :max_mem, :sample_count, :updated_at)
+                    ON CONFLICT(granularity, bucket_start) DO UPDATE SET
+                      avg_cpu=excluded.avg_cpu,
+                      max_cpu=excluded.max_cpu,
+                      avg_mem=excluded.avg_mem,
+                      max_mem=excluded.max_mem,
+                      sample_count=excluded.sample_count,
+                      updated_at=excluded.updated_at
+                    """
+                ),
+                {
+                    "granularity": granularity,
+                    "bucket_start": bucket_start,
+                    "avg_cpu": row[1],
+                    "max_cpu": row[2],
+                    "avg_mem": row[3],
+                    "max_mem": row[4],
+                    "sample_count": int(row[5] or 0),
+                    "updated_at": now,
+                },
+            )
+
+
+def _cleanup_monitor_data(now: Optional[datetime] = None) -> Dict[str, int]:
+    from models.monitor import MonitorServerSample, MonitorServerSampleRollup
+
+    ref_now = now or datetime.now()
+    db = SessionLocal()
+    try:
+        _rollup_server_samples(db, ref_now)
+        sample_cutoff = ref_now - timedelta(days=_SERVER_SAMPLE_RETENTION_DAYS)
+        site_cutoff = ref_now - timedelta(days=_SITE_RESULT_RETENTION_DAYS)
+        rollup_cutoff = ref_now - timedelta(days=_ROLLUP_RETENTION_DAYS)
+
+        deleted_samples = (
+            db.query(MonitorServerSample)
+            .filter(MonitorServerSample.sampled_at.is_not(None))
+            .filter(MonitorServerSample.sampled_at < sample_cutoff)
+            .delete(synchronize_session=False)
+        )
+        deleted_site_results = (
+            db.query(MonitorSiteResult)
+            .filter(MonitorSiteResult.created_at.is_not(None))
+            .filter(MonitorSiteResult.created_at < site_cutoff)
+            .delete(synchronize_session=False)
+        )
+        deleted_rollups = (
+            db.query(MonitorServerSampleRollup)
+            .filter(MonitorServerSampleRollup.bucket_start < rollup_cutoff)
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        return {
+            "deleted_samples": int(deleted_samples or 0),
+            "deleted_site_results": int(deleted_site_results or 0),
+            "deleted_rollups": int(deleted_rollups or 0),
+        }
+    except Exception:
+        db.rollback()
+        return {"deleted_samples": 0, "deleted_site_results": 0, "deleted_rollups": 0}
+    finally:
+        db.close()
+
+
 def _check_single_site(site: MonitorSite) -> Dict[str, Any]:
     started = _time.time()
     timeout_sec = max(2, min(60, int(site.timeout_sec or 8)))
@@ -244,12 +348,25 @@ def _site_monitor_loop():
 _site_monitor_thread = threading.Thread(target=_site_monitor_loop, daemon=True)
 
 
+def _retention_loop():
+    while True:
+        try:
+            _cleanup_monitor_data()
+        except Exception:
+            pass
+        _time.sleep(_RETENTION_INTERVAL_SEC)
+
+
+_retention_thread = threading.Thread(target=_retention_loop, daemon=True)
+
+
 def init_monitor_runtime() -> None:
     global _MONITOR_RUNTIME_INITIALIZED
     if _MONITOR_RUNTIME_INITIALIZED:
         return
     _monitor_thread.start()
     _site_monitor_thread.start()
+    _retention_thread.start()
     _MONITOR_RUNTIME_INITIALIZED = True
 
 
@@ -644,48 +761,104 @@ def monitor_server_trend(
     db: Session = Depends(get_db),
 ):
     _require_admin()
-    from sqlalchemy import func as sqlfunc
-    from models.monitor import MonitorServerSample
+    from sqlalchemy import text
 
-    q = db.query(MonitorServerSample)
+    params: Dict[str, Any] = {"granularity": granularity}
+    conditions = ["granularity = :granularity"]
     if date_from:
         try:
-            q = q.filter(MonitorServerSample.sampled_at >= datetime.strptime(date_from, "%Y-%m-%d"))
+            params["from_dt"] = datetime.strptime(date_from, "%Y-%m-%d")
+            conditions.append("bucket_start >= :from_dt")
         except ValueError:
             pass
     if date_to:
         try:
-            from datetime import timedelta
-
-            end = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
-            q = q.filter(MonitorServerSample.sampled_at < end)
+            params["to_dt"] = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+            conditions.append("bucket_start < :to_dt")
         except ValueError:
             pass
-    rows = q.order_by(MonitorServerSample.sampled_at.asc()).all()
-    # Group in Python
-    from collections import defaultdict
 
-    buckets = defaultdict(list)
-    for r in rows:
-        if not r.sampled_at:
-            continue
-        if granularity == "hour":
-            key = r.sampled_at.strftime("%Y-%m-%d %H:00")
-        else:
-            key = r.sampled_at.strftime("%Y-%m-%d")
-        buckets[key].append(r)
-    result = []
-    for key in sorted(buckets.keys()):
-        group = buckets[key]
-        cpus = [x.cpu for x in group if x.cpu is not None]
-        mems = [x.mem for x in group if x.mem is not None]
-        result.append(
+    def _bucket_label(value: Any, g: str) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                value = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return value[:13] + ":00" if g == "hour" else value[:10]
+        if hasattr(value, "strftime"):
+            return value.strftime("%Y-%m-%d %H:00") if g == "hour" else value.strftime("%Y-%m-%d")
+        return str(value)
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT bucket_start, avg_cpu, max_cpu, avg_mem, max_mem
+            FROM monitor_server_sample_rollups
+            WHERE {' AND '.join(conditions)}
+            ORDER BY bucket_start ASC
+            """
+        ),
+        params,
+    ).fetchall()
+    if rows:
+        return [
             {
-                "ts": key,
-                "avg_cpu": round(sum(cpus) / len(cpus), 1) if cpus else None,
-                "max_cpu": round(max(cpus), 1) if cpus else None,
-                "avg_mem": round(sum(mems) / len(mems), 1) if mems else None,
-                "max_mem": round(max(mems), 1) if mems else None,
+                "ts": _bucket_label(row[0], granularity),
+                "avg_cpu": round(row[1], 1) if row[1] is not None else None,
+                "max_cpu": round(row[2], 1) if row[2] is not None else None,
+                "avg_mem": round(row[3], 1) if row[3] is not None else None,
+                "max_mem": round(row[4], 1) if row[4] is not None else None,
             }
-        )
-    return result
+            for row in rows
+        ]
+
+    # Fallback: keep SQL-side aggregation and avoid Python full-table grouping.
+    if granularity == "hour":
+        bucket_expr = "strftime('%Y-%m-%d %H:00:00', sampled_at)"
+        ts_fmt = "%Y-%m-%d %H:00"
+    else:
+        bucket_expr = "strftime('%Y-%m-%d 00:00:00', sampled_at)"
+        ts_fmt = "%Y-%m-%d"
+    where_parts = ["sampled_at IS NOT NULL"]
+    fallback_params: Dict[str, Any] = {}
+    if date_from:
+        try:
+            fallback_params["from_dt"] = datetime.strptime(date_from, "%Y-%m-%d")
+            where_parts.append("sampled_at >= :from_dt")
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            fallback_params["to_dt"] = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+            where_parts.append("sampled_at < :to_dt")
+        except ValueError:
+            pass
+    fallback_rows = db.execute(
+        text(
+            f"""
+            SELECT
+                {bucket_expr} AS bucket_ts,
+                AVG(cpu) AS avg_cpu,
+                MAX(cpu) AS max_cpu,
+                AVG(mem) AS avg_mem,
+                MAX(mem) AS max_mem
+            FROM monitor_server_samples
+            WHERE {' AND '.join(where_parts)}
+            GROUP BY bucket_ts
+            ORDER BY bucket_ts ASC
+            """
+        ),
+        fallback_params,
+    ).fetchall()
+    return [
+        {
+            "ts": datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S").strftime(ts_fmt) if row[0] else None,
+            "avg_cpu": round(row[1], 1) if row[1] is not None else None,
+            "max_cpu": round(row[2], 1) if row[2] is not None else None,
+            "avg_mem": round(row[3], 1) if row[3] is not None else None,
+            "max_mem": round(row[4], 1) if row[4] is not None else None,
+        }
+        for row in fallback_rows
+        if row[0]
+    ]
