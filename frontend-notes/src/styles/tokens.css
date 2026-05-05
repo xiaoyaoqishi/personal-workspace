@@ -48,6 +48,54 @@
   --nk-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
+/* ===========================
+   水墨山水主题
+   =========================== */
+[data-theme="ink"] {
+  --nk-color-bg: #f4efe6;
+  --nk-color-surface: #faf7f0;
+  --nk-color-surface-2: #efe9de;
+  --nk-color-border: #d4c9b5;
+  --nk-color-text: #1a1408;
+  --nk-color-text-secondary: #4a3f2f;
+  --nk-color-text-muted: #8c7e6a;
+  --nk-color-primary: #1a4a6e;
+  --nk-color-primary-soft: #dce8f0;
+  --nk-color-success: #3d6b4a;
+  --nk-color-danger: #b8432a;
+  --nk-color-warning: #9e7510;
+  --nk-color-info: #1a4a6e;
+  --nk-radius-sm: 2px;
+  --nk-radius-md: 4px;
+  --nk-radius-lg: 6px;
+  --nk-shadow-card: 0 2px 12px rgba(26, 20, 8, 0.08);
+  --nk-shadow-pop: 0 6px 20px rgba(26, 20, 8, 0.14);
+}
+
+/* ===========================
+   科技主题
+   =========================== */
+[data-theme="tech"] {
+  --nk-color-bg: #0d1117;
+  --nk-color-surface: #161b22;
+  --nk-color-surface-2: #1c2330;
+  --nk-color-border: #2a3a4e;
+  --nk-color-text: #e6edf3;
+  --nk-color-text-secondary: #a0b4c8;
+  --nk-color-text-muted: #5e7a94;
+  --nk-color-primary: #00d4ff;
+  --nk-color-primary-soft: rgba(0, 212, 255, 0.1);
+  --nk-color-success: #00ffaa;
+  --nk-color-danger: #ff4757;
+  --nk-color-warning: #ffa726;
+  --nk-color-info: #00bcd4;
+  --nk-radius-sm: 4px;
+  --nk-radius-md: 6px;
+  --nk-radius-lg: 8px;
+  --nk-shadow-card: 0 0 16px rgba(0, 212, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --nk-shadow-pop: 0 0 32px rgba(0, 212, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
 [data-compact="true"] {
   --nk-space-3: 8px;
   --nk-space-6: 16px;

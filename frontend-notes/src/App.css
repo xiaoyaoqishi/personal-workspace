@@ -23,8 +23,8 @@ body {
 
 /* ── NK Sidebar ── */
 .nk-sidebar {
-  width: 72px;
-  min-width: 72px;
+  width: 56px;
+  min-width: 56px;
   background: var(--nk-color-surface);
   border-right: 1px solid var(--nk-color-border);
   display: flex;
@@ -37,7 +37,7 @@ body {
 }
 
 .sidebar-brand {
-  width: 72px;
+  width: 56px;
   height: 64px;
   display: flex;
   align-items: center;
@@ -93,7 +93,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 72px;
+  width: 56px;
   height: 62px;
   cursor: pointer;
   color: var(--nk-color-text-secondary);
@@ -155,7 +155,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 72px;
+  width: 56px;
   height: 56px;
   color: var(--nk-color-text-muted);
   background: transparent;
@@ -182,7 +182,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 72px;
+  width: 56px;
   height: 56px;
   color: var(--nk-color-text-muted);
   background: transparent;
@@ -1822,4 +1822,356 @@ body {
 [data-theme="dark"] .home-card,
 [data-theme="dark"] .home-kpi-card {
   box-shadow: var(--nk-shadow-card);
+}
+
+/* ===========================
+   水墨山水主题 — 特殊视觉效果
+   =========================== */
+
+[data-theme="ink"] body {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', serif;
+}
+
+[data-theme="ink"] .app-content {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 28px,
+      rgba(180, 160, 120, 0.03) 28px,
+      rgba(180, 160, 120, 0.03) 29px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 28px,
+      rgba(180, 160, 120, 0.02) 28px,
+      rgba(180, 160, 120, 0.02) 29px
+    ),
+    linear-gradient(135deg, #f4efe6 0%, #ede5d8 50%, #f4efe6 100%);
+}
+
+[data-theme="ink"] .nk-sidebar {
+  background: #1a1408;
+  border-right: 2px solid #3d3422;
+  box-shadow: 3px 0 12px rgba(26, 20, 8, 0.15);
+}
+
+[data-theme="ink"] .sidebar-brand {
+  border-bottom: 1px solid #3d3422;
+}
+
+[data-theme="ink"] .sidebar-brand-icon {
+  background: #b8432a;
+  border-radius: 4px;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: 18px;
+}
+
+[data-theme="ink"] .sidebar-group-label {
+  color: #8c7e6a;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  letter-spacing: 0.15em;
+}
+
+[data-theme="ink"] .icon-tab {
+  color: #c4b89e;
+}
+
+[data-theme="ink"] .icon-tab:hover {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.08);
+}
+
+[data-theme="ink"] .icon-tab.active {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.12);
+}
+
+[data-theme="ink"] .icon-tab.active::after {
+  background: #b8432a;
+  width: 2px;
+  border-radius: 0;
+}
+
+[data-theme="ink"] .sidebar-bottom {
+  border-top: 1px solid #3d3422;
+}
+
+[data-theme="ink"] .sidebar-theme-btn,
+[data-theme="ink"] .sidebar-compact-btn,
+[data-theme="ink"] .sidebar-logout-btn {
+  color: #8c7e6a;
+}
+
+[data-theme="ink"] .sidebar-theme-btn:hover,
+[data-theme="ink"] .sidebar-compact-btn:hover {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.08);
+}
+
+[data-theme="ink"] .sidebar-logout-btn:hover {
+  color: #b8432a;
+  background: rgba(184, 67, 42, 0.1);
+}
+
+[data-theme="ink"] .editor-panel {
+  background: #faf7f0;
+}
+
+[data-theme="ink"] .editor-header {
+  font-family: 'STKaiti', 'KaiTi', 'Noto Serif SC', serif;
+}
+
+[data-theme="ink"] .editor-title-input,
+[data-theme="ink"] .editor-title-readonly {
+  font-family: 'STKaiti', 'KaiTi', 'Noto Serif SC', serif;
+}
+
+[data-theme="ink"] .editor-content .tiptap {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', serif;
+  line-height: 2;
+}
+
+[data-theme="ink"] .editor-content .tiptap blockquote {
+  border-left: 3px solid #1a4a6e;
+  color: #4a3f2f;
+}
+
+[data-theme="ink"] .editor-toolbar {
+  background: #efe9de;
+  border-color: #d4c9b5;
+}
+
+[data-theme="ink"] .side-panel {
+  background: #efe9de;
+  border-right-color: #d4c9b5;
+}
+
+[data-theme="ink"] .home-header-card,
+[data-theme="ink"] .home-card,
+[data-theme="ink"] .home-kpi-card {
+  border-color: #d4c9b5;
+  box-shadow: 2px 2px 0 rgba(26, 20, 8, 0.04);
+}
+
+[data-theme="ink"] .home-page {
+  background: #f4efe6;
+}
+
+[data-theme="ink"] .home-date-solar {
+  font-family: 'STKaiti', 'KaiTi', serif;
+  letter-spacing: 0.05em;
+}
+
+/* ===========================
+   科技主题 — 特殊视觉效果
+   =========================== */
+
+[data-theme="tech"] .app-content {
+  background:
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #0d1117 0%, #0f1923 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+}
+
+[data-theme="tech"] .nk-sidebar {
+  background: #0a0e14;
+  border-right: 1px solid #2a3a4e;
+  box-shadow: 1px 0 20px rgba(0, 212, 255, 0.05);
+}
+
+[data-theme="tech"] .sidebar-brand {
+  border-bottom: 1px solid #2a3a4e;
+}
+
+[data-theme="tech"] .sidebar-brand-icon {
+  background: linear-gradient(135deg, #00d4ff, #00ffaa);
+  border-radius: 8px;
+  color: #0a0e14;
+  font-weight: 800;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+[data-theme="tech"] .sidebar-group-label {
+  color: #5e7a94;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+}
+
+[data-theme="tech"] .icon-tab {
+  color: #5e7a94;
+}
+
+[data-theme="tech"] .icon-tab:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+
+[data-theme="tech"] .icon-tab.active {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
+}
+
+[data-theme="tech"] .icon-tab.active::after {
+  background: linear-gradient(180deg, #00d4ff, #00ffaa);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  width: 2px;
+}
+
+[data-theme="tech"] .sidebar-bottom {
+  border-top: 1px solid #2a3a4e;
+}
+
+[data-theme="tech"] .sidebar-theme-btn,
+[data-theme="tech"] .sidebar-compact-btn,
+[data-theme="tech"] .sidebar-logout-btn {
+  color: #5e7a94;
+}
+
+[data-theme="tech"] .sidebar-theme-btn:hover,
+[data-theme="tech"] .sidebar-compact-btn:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+
+[data-theme="tech"] .sidebar-logout-btn:hover {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.08);
+}
+
+[data-theme="tech"] .editor-panel {
+  background: #161b22;
+}
+
+[data-theme="tech"] .editor-title-input,
+[data-theme="tech"] .editor-title-readonly {
+  font-family: 'JetBrains Mono', 'Inter', -apple-system, sans-serif;
+}
+
+[data-theme="tech"] .editor-content .tiptap {
+  color: #e6edf3;
+}
+
+[data-theme="tech"] .editor-content .tiptap blockquote {
+  border-left: 3px solid #00d4ff;
+  color: #a0b4c8;
+}
+
+[data-theme="tech"] .editor-toolbar {
+  background: #1c2330;
+  border-color: #2a3a4e;
+}
+
+[data-theme="tech"] .toolbar-btn:hover {
+  background: rgba(0, 212, 255, 0.08);
+  color: #00d4ff;
+}
+
+[data-theme="tech"] .toolbar-btn.is-active {
+  background: rgba(0, 212, 255, 0.12);
+  color: #00d4ff;
+}
+
+[data-theme="tech"] .side-panel {
+  background: #0d1117;
+  border-right-color: #2a3a4e;
+}
+
+[data-theme="tech"] .side-search .ant-input-affix-wrapper {
+  background: #1c2330;
+  border-color: #2a3a4e;
+}
+
+[data-theme="tech"] .home-page {
+  background: #0d1117;
+}
+
+[data-theme="tech"] .home-header-card,
+[data-theme="tech"] .home-card,
+[data-theme="tech"] .home-kpi-card {
+  background: #161b22;
+  border-color: #2a3a4e;
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.04);
+  transition: box-shadow 0.3s;
+}
+
+[data-theme="tech"] .home-header-card:hover,
+[data-theme="tech"] .home-card:hover,
+[data-theme="tech"] .home-kpi-card:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
+}
+
+[data-theme="tech"] .home-kpi-num {
+  color: #00d4ff;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+[data-theme="tech"] .home-streak-num {
+  color: #00d4ff;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+[data-theme="tech"] .home-heat-cell.active {
+  background: #00d4ff;
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.3);
+}
+
+[data-theme="tech"] .home-search-input {
+  background: #1c2330;
+  border-color: #2a3a4e;
+  color: #e6edf3;
+}
+
+[data-theme="tech"] .home-search-input:focus {
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+}
+
+[data-theme="tech"] .mc-day.selected {
+  background: #00d4ff;
+  color: #0a0e14;
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.4);
+}
+
+[data-theme="tech"] .mc-day.today {
+  color: #00d4ff;
+  text-shadow: 0 0 4px rgba(0, 212, 255, 0.5);
+}
+
+[data-theme="tech"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+[data-theme="tech"] ::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+[data-theme="tech"] ::-webkit-scrollbar-thumb {
+  background: #2a3a4e;
+  border-radius: 3px;
+}
+
+[data-theme="tech"] ::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+[data-theme="tech"] .mode-btn {
+  background: #1c2330;
+  border-color: #2a3a4e;
+  color: #5e7a94;
+}
+
+[data-theme="tech"] .mode-btn:hover {
+  background: rgba(0, 212, 255, 0.08);
+  color: #00d4ff;
+}
+
+[data-theme="tech"] .mode-btn.active {
+  background: #00d4ff;
+  color: #0a0e14;
 }

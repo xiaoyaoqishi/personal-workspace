@@ -6,8 +6,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  color: #333;
-  background: #f5f6f8;
+  color: var(--mn-color-text);
+  background: var(--mn-color-bg);
 }
 
 .loading {
@@ -15,7 +15,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--mn-color-text-secondary);
 }
 
 .monitor-layout {
@@ -32,7 +32,7 @@ body {
 }
 
 .monitor-view-container {
-  background: #fff;
+  background: var(--mn-color-surface);
 }
 
 .main-content {
@@ -45,7 +45,7 @@ body {
 .monitor-icon-sidebar.icon-sidebar {
   width: 56px;
   min-width: 56px;
-  background: #2c3e50;
+  background: var(--mn-sidebar-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -58,7 +58,7 @@ body {
   justify-content: center;
   width: 40px;
   height: 40px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--mn-sidebar-text);
   margin-bottom: 12px;
   border-radius: 8px;
   transition: all 0.2s;
@@ -66,8 +66,8 @@ body {
 }
 
 .icon-sidebar-back:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--mn-sidebar-text-active);
+  background: var(--mn-sidebar-hover-bg);
 }
 
 .icon-sidebar-tabs {
@@ -87,19 +87,19 @@ body {
   align-items: center;
   padding: 10px 0;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--mn-sidebar-text);
   transition: all 0.2s;
   position: relative;
 }
 
 .icon-tab:hover {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--mn-sidebar-text-hover);
+  background: var(--mn-sidebar-hover-bg);
 }
 
 .icon-tab.active {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
+  color: var(--mn-sidebar-text-active);
+  background: var(--mn-sidebar-active-bg);
 }
 
 .icon-tab.active::before {
@@ -109,7 +109,7 @@ body {
   top: 8px;
   bottom: 8px;
   width: 3px;
-  background: #3498db;
+  background: var(--mn-color-primary);
   border-radius: 0 2px 2px 0;
 }
 
@@ -124,7 +124,7 @@ body {
 }
 
 .icon-sidebar-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--mn-sidebar-border);
   padding-top: 8px;
   width: 100%;
 }
@@ -135,26 +135,26 @@ body {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--mn-color-surface);
 }
 
 .monitor-main-header {
   padding: 16px 28px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  background: linear-gradient(135deg, #f8f9fb, #eef2f7);
+  border-bottom: 1px solid var(--mn-color-border);
+  background: var(--mn-color-surface-2);
 }
 
 .monitor-main-header h1 {
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: #1f2d3d;
+  color: var(--mn-color-text);
 }
 
 .monitor-main-header p {
   margin-top: 4px;
   font-size: 13px;
-  color: #6c7b8a;
+  color: var(--mn-color-text-secondary);
 }
 
 .monitor-main-body {
@@ -162,7 +162,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding: 14px 20px 20px;
-  background: #f7f9fc;
+  background: var(--mn-color-bg);
 }
 
 .monitor-main-body .ant-card {
@@ -614,10 +614,10 @@ body {
 }
 
 .sp-metric-tile {
-  background: #fff;
+  background: var(--mn-color-surface);
   border-radius: 10px;
   padding: 14px 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--mn-color-border);
   border-left: 3px solid #e2e8f0;
   transition: box-shadow 0.2s;
 }
@@ -675,9 +675,9 @@ body {
 
 /* Main tabs card */
 .sp-main {
-  background: #fff;
+  background: var(--mn-color-surface);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--mn-color-border);
   padding: 0 16px 16px;
 }
 
@@ -727,4 +727,192 @@ body {
   .sp-metrics { grid-template-columns: repeat(2, 1fr); }
   .sp-statusbar { flex-wrap: wrap; gap: 10px; }
   .sp-statusbar-services { justify-content: flex-start; }
+}
+
+/* ===========================
+   水墨山水主题
+   =========================== */
+[data-theme="ink"] .monitor-icon-sidebar.icon-sidebar {
+  background: #1a1408;
+}
+
+[data-theme="ink"] .icon-tab {
+  color: #c4b89e;
+}
+[data-theme="ink"] .icon-tab:hover {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.08);
+}
+[data-theme="ink"] .icon-tab.active {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.12);
+}
+[data-theme="ink"] .icon-tab.active::before {
+  background: #b8432a;
+}
+[data-theme="ink"] .icon-sidebar-back {
+  color: #8c7e6a;
+}
+[data-theme="ink"] .icon-sidebar-back:hover {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.08);
+}
+[data-theme="ink"] .icon-sidebar-bottom {
+  border-top-color: #3d3422;
+}
+
+[data-theme="ink"] .monitor-main-header {
+  background: #faf7f0;
+  border-bottom: 2px solid #1a4a6e;
+}
+[data-theme="ink"] .monitor-main-header h1 {
+  font-family: 'STKaiti', 'KaiTi', 'Noto Serif SC', serif;
+}
+
+[data-theme="ink"] .sp-statusbar {
+  background: #2c2416;
+}
+
+[data-theme="ink"] .sp-metric-tile {
+  background: #faf7f0;
+  border-color: #d4c9b5;
+}
+
+[data-theme="ink"] .sp-main {
+  background: #faf7f0;
+  border-color: #d4c9b5;
+}
+
+[data-theme="ink"] .monitor-main-body {
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(180, 160, 120, 0.03) 28px, rgba(180, 160, 120, 0.03) 29px),
+    linear-gradient(135deg, #f4efe6 0%, #ede5d8 50%, #f4efe6 100%);
+}
+
+[data-theme="ink"] .monitor-main-body .ant-card {
+  border-color: #d4c9b5;
+  background: #faf7f0;
+}
+
+/* ===========================
+   科技主题
+   =========================== */
+[data-theme="tech"] .monitor-icon-sidebar.icon-sidebar {
+  background: #0a0e14;
+  border-right: 1px solid #2a3a4e;
+}
+
+[data-theme="tech"] .icon-tab {
+  color: #5e7a94;
+}
+[data-theme="tech"] .icon-tab:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+[data-theme="tech"] .icon-tab.active {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
+}
+[data-theme="tech"] .icon-tab.active::before {
+  background: linear-gradient(180deg, #00d4ff, #00ffaa);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+[data-theme="tech"] .icon-sidebar-back {
+  color: #5e7a94;
+}
+[data-theme="tech"] .icon-sidebar-back:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+[data-theme="tech"] .icon-sidebar-bottom {
+  border-top-color: #2a3a4e;
+}
+
+[data-theme="tech"] .monitor-main-header {
+  background: #0d1117;
+  border-bottom: 1px solid #2a3a4e;
+  position: relative;
+}
+[data-theme="tech"] .monitor-main-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, #00d4ff, transparent 50%);
+}
+[data-theme="tech"] .monitor-main-header h1 {
+  font-family: 'JetBrains Mono', 'Inter', -apple-system, sans-serif;
+}
+
+[data-theme="tech"] .sp-statusbar {
+  background: #0a0e14;
+  border: 1px solid #2a3a4e;
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.05);
+}
+
+[data-theme="tech"] .sp-metric-tile {
+  background: #161b22;
+  border-color: #2a3a4e;
+  transition: box-shadow 0.3s;
+}
+[data-theme="tech"] .sp-metric-tile:hover {
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.08);
+}
+
+[data-theme="tech"] .sp-main {
+  background: #161b22;
+  border-color: #2a3a4e;
+}
+
+[data-theme="tech"] .monitor-main-body {
+  background:
+    linear-gradient(rgba(0, 212, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.02) 1px, transparent 1px),
+    #0d1117;
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+}
+
+[data-theme="tech"] .monitor-main-body .ant-card {
+  border-color: #2a3a4e;
+  background: #161b22;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.04);
+}
+
+[data-theme="tech"] .sp-tile-value.normal { color: #00ffaa; text-shadow: 0 0 6px rgba(0, 255, 170, 0.3); }
+[data-theme="tech"] .sp-tile-value.high { color: #ffa726; }
+[data-theme="tech"] .sp-tile-value.danger { color: #ff4757; text-shadow: 0 0 6px rgba(255, 71, 87, 0.3); }
+
+[data-theme="tech"] ::-webkit-scrollbar { width: 6px; height: 6px; }
+[data-theme="tech"] ::-webkit-scrollbar-track { background: #0d1117; }
+[data-theme="tech"] ::-webkit-scrollbar-thumb { background: #2a3a4e; border-radius: 3px; }
+[data-theme="tech"] ::-webkit-scrollbar-thumb:hover { background: #00d4ff; }
+
+/* ===========================
+   暗色主题
+   =========================== */
+[data-theme="dark"] .monitor-icon-sidebar.icon-sidebar {
+  background: #0f172a;
+  border-right: 1px solid #334155;
+}
+
+[data-theme="dark"] .sp-statusbar {
+  background: #0f172a;
+  border: 1px solid #334155;
+}
+
+[data-theme="dark"] .sp-metric-tile {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .sp-main {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .monitor-main-body .ant-card {
+  border-color: #334155;
+  background: #1e293b;
 }

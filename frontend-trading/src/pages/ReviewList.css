@@ -11,8 +11,8 @@
 
 .review-header-card {
   border-radius: 10px;
-  border: 1px solid rgba(90, 75, 55, 0.2);
-  background: linear-gradient(145deg, #efe9e0 0%, #e6dfd5 100%);
+  border: 1px solid var(--td-color-border);
+  background: var(--td-surface-alt-gradient);
   padding: 12px 14px;
 }
 
@@ -28,9 +28,9 @@
 }
 
 .review-toolbar-strip {
-  border: 1px solid rgba(90, 75, 55, 0.16);
+  border: 1px solid var(--td-color-border-light);
   border-radius: 9px;
-  background: #ece5d9;
+  background: var(--td-color-surface-muted);
   padding: 7px 10px;
   display: grid;
   grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.8fr);
@@ -48,7 +48,7 @@
   font-size: 12px;
   line-height: 1;
   font-weight: 700;
-  color: #4a4035;
+  color: var(--td-color-text-secondary);
 }
 
 .review-tool-fields {
@@ -65,8 +65,8 @@
 .review-list-card,
 .review-editor-card {
   border-radius: 10px;
-  border: 1px solid rgba(90, 75, 55, 0.18);
-  background: linear-gradient(180deg, #f3ece2 0%, #eee7dc 100%);
+  border: 1px solid var(--td-color-border);
+  background: var(--td-surface-panel-gradient);
   padding: 10px 11px;
 }
 
@@ -75,11 +75,11 @@
 }
 
 .review-folder-collapse .ant-collapse-item {
-  border: 1px solid rgba(90, 75, 55, 0.14) !important;
+  border: 1px solid var(--td-color-border-light) !important;
   border-radius: 8px !important;
   margin-bottom: 8px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--td-color-surface);
 }
 
 .review-folder-collapse .ant-collapse-item:last-child {
@@ -87,7 +87,7 @@
 }
 
 .review-folder-collapse .ant-collapse-item-active {
-  border-color: rgba(90, 75, 55, 0.24) !important;
+  border-color: var(--td-color-border) !important;
 }
 
 .review-folder-collapse .ant-collapse-header {
@@ -95,12 +95,12 @@
 }
 
 .review-folder-collapse .ant-collapse-header:hover {
-  background: rgba(236, 227, 215, 0.75);
+  background: var(--td-color-surface-muted);
 }
 
 .review-folder-collapse .ant-collapse-content {
-  border-top: 1px solid rgba(90, 75, 55, 0.12);
-  background: rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--td-color-border-light);
+  background: var(--td-color-surface);
 }
 
 .review-folder-collapse .ant-collapse-content-box {
@@ -124,7 +124,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: #3a3530;
+  color: var(--td-color-text);
 }
 
 .review-folder-icon {
@@ -134,8 +134,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: #e0dbd2;
-  color: #5a4e40;
+  background: var(--td-color-surface-muted);
+  color: var(--td-color-text-secondary);
 }
 
 .review-folder-count {
@@ -146,8 +146,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: #e0dbd2;
-  color: #5a4e40;
+  background: var(--td-color-surface-muted);
+  color: var(--td-color-text-secondary);
   font-size: 11px;
   font-weight: 600;
 }
@@ -163,14 +163,14 @@
 }
 
 .review-list-item:hover {
-  border-color: rgba(90, 75, 55, 0.11);
-  background: rgba(242, 236, 228, 0.66);
+  border-color: var(--td-color-border-light);
+  background: var(--td-color-surface-muted);
 }
 
 .review-list-item.active {
-  border-color: rgba(84, 69, 50, 0.18);
-  background: #e6ddd1;
-  box-shadow: inset 2px 0 0 rgba(84, 69, 50, 0.62);
+  border-color: var(--td-color-border);
+  background: var(--td-color-accent);
+  box-shadow: inset 2px 0 0 var(--td-color-primary);
 }
 
 .review-list-main {
@@ -193,7 +193,7 @@
   min-width: 0;
   font-weight: 700;
   font-size: 13px;
-  color: #2f2923;
+  color: var(--td-color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -220,7 +220,7 @@
 
 .review-list-summary {
   margin-bottom: 0 !important;
-  color: #7f7568;
+  color: var(--td-color-text-tertiary);
   font-size: 11px;
 }
 
@@ -238,7 +238,7 @@
   font-size: 10px;
   line-height: 14px;
   padding-inline: 4px;
-  color: #746959;
+  color: var(--td-color-text-tertiary);
 }
 
 .review-group-header {
@@ -252,7 +252,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #4a4035;
+  color: var(--td-color-text-secondary);
   font-weight: 700;
   font-size: 13px;
   white-space: nowrap;
@@ -291,8 +291,8 @@
 
 .review-font-popover .ant-popover-inner {
   padding: 10px 10px 8px;
-  border: 1px solid rgba(90, 75, 55, 0.14);
-  background: #f6f1e8;
+  border: 1px solid var(--td-color-border-light);
+  background: var(--td-color-surface);
 }
 
 .review-font-panel {
@@ -309,7 +309,7 @@
 .review-font-panel-title {
   font-size: 12px;
   font-weight: 700;
-  color: #4f4335;
+  color: var(--td-color-text-secondary);
 }
 
 .review-font-panel .ant-slider {
@@ -328,9 +328,9 @@
 }
 
 .review-article-paper {
-  border: 1px solid rgba(90, 75, 55, 0.08);
+  border: 1px solid var(--td-color-border-light);
   border-radius: 6px;
-  background: #fcfaf6;
+  background: var(--td-color-surface);
   padding: 10px 12px;
 }
 
@@ -344,8 +344,8 @@
   --reader-font-size: 14px;
   --reader-line-height: 1.94;
   --reader-paragraph-spacing: 0.78em;
-  border-color: rgba(90, 75, 55, 0.06);
-  background: #fcfaf6;
+  border-color: var(--td-color-border-light);
+  background: var(--td-color-surface);
   min-height: 280px;
   font-size: var(--reader-font-size);
   line-height: var(--reader-line-height);
@@ -354,7 +354,7 @@
 
 .review-reader-lead {
   margin: 0 0 0.45em !important;
-  color: #5c4f40;
+  color: var(--td-color-text-secondary);
   font-size: calc(var(--reader-font-size) * 0.94);
   line-height: calc(var(--reader-line-height) - 0.14);
 }
@@ -362,8 +362,8 @@
 .review-reader-footnote {
   margin: 0.9em 0 0 !important;
   padding-top: 0.8em;
-  border-top: 1px solid rgba(90, 75, 55, 0.12);
-  color: #675846;
+  border-top: 1px solid var(--td-color-border-light);
+  color: var(--td-color-text-secondary);
   white-space: pre-wrap;
 }
 
@@ -410,14 +410,14 @@
 .review-drawer-group-title {
   font-size: 12px;
   font-weight: 700;
-  color: #4f4335;
+  color: var(--td-color-text-secondary);
 }
 
 .review-drawer-block {
   margin-top: 6px;
-  border: 1px solid rgba(90, 75, 55, 0.12);
+  border: 1px solid var(--td-color-border-light);
   border-radius: 8px;
-  background: #fbf8f3;
+  background: var(--td-color-surface);
   padding: 9px 10px;
 }
 
@@ -426,7 +426,7 @@
   margin-bottom: 6px;
   font-size: 15px;
   font-weight: 700;
-  color: #2e261f;
+  color: var(--td-color-text);
 }
 
 .review-meta-list {
@@ -494,9 +494,9 @@
 
 .review-linked-card {
   border-radius: 6px;
-  border: 1px solid rgba(90, 75, 55, 0.14);
+  border: 1px solid var(--td-color-border-light);
   padding: 9px 10px;
-  background: rgba(250, 246, 238, 0.92);
+  background: var(--td-color-surface);
 }
 
 @media (max-width: 1280px) {

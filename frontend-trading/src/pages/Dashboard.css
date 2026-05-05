@@ -5,7 +5,7 @@
 }
 
 .analytics-header {
-  border-bottom: 1px solid rgba(90,75,55,0.2);
+  border-bottom: 1px solid var(--td-color-border);
   padding: 14px 2px;
 }
 
@@ -24,7 +24,7 @@
 }
 
 .analytics-note-list {
-  color: #5a5545;
+  color: var(--td-color-text-tertiary);
   font-size: 13px;
   line-height: 1.75;
 }

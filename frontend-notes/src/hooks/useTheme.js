@@ -1,21 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react'
+
+const THEMES = ['light', 'ink', 'tech', 'dark']
+
+function getInitialTheme() {
+  const stored = localStorage.getItem('notes-theme')
+  if (THEMES.includes(stored)) return stored
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+  return 'light'
+}
+
+function getInitialCompact() {
+  const stored = localStorage.getItem('notes-compact')
+  return stored === 'true'
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme)
+}
+
+function applyCompact(compact) {
+  document.documentElement.setAttribute('data-compact', compact ? 'true' : 'false')
+}
 
 export default function useTheme() {
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('notes-theme') === 'dark');
-  const [compact, setCompact] = useState(() => localStorage.getItem('notes-compact') === 'true');
+  const [theme, setThemeState] = useState(getInitialTheme)
+  const [compact, setCompact] = useState(getInitialCompact)
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    localStorage.setItem('notes-theme', isDark ? 'dark' : 'light');
-  }, [isDark]);
+    applyTheme(theme)
+    localStorage.setItem('notes-theme', theme)
+  }, [theme])
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-compact', compact ? 'true' : 'false');
-    localStorage.setItem('notes-compact', compact ? 'true' : 'false');
-  }, [compact]);
+    applyCompact(compact)
+    localStorage.setItem('notes-compact', compact ? 'true' : 'false')
+  }, [compact])
 
-  const toggleTheme = () => setIsDark(v => !v);
-  const toggleCompact = () => setCompact(v => !v);
+  const cycleTheme = useCallback(() => {
+    setThemeState((current) => {
+      const index = THEMES.indexOf(current)
+      return THEMES[(index + 1) % THEMES.length]
+    })
+  }, [])
 
-  return { isDark, toggleTheme, compact, toggleCompact };
+  const setTheme = useCallback((themeName) => {
+    if (THEMES.includes(themeName)) {
+      setThemeState(themeName)
+    }
+  }, [])
+
+  const toggleCompact = useCallback(() => {
+    setCompact((c) => !c)
+  }, [])
+
+  return { theme, isDark: theme === 'dark', cycleTheme, setTheme, compact, toggleCompact }
 }

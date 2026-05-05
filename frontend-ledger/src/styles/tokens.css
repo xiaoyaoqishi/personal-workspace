@@ -89,6 +89,50 @@
   --lk-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
+/* 水墨山水主题 */
+[data-theme="ink"] {
+  --lk-color-bg: #f4efe6;
+  --lk-color-surface: #faf7f0;
+  --lk-color-surface-2: #efe9de;
+  --lk-color-border: #d4c9b5;
+  --lk-color-text: #1a1408;
+  --lk-color-text-secondary: #4a3f2f;
+  --lk-color-text-muted: #8c7e6a;
+  --lk-color-primary: #1a4a6e;
+  --lk-color-primary-soft: #dce8f0;
+  --lk-color-success: #3d6b4a;
+  --lk-color-danger: #b8432a;
+  --lk-color-warning: #9e7510;
+  --lk-color-info: #1a4a6e;
+  --lk-shadow-card: 0 2px 12px rgba(26, 20, 8, 0.08);
+  --lk-shadow-pop: 0 6px 20px rgba(26, 20, 8, 0.14);
+  --lk-radius-sm: 2px;
+  --lk-radius-md: 4px;
+  --lk-radius-lg: 6px;
+}
+
+/* 科技主题 */
+[data-theme="tech"] {
+  --lk-color-bg: #0d1117;
+  --lk-color-surface: #161b22;
+  --lk-color-surface-2: #1c2330;
+  --lk-color-border: #2a3a4e;
+  --lk-color-text: #e6edf3;
+  --lk-color-text-secondary: #a0b4c8;
+  --lk-color-text-muted: #5e7a94;
+  --lk-color-primary: #00d4ff;
+  --lk-color-primary-soft: rgba(0, 212, 255, 0.1);
+  --lk-color-success: #00ffaa;
+  --lk-color-danger: #ff4757;
+  --lk-color-warning: #ffa726;
+  --lk-color-info: #00bcd4;
+  --lk-shadow-card: 0 0 16px rgba(0, 212, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --lk-shadow-pop: 0 0 32px rgba(0, 212, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.4);
+  --lk-radius-sm: 4px;
+  --lk-radius-md: 6px;
+  --lk-radius-lg: 8px;
+}
+
 /* ===========================
    Compact Mode Overrides (M5)
    =========================== */
@@ -109,8 +153,8 @@
 }
 
 [data-compact="true"] .ledger-sidebar {
-  width: 60px;
-  min-width: 60px;
+  width: 48px;
+  min-width: 48px;
 }
 
 [data-compact="true"] .sidebar-brand,
@@ -118,5 +162,5 @@
 [data-compact="true"] .sidebar-logout-btn,
 [data-compact="true"] .sidebar-theme-btn,
 [data-compact="true"] .sidebar-compact-btn {
-  width: 60px;
+  width: 48px;
 }

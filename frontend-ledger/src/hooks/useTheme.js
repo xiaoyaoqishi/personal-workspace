@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
+const THEMES = ['light', 'ink', 'tech', 'dark']
+
 function getInitialTheme() {
   const stored = localStorage.getItem('lk-theme')
-  if (stored === 'dark' || stored === 'light') return stored
+  if (THEMES.includes(stored)) return stored
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
   return 'light'
 }
@@ -21,7 +23,7 @@ function applyCompact(compact) {
 }
 
 export default function useTheme() {
-  const [theme, setTheme] = useState(getInitialTheme)
+  const [theme, setThemeState] = useState(getInitialTheme)
   const [compact, setCompact] = useState(getInitialCompact)
 
   useEffect(() => {
@@ -34,13 +36,22 @@ export default function useTheme() {
     localStorage.setItem('lk-compact', compact ? 'true' : 'false')
   }, [compact])
 
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+  const cycleTheme = useCallback(() => {
+    setThemeState((current) => {
+      const index = THEMES.indexOf(current)
+      return THEMES[(index + 1) % THEMES.length]
+    })
+  }, [])
+
+  const setTheme = useCallback((themeName) => {
+    if (THEMES.includes(themeName)) {
+      setThemeState(themeName)
+    }
   }, [])
 
   const toggleCompact = useCallback(() => {
     setCompact((c) => !c)
   }, [])
 
-  return { theme, isDark: theme === 'dark', toggleTheme, compact, toggleCompact }
+  return { theme, isDark: theme === 'dark', cycleTheme, setTheme, compact, toggleCompact }
 }

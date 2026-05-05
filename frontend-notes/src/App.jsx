@@ -3,14 +3,16 @@ import { ConfigProvider, theme as antdTheme } from 'antd';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import IconSidebar from './components/IconSidebar';
 import useTheme from './hooks/useTheme';
-import { antdThemeToken } from './styles/theme';
+import { antdThemeToken, darkThemeToken, inkThemeToken, techThemeToken } from './styles/theme';
 import { notebookApi, auditApi } from './api';
 import './styles/tokens.css';
 import './App.css';
 
 export const ThemeContext = createContext({
+  theme: 'light',
   isDark: false,
-  toggleTheme: () => {},
+  cycleTheme: () => {},
+  setTheme: () => {},
   compact: false,
   toggleCompact: () => {},
 });
@@ -123,35 +125,25 @@ function AppLayout() {
 }
 
 export default function App() {
-  const { isDark, toggleTheme, compact, toggleCompact } = useTheme();
+  const { theme, isDark, cycleTheme, setTheme, compact, toggleCompact } = useTheme();
 
-  const algorithms = isDark
-    ? compact
-      ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
-      : [antdTheme.darkAlgorithm]
-    : compact
-    ? [antdTheme.compactAlgorithm]
-    : [antdTheme.defaultAlgorithm];
+  const baseAlgorithm = (isDark || theme === 'tech') ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm;
+  const algorithms = compact ? [baseAlgorithm, antdTheme.compactAlgorithm] : [baseAlgorithm];
 
-  const darkTokenOverrides = isDark
-    ? {
-        colorBgContainer: '#1e293b',
-        colorBgElevated: '#1e293b',
-        colorBgLayout: '#0f172a',
-        colorText: '#f1f5f9',
-        colorTextSecondary: '#94a3b8',
-        colorBorder: '#334155',
-        colorBorderSecondary: '#334155',
-      }
-    : {};
+  const themeTokenMap = {
+    light: antdThemeToken,
+    dark: { ...antdThemeToken, ...darkThemeToken },
+    ink: inkThemeToken,
+    tech: techThemeToken,
+  };
 
   const themeConfig = {
     algorithm: algorithms,
-    token: { ...antdThemeToken, ...darkTokenOverrides },
+    token: themeTokenMap[theme] ?? antdThemeToken,
   };
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, compact, toggleCompact }}>
+    <ThemeContext.Provider value={{ theme, isDark, cycleTheme, setTheme, compact, toggleCompact }}>
       <ConfigProvider theme={themeConfig}>
         <BrowserRouter basename="/notes">
           <AppLayout />

@@ -8,7 +8,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0 7px;
-  border-bottom: 1px solid rgba(90,75,55,0.22);
+  border-bottom: 1px solid var(--td-color-border);
   margin-bottom: 12px;
 }
 
@@ -20,7 +20,7 @@
 .ink-section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #3a3530;
+  color: var(--td-color-text);
   letter-spacing: 0.08rem;
   flex-shrink: 0;
 }

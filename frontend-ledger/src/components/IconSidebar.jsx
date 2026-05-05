@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Dropdown } from 'antd';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   ImportOutlined,
@@ -9,8 +10,11 @@ import {
   LogoutOutlined,
   MoonOutlined,
   SunOutlined,
+  ThunderboltOutlined,
+  FormatPainterOutlined,
   CompressOutlined,
   ExpandOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { logout } from '../api/auth';
 import { useThemeContext } from '../App';
@@ -44,7 +48,33 @@ const NAV_GROUPS = [
 
 export default function IconSidebar() {
   const location = useLocation();
-  const { isDark, toggleTheme, compact, toggleCompact } = useThemeContext();
+  const { theme, setTheme, compact, toggleCompact } = useThemeContext();
+
+  const themeMetaMap = useMemo(
+    () => ({
+      light: { icon: <SunOutlined />, label: '浅色' },
+      dark: { icon: <MoonOutlined />, label: '暗色' },
+      ink: { icon: <FormatPainterOutlined />, label: '水墨山水' },
+      tech: { icon: <ThunderboltOutlined />, label: '科技' },
+    }),
+    [],
+  );
+
+  const currentThemeMeta = themeMetaMap[theme] ?? themeMetaMap.light;
+
+  const themeMenuItems = useMemo(
+    () => ['light', 'ink', 'tech', 'dark'].map((key) => ({
+      key,
+      icon: themeMetaMap[key].icon,
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span>{themeMetaMap[key].label}</span>
+          {theme === key ? <CheckOutlined /> : null}
+        </span>
+      ),
+    })),
+    [theme, themeMetaMap],
+  );
 
   const activePath = useMemo(() => {
     const p = location.pathname;
@@ -86,17 +116,27 @@ export default function IconSidebar() {
 
       {/* Bottom: theme, compact, logout */}
       <div className="sidebar-bottom">
-        <button
-          className="sidebar-theme-btn"
-          onClick={toggleTheme}
-          title={isDark ? '切换浅色模式' : '切换暗色模式'}
+        <Dropdown
+          menu={{
+            items: themeMenuItems,
+            selectable: true,
+            selectedKeys: [theme],
+            onClick: ({ key }) => setTheme(key),
+          }}
+          trigger={['click']}
+          placement="topRight"
         >
-          <span className="tab-icon">
-            {isDark ? <SunOutlined /> : <MoonOutlined />}
-          </span>
-          <span>{isDark ? '浅色' : '暗色'}</span>
-        </button>
+          <button
+            type="button"
+            className="sidebar-theme-btn"
+            title={`当前主题：${currentThemeMeta.label}`}
+          >
+            <span className="tab-icon">{currentThemeMeta.icon}</span>
+            <span>{currentThemeMeta.label}</span>
+          </button>
+        </Dropdown>
         <button
+          type="button"
           className="sidebar-compact-btn"
           onClick={toggleCompact}
           title={compact ? '切换宽松模式' : '切换紧凑模式'}
@@ -106,7 +146,7 @@ export default function IconSidebar() {
           </span>
           <span>{compact ? '宽松' : '紧凑'}</span>
         </button>
-        <button className="sidebar-logout-btn" onClick={handleLogout} title="退出登录">
+        <button type="button" className="sidebar-logout-btn" onClick={handleLogout} title="退出登录">
           <span className="tab-icon"><LogoutOutlined /></span>
           <span>退出</span>
         </button>

@@ -17,6 +17,7 @@
 ### Trading
 - Trade CRUD, filters, search options, and position views.
 - Statistics and analytics endpoints for trading records.
+- Trading frontend now includes four switchable themes (`ink` / `light` / `tech` / `dark`) through a sidebar dropdown selector, with `ink` preserved as the default paper-style theme and the selected theme persisted locally.
 - Paste-based trade import with staged parsing and matching.
 - Structured per-trade review data and review taxonomy support.
 - Review sessions with linked trades and selection-based generation.
@@ -38,6 +39,7 @@
 ### Monitor / Admin
 - Login, logout, setup, and session check flow through the shared backend.
 - Admin-only monitor APIs for server metrics and site checks.
+- Monitor frontend now includes four switchable themes (`light` / `ink` / `tech` / `dark`) through a sidebar dropdown selector, with theme choice persisted locally.
 - Realtime and historical server metrics.
 - Site target CRUD and per-target result history.
 - User management with role and password operations.
@@ -61,6 +63,7 @@
 - Unified tabular parser supports `csv/xls/xlsx` (including HTML-table style `.xls` exports).
 - Asset library (`/ledger/assets`) now supports long-term asset records, purchase cost, extra cost, usage and idle tracking, lifecycle events, sold review, and cash daily cost analysis within one tabbed page.
 - Asset library lifecycle and analysis views now include a compact top-mounted event form, first-5 event collapse with show-all toggle, hover-only event delete action, richer lifecycle selector metrics, and expanded analysis charts for type mix, purchase-year trend, in-use efficiency, extra-cost ratio, ROI, and idle days.
+- Ledger frontend now includes four switchable themes (`light` / `dark` / `ink` / `tech`) through a sidebar dropdown selector, with compact mode compatible across all themes.
 - Current ledger pages include:
   - Import Center (`/ledger/imports`) for batch lifecycle operations.
   - Import Review Workbench (`/ledger/imports/:batchId/review`) with explain visibility and batch actions.

@@ -24,8 +24,8 @@ body {
 
 /* ---- Sidebar ---- */
 .ledger-sidebar {
-  width: 72px;
-  min-width: 72px;
+  width: 56px;
+  min-width: 56px;
   background: var(--lk-color-surface);
   border-right: 1px solid var(--lk-color-border);
   display: flex;
@@ -39,7 +39,7 @@ body {
 
 /* Brand mark at top */
 .sidebar-brand {
-  width: 72px;
+  width: 56px;
   height: 64px;
   display: flex;
   align-items: center;
@@ -99,7 +99,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 72px;
+  width: 56px;
   height: 62px;
   cursor: pointer;
   color: var(--lk-color-text-secondary);
@@ -166,7 +166,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 72px;
+  width: 56px;
   height: 56px;
   color: var(--lk-color-text-muted);
   background: transparent;
@@ -193,6 +193,7 @@ body {
   flex-direction: column;
   overflow: auto;
   background: var(--lk-color-bg);
+  padding: 0 20px;
 }
 
 /* ---- Page Header ---- */
@@ -315,7 +316,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 72px;
+  width: 56px;
   height: 56px;
   color: var(--lk-color-text-muted);
   background: transparent;
@@ -345,4 +346,319 @@ body {
 .sidebar-logout-btn:hover {
   color: var(--lk-color-danger);
   background: color-mix(in srgb, var(--lk-color-danger) 10%, transparent);
+}
+
+/* ===========================
+   水墨山水主题 — 特殊视觉效果
+   =========================== */
+[data-theme="ink"] body,
+[data-theme="ink"] .ant-typography {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', serif;
+}
+
+/* 宣纸纹理背景 */
+[data-theme="ink"] .ledger-content-wrap {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 28px,
+      rgba(180, 160, 120, 0.03) 28px,
+      rgba(180, 160, 120, 0.03) 29px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 28px,
+      rgba(180, 160, 120, 0.02) 28px,
+      rgba(180, 160, 120, 0.02) 29px
+    ),
+    linear-gradient(135deg, #f4efe6 0%, #ede5d8 50%, #f4efe6 100%);
+}
+
+/* 侧边栏 — 深色墨底 */
+[data-theme="ink"] .ledger-sidebar {
+  background: #1a1408;
+  border-right: 2px solid #3d3422;
+  box-shadow: 3px 0 12px rgba(26, 20, 8, 0.15);
+}
+
+[data-theme="ink"] .sidebar-brand {
+  border-bottom: 1px solid #3d3422;
+}
+
+[data-theme="ink"] .sidebar-brand-icon {
+  background: #b8432a;
+  border-radius: 4px;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  font-size: 18px;
+}
+
+[data-theme="ink"] .sidebar-group-label {
+  color: #8c7e6a;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  letter-spacing: 0.15em;
+}
+
+[data-theme="ink"] .icon-tab {
+  color: #c4b89e;
+}
+
+[data-theme="ink"] .icon-tab:hover {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.08);
+}
+
+[data-theme="ink"] .icon-tab.active {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.12);
+}
+
+[data-theme="ink"] .icon-tab.active::after {
+  background: #b8432a;
+  width: 2px;
+  border-radius: 0;
+}
+
+[data-theme="ink"] .sidebar-bottom {
+  border-top: 1px solid #3d3422;
+}
+
+[data-theme="ink"] .sidebar-theme-btn,
+[data-theme="ink"] .sidebar-compact-btn,
+[data-theme="ink"] .sidebar-logout-btn {
+  color: #8c7e6a;
+}
+
+[data-theme="ink"] .sidebar-theme-btn:hover,
+[data-theme="ink"] .sidebar-compact-btn:hover {
+  color: #faf7f0;
+  background: rgba(250, 247, 240, 0.08);
+}
+
+[data-theme="ink"] .sidebar-logout-btn:hover {
+  color: #b8432a;
+  background: rgba(184, 67, 42, 0.1);
+}
+
+/* 卡片 — 毛边纸感 */
+[data-theme="ink"] .page-card {
+  border: 1px solid #d4c9b5;
+  box-shadow: 2px 2px 0 rgba(26, 20, 8, 0.04);
+  position: relative;
+}
+
+/* 页面标题 — 书法感 */
+[data-theme="ink"] .page-header {
+  background: #faf7f0;
+  border-bottom: 2px solid #1a4a6e;
+  position: relative;
+}
+
+[data-theme="ink"] .page-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: #b8432a;
+}
+
+[data-theme="ink"] .page-header-title {
+  font-family: 'STKaiti', 'KaiTi', 'Noto Serif SC', serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* 表格 — 线装书风 */
+[data-theme="ink"] .ant-table {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', serif;
+}
+
+[data-theme="ink"] .ant-table-thead > tr > th {
+  background: #efe9de !important;
+  border-bottom: 2px solid #1a4a6e !important;
+  font-weight: 600;
+}
+
+/* 按钮 */
+[data-theme="ink"] .ant-btn-primary {
+  box-shadow: none;
+  border-radius: 3px;
+}
+
+/* filter bar */
+[data-theme="ink"] .filter-bar {
+  background: #efe9de;
+  border: 1px solid #d4c9b5;
+}
+
+/* ===========================
+   科技主题 — 特殊视觉效果
+   =========================== */
+
+/* 网格背景 */
+[data-theme="tech"] .ledger-content-wrap {
+  background:
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #0d1117 0%, #0f1923 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+}
+
+/* 侧边栏 — 暗色 + 发光描边 */
+[data-theme="tech"] .ledger-sidebar {
+  background: #0a0e14;
+  border-right: 1px solid #2a3a4e;
+  box-shadow: 1px 0 20px rgba(0, 212, 255, 0.05);
+}
+
+[data-theme="tech"] .sidebar-brand {
+  border-bottom: 1px solid #2a3a4e;
+}
+
+[data-theme="tech"] .sidebar-brand-icon {
+  background: linear-gradient(135deg, #00d4ff, #00ffaa);
+  border-radius: 8px;
+  color: #0a0e14;
+  font-weight: 800;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+}
+
+[data-theme="tech"] .sidebar-group-label {
+  color: #5e7a94;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+}
+
+[data-theme="tech"] .icon-tab {
+  color: #5e7a94;
+}
+
+[data-theme="tech"] .icon-tab:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+
+[data-theme="tech"] .icon-tab.active {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
+}
+
+[data-theme="tech"] .icon-tab.active::after {
+  background: linear-gradient(180deg, #00d4ff, #00ffaa);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  width: 2px;
+}
+
+[data-theme="tech"] .sidebar-bottom {
+  border-top: 1px solid #2a3a4e;
+}
+
+[data-theme="tech"] .sidebar-theme-btn,
+[data-theme="tech"] .sidebar-compact-btn,
+[data-theme="tech"] .sidebar-logout-btn {
+  color: #5e7a94;
+}
+
+[data-theme="tech"] .sidebar-theme-btn:hover,
+[data-theme="tech"] .sidebar-compact-btn:hover {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.06);
+}
+
+[data-theme="tech"] .sidebar-logout-btn:hover {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.08);
+}
+
+/* 卡片 — 发光边框 */
+[data-theme="tech"] .page-card {
+  border: 1px solid #2a3a4e;
+  background: #161b22;
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.04);
+  transition: box-shadow 0.3s;
+}
+
+[data-theme="tech"] .page-card:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
+}
+
+/* 页面标题 */
+[data-theme="tech"] .page-header {
+  background: #0d1117;
+  border-bottom: 1px solid #2a3a4e;
+  position: relative;
+}
+
+[data-theme="tech"] .page-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, #00d4ff, transparent 50%);
+}
+
+[data-theme="tech"] .page-header-title {
+  font-family: 'JetBrains Mono', 'Inter', -apple-system, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* 表格 — 赛博风 */
+[data-theme="tech"] .ant-table {
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+[data-theme="tech"] .ant-table-thead > tr > th {
+  background: #1c2330 !important;
+  border-bottom: 1px solid #00d4ff !important;
+  color: #00d4ff !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="tech"] .ant-table-tbody > tr:hover > td {
+  background: rgba(0, 212, 255, 0.04) !important;
+}
+
+/* 按钮 — 霓虹 */
+[data-theme="tech"] .ant-btn-primary {
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
+  border: none;
+}
+
+[data-theme="tech"] .ant-btn-primary:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+}
+
+/* filter bar */
+[data-theme="tech"] .filter-bar {
+  background: #1c2330;
+  border: 1px solid #2a3a4e;
+}
+
+/* Scrollbar 科技风 */
+[data-theme="tech"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+[data-theme="tech"] ::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+[data-theme="tech"] ::-webkit-scrollbar-thumb {
+  background: #2a3a4e;
+  border-radius: 3px;
+}
+
+[data-theme="tech"] ::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
 }

@@ -1,16 +1,24 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { Alert, Badge, Button, Card, DatePicker, Empty, Form, Input, InputNumber, message, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tabs, Tag, Tooltip as AntTooltip, Typography } from 'antd';
+import { Alert, Badge, Button, Card, ConfigProvider, DatePicker, Dropdown, Empty, Form, Input, InputNumber, message, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tabs, Tag, theme as antdTheme, Tooltip as AntTooltip, Typography } from 'antd';
 import {
+  CheckOutlined,
   DesktopOutlined,
   FileSearchOutlined,
+  FormatPainterOutlined,
   GlobalOutlined,
   LogoutOutlined,
+  MoonOutlined,
   ReloadOutlined,
+  SunOutlined,
   TeamOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { authApi, monitorApi, userAdminApi, auditApi } from './api';
+import useTheme from './hooks/useTheme';
+import './styles/tokens.css';
 
 const POLL_MS = 3000;
 const MODULE_OPTIONS = [
@@ -29,6 +37,12 @@ const EMPTY_FILTERS = {
   date_to: '',
 };
 const { Paragraph } = Typography;
+const THEME_META_MAP = {
+  light: { icon: <SunOutlined />, label: '浅色' },
+  dark: { icon: <MoonOutlined />, label: '暗色' },
+  ink: { icon: <FormatPainterOutlined />, label: '水墨' },
+  tech: { icon: <ThunderboltOutlined />, label: '科技' },
+};
 
 function getUsageLevel(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '暂无数据';
@@ -1186,7 +1200,7 @@ function AuditPanel() {
   );
 }
 
-export default function App() {
+function AppLayout({ theme, setTheme }) {
   const { ready, ok } = useAdminGuard();
   const moduleItems = useMemo(
     () => [
@@ -1207,6 +1221,17 @@ export default function App() {
   if (!ready) return <div className="loading">正在验证管理员权限...</div>;
 
   const activeModule = moduleItems.find((m) => m.key === activeKey) || moduleItems[0];
+  const currentThemeMeta = THEME_META_MAP[theme] || THEME_META_MAP.light;
+  const themeMenuItems = ['light', 'ink', 'tech', 'dark'].map((key) => ({
+    key,
+    icon: THEME_META_MAP[key].icon,
+    label: (
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span>{THEME_META_MAP[key].label}</span>
+        {theme === key ? <CheckOutlined /> : null}
+      </span>
+    ),
+  }));
 
   return (
     <div className="monitor-layout">
@@ -1232,6 +1257,16 @@ export default function App() {
           ))}
         </div>
         <div className="icon-sidebar-bottom">
+          <Dropdown
+            menu={{ items: themeMenuItems, selectedKeys: [theme], onClick: ({ key }) => setTheme(key) }}
+            trigger={['click']}
+            placement="topRight"
+          >
+            <button type="button" className="icon-tab" title={`主题：${currentThemeMeta.label}`}>
+              <span className="icon-tab-icon">{currentThemeMeta.icon}</span>
+              <span className="icon-tab-label">{currentThemeMeta.label}</span>
+            </button>
+          </Dropdown>
           <button
             type="button"
             className="icon-tab"
@@ -1263,5 +1298,18 @@ export default function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  const { theme, setTheme } = useTheme();
+  const algorithm = theme === 'dark' || theme === 'tech' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm;
+
+  return (
+    <ConfigProvider theme={{ algorithm: [algorithm] }}>
+      <BrowserRouter basename="/monitor">
+        <AppLayout theme={theme} setTheme={setTheme} />
+      </BrowserRouter>
+    </ConfigProvider>
   );
 }

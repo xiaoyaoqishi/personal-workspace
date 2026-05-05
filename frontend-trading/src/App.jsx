@@ -1,12 +1,19 @@
 ﻿import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { ConfigProvider, Dropdown, theme as antdTheme } from 'antd';
 import {
+  CheckOutlined,
+  CrownOutlined,
   DashboardOutlined,
+  FormatPainterOutlined,
   OrderedListOutlined,
   FileTextOutlined,
   LogoutOutlined,
+  MoonOutlined,
   BankOutlined,
   ProjectOutlined,
+  SunOutlined,
+  ThunderboltOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
@@ -17,6 +24,8 @@ import InfoMaintain from './pages/BrokerManage';
 import TradePlanList from './pages/TradePlanList';
 import TradingRecycleBin from './pages/TradingRecycleBin';
 import api from './api';
+import useTheme from './hooks/useTheme';
+import './styles/tokens.css';
 
 const tabs = [
   { key: '/trades', icon: <OrderedListOutlined />, label: '记录' },
@@ -27,9 +36,29 @@ const tabs = [
   { key: '/recycle', icon: <DeleteOutlined />, label: '回收站' },
 ];
 
-function IconSidebar() {
+const themeMetaMap = {
+  classic: { icon: <CrownOutlined />, label: '经典' },
+  ink: { icon: <FormatPainterOutlined />, label: '水墨山水' },
+  light: { icon: <SunOutlined />, label: '浅色' },
+  tech: { icon: <ThunderboltOutlined />, label: '科技' },
+  dark: { icon: <MoonOutlined />, label: '暗色' },
+};
+
+function IconSidebar({ theme, setTheme }) {
   const location = useLocation();
   const current = location.pathname;
+  const currentMeta = themeMetaMap[theme] || themeMetaMap.classic;
+  const themeMenuItems = ['classic', 'ink', 'light', 'tech', 'dark'].map((key) => ({
+    key,
+    icon: themeMetaMap[key].icon,
+    label: (
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span>{themeMetaMap[key].label}</span>
+        {theme === key ? <CheckOutlined /> : null}
+      </span>
+    ),
+  }));
+
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
@@ -57,6 +86,16 @@ function IconSidebar() {
         ))}
       </div>
       <div className="icon-sidebar-bottom">
+        <Dropdown
+          menu={{ items: themeMenuItems, selectedKeys: [theme], onClick: ({ key }) => setTheme(key) }}
+          trigger={['click']}
+          placement="topRight"
+        >
+          <button type="button" className="icon-tab icon-tab-button" title={`主题：${currentMeta.label}`}>
+            <span className="icon-tab-icon">{currentMeta.icon}</span>
+            <span className="icon-tab-label">{currentMeta.label}</span>
+          </button>
+        </Dropdown>
         <button type="button" className="icon-tab icon-tab-button" onClick={handleLogout} title="退出登录">
           <span className="icon-tab-icon"><LogoutOutlined /></span>
         </button>
@@ -65,7 +104,7 @@ function IconSidebar() {
   );
 }
 
-function AppLayout() {
+function AppLayout({ theme, setTheme }) {
   const location = useLocation();
   useEffect(() => {
     api.post('/audit/track', {
@@ -76,7 +115,7 @@ function AppLayout() {
   }, [location.pathname]);
   return (
     <div className="app-layout">
-      <IconSidebar />
+      <IconSidebar theme={theme} setTheme={setTheme} />
       <div className="app-content">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -95,10 +134,16 @@ function AppLayout() {
 }
 
 export default function App() {
+  const { theme, setTheme } = useTheme();
+  const algorithm = theme === 'dark' || theme === 'tech'
+    ? antdTheme.darkAlgorithm
+    : antdTheme.defaultAlgorithm;
+
   return (
-    <BrowserRouter basename="/trading">
-      <AppLayout />
-    </BrowserRouter>
+    <ConfigProvider theme={{ algorithm: [algorithm] }}>
+      <BrowserRouter basename="/trading">
+        <AppLayout theme={theme} setTheme={setTheme} />
+      </BrowserRouter>
+    </ConfigProvider>
   );
 }
-
