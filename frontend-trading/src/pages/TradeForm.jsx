@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import {
   Form, Input, InputNumber, Select, DatePicker, Switch, Button,
-  Tabs, message, Space, Row, Col, Divider,
+  Tabs, message, Space, Row, Col, Divider, Collapse, Checkbox,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -13,6 +13,7 @@ import ResearchContentPanel from '../features/trading/components/ResearchContent
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
+const { Panel } = Collapse;
 
 const ERROR_TAGS = [
   '无计划开仓', '追涨杀跌', '止损不坚决', '提前止盈', '盈利单拿不住',
@@ -260,8 +261,10 @@ export default function TradeForm() {
   const tabItems = [
     {
       key: '1', label: '成交流水',
-      children: (
+      children: isEdit ? (
+        /* 编辑模式 Tab 1 */
         <Row gutter={16}>
+          {/* 核心字段 */}
           <Col span={8}><Form.Item label="交易日期" name="trade_date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}>
             <Form.Item label="交易类型" name="instrument_type" rules={[{ required: true }]}>
@@ -269,68 +272,108 @@ export default function TradeForm() {
             </Form.Item>
           </Col>
           <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true }]}><Input /></Form.Item></Col>
-          <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
-          {isEdit ? (
-            <Col span={8}>
-              <Form.Item label="品种分类" name="category">
-                <Select allowClear options={opt(['黑色', '能化', '有色', '农产品', '股指', '国债', '加密货币', '外汇', '其他'])} />
-              </Form.Item>
-            </Col>
-          ) : null}
+          <Col span={8}>
+            <Form.Item label="品种分类" name="category">
+              <Select allowClear options={opt(['黑色', '能化', '有色', '农产品', '股指', '国债', '加密货币', '外汇', '其他'])} />
+            </Form.Item>
+          </Col>
           <Col span={8}>
             <Form.Item label="方向" name="direction" rules={[{ required: true }]}>
               <Select options={[{ label: '做多', value: '做多' }, { label: '做空', value: '做空' }]} />
             </Form.Item>
           </Col>
           <Col span={8}><Form.Item label="开仓时间" name="open_time" rules={[{ required: true }]}><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
           <Col span={8}>
             <Form.Item label="状态" name="status" initialValue="open">
               <Select options={[{ label: '持仓', value: 'open' }, { label: '已平', value: 'closed' }]} />
             </Form.Item>
           </Col>
-          <Col span={6}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          <Col span={6}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          {isEdit ? <Col span={6}><Form.Item label="滑点" name="slippage"><InputNumber style={{ width: '100%' }} /></Form.Item></Col> : null}
-          <Col span={6}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          {isEdit ? <Col span={6}><Form.Item label="盈亏点数" name="pnl_points"><InputNumber style={{ width: '100%' }} /></Form.Item></Col> : null}
-          {isEdit ? <Col span={8}><Form.Item label="持仓时长" name="holding_duration"><Input /></Form.Item></Col> : null}
-          {isEdit ? (
-            <Col span={8}>
-              <Form.Item label="交易时段" name="trading_session">
-                <Select allowClear options={opt(['上午', '下午', '夜盘前段', '夜盘后段'])} />
-              </Form.Item>
-            </Col>
-          ) : null}
-          {isEdit ? <Col span={8}><Form.Item label="是否隔夜" name="is_overnight" valuePropName="checked"><Switch /></Form.Item></Col> : null}
-          {isEdit ? <Col span={24}><Divider>期货特有字段</Divider></Col> : null}
-          {isEdit ? (
-            <Col span={6}>
-              <Form.Item label="主力/次主力" name="is_main_contract">
-                <Select allowClear options={opt(['主力', '次主力', '远月'])} />
-              </Form.Item>
-            </Col>
-          ) : null}
-          {isEdit ? <Col span={6}><Form.Item label="临近交割月" name="is_near_delivery" valuePropName="checked"><Switch /></Form.Item></Col> : null}
-          {isEdit ? <Col span={6}><Form.Item label="换月阶段" name="is_contract_switch" valuePropName="checked"><Switch /></Form.Item></Col> : null}
-          {isEdit ? <Col span={6}><Form.Item label="高波动时段" name="is_high_volatility" valuePropName="checked"><Switch /></Form.Item></Col> : null}
-          {!isEdit ? (
-            <>
-              <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
-              <Col span={12}>
-                <Form.Item label="券商" name="broker_name">
-                  <Select allowClear options={brokerOptions} placeholder="请选择券商" />
-                </Form.Item>
-              </Col>
-              <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：手工补录" /></Form.Item></Col>
-              <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
-              <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
-              <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
-            </>
-          ) : null}
+          <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+
+          {/* 补充交易信息（折叠） */}
+          <Col span={24} style={{ marginTop: 8 }}>
+            <Collapse ghost>
+              <Panel header="补充交易信息" key="extra">
+                <Row gutter={16}>
+                  <Col span={8}><Form.Item label="滑点" name="slippage"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="盈亏点数" name="pnl_points"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="持仓时长" name="holding_duration"><Input /></Form.Item></Col>
+                  <Col span={8}>
+                    <Form.Item label="交易时段" name="trading_session">
+                      <Select allowClear options={opt(['上午', '下午', '夜盘前段', '夜盘后段'])} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}><Form.Item label="是否隔夜" name="is_overnight" valuePropName="checked"><Switch /></Form.Item></Col>
+                </Row>
+              </Panel>
+            </Collapse>
+          </Col>
+
+          {/* 期货特有（折叠） */}
+          <Col span={24} style={{ marginTop: 4 }}>
+            <Collapse ghost>
+              <Panel header="期货特有" key="futures">
+                <Row gutter={16}>
+                  <Col span={6}>
+                    <Form.Item label="主力/次主力" name="is_main_contract">
+                      <Select allowClear options={opt(['主力', '次主力', '远月'])} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={6}><Form.Item label="临近交割月" name="is_near_delivery" valuePropName="checked"><Switch /></Form.Item></Col>
+                  <Col span={6}><Form.Item label="换月阶段" name="is_contract_switch" valuePropName="checked"><Switch /></Form.Item></Col>
+                  <Col span={6}><Form.Item label="高波动时段" name="is_high_volatility" valuePropName="checked"><Switch /></Form.Item></Col>
+                </Row>
+              </Panel>
+            </Collapse>
+          </Col>
+        </Row>
+      ) : (
+        /* 新建模式 Tab 1 */
+        <Row gutter={16}>
+          {/* 核心必填字段 */}
+          <Col span={8}><Form.Item label="交易日期" name="trade_date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}>
+            <Form.Item label="交易类型" name="instrument_type" rules={[{ required: true }]}>
+              <Select options={opt(['期货', '加密货币', '股票', '外汇'])} />
+            </Form.Item>
+          </Col>
+          <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true }]}><Input /></Form.Item></Col>
+          <Col span={8}>
+            <Form.Item label="方向" name="direction" rules={[{ required: true }]}>
+              <Select options={[{ label: '做多', value: '做多' }, { label: '做空', value: '做空' }]} />
+            </Form.Item>
+          </Col>
+          <Col span={8}><Form.Item label="开仓时间" name="open_time" rules={[{ required: true }]}><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+
+          {/* 更多交易信息（折叠，默认收起） */}
+          <Col span={24} style={{ marginTop: 8 }}>
+            <Collapse ghost>
+              <Panel header="更多交易信息" key="more">
+                <Row gutter={16}>
+                  <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
+                  <Col span={8}>
+                    <Form.Item label="状态" name="status" initialValue="open">
+                      <Select options={[{ label: '持仓', value: 'open' }, { label: '已平', value: 'closed' }]} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+                  <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+                </Row>
+              </Panel>
+            </Collapse>
+          </Col>
         </Row>
       ),
     },
@@ -366,14 +409,46 @@ export default function TradeForm() {
       key: '3', label: '行为纪律',
       children: (
         <Row gutter={16}>
-          <Col span={6}><Form.Item label="计划内交易" name="is_planned" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="临时起意" name="is_impulsive" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="追单" name="is_chasing" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="扛单" name="is_holding_loss" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="提前止盈" name="is_early_profit" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="扩大止损" name="is_extended_stop" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="重仓" name="is_overweight" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={6}><Form.Item label="报复性交易" name="is_revenge" valuePropName="checked"><Switch /></Form.Item></Col>
+          {/* 8个行为字段用隐藏 Form.Item 保持值同步，用 shouldUpdate + Checkbox.Group 展示 */}
+          {['is_planned','is_impulsive','is_chasing','is_holding_loss','is_early_profit','is_extended_stop','is_overweight','is_revenge'].map(name => (
+            <Form.Item key={name} name={name} valuePropName="checked" noStyle hidden><Switch /></Form.Item>
+          ))}
+          <Col span={24}>
+            <Form.Item label="交易行为">
+              <Form.Item noStyle shouldUpdate>
+                {({ getFieldValue }) => {
+                  const behaviorFields = [
+                    { name: 'is_planned', label: '计划内交易' },
+                    { name: 'is_impulsive', label: '临时起意' },
+                    { name: 'is_chasing', label: '追单' },
+                    { name: 'is_holding_loss', label: '扛单' },
+                    { name: 'is_early_profit', label: '提前止盈' },
+                    { name: 'is_extended_stop', label: '扩大止损' },
+                    { name: 'is_overweight', label: '重仓' },
+                    { name: 'is_revenge', label: '报复性交易' },
+                  ];
+                  const checkedValues = behaviorFields
+                    .filter(f => getFieldValue(f.name))
+                    .map(f => f.name);
+                  return (
+                    <Checkbox.Group
+                      value={checkedValues}
+                      onChange={(vals) => {
+                        behaviorFields.forEach(f => {
+                          form.setFieldValue(f.name, vals.includes(f.name));
+                        });
+                      }}
+                      style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}
+                    >
+                      {behaviorFields.map(f => (
+                        <Checkbox key={f.name} value={f.name}>{f.label}</Checkbox>
+                      ))}
+                    </Checkbox.Group>
+                  );
+                }}
+              </Form.Item>
+            </Form.Item>
+          </Col>
           <Col span={8}><Form.Item label="情绪影响" name="is_emotional" valuePropName="checked"><Switch /></Form.Item></Col>
           <Col span={8}>
             <Form.Item label="心理状态" name="mental_state">
@@ -415,7 +490,7 @@ export default function TradeForm() {
       key: '5', label: '标签与复盘',
       children: (
         <Row gutter={16}>
-          <Col span={24}><Divider>结构化复盘（TradeReview）</Divider></Col>
+          <Col span={24}><Divider>结构化复盘</Divider></Col>
           <Col span={12}>
             <Form.Item label="机会结构" name="opportunity_structure">
               <Select
@@ -494,7 +569,7 @@ export default function TradeForm() {
               )}
             </Form.Item>
           </Col>
-          <Col span={24}><Divider>来源元数据（TradeSourceMetadata）</Divider></Col>
+          <Col span={24}><Divider>来源信息</Divider></Col>
           <Col span={12}>
             <Form.Item label="券商" name="broker_name">
               <Select allowClear options={brokerOptions} placeholder="请选择券商" />
@@ -504,14 +579,7 @@ export default function TradeForm() {
           <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
           <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
           <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
-          <Col span={24}>
-            <div style={{ color: '#888', fontSize: 12 }}>
-              {isEdit
-                ? (sourceExists ? '当前已存在显式 source metadata' : (sourceDerivedFromNotes ? '当前展示为 notes 回退结果，保存后将写入显式 metadata' : '当前尚无 source metadata'))
-                : '新建交易时可直接填写 source metadata（可选）'}
-            </div>
-          </Col>
-          <Col span={24}><Divider>兼容字段（Legacy 次级）</Divider></Col>
+          <Col span={24}><Divider>补充记录</Divider></Col>
           <Col span={24}>
             <Form.Item label="错误标签" name="error_tags">
               <Select mode="multiple" allowClear options={opt(ERROR_TAGS)} />

@@ -39,10 +39,11 @@
   border-radius: 9px;
   background: var(--td-color-surface-muted);
   padding: 7px 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: 10px;
-  align-items: start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .maintain-tool-group {
@@ -81,6 +82,21 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.maintain-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.maintain-tool-fields-broker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .maintain-tool-actions .ant-btn,
@@ -665,20 +681,10 @@
   line-height: 1.68;
 }
 
-@media (max-width: 1600px) {
-  .maintain-toolbar-strip {
-    grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1.3fr);
-  }
-}
-
 @media (max-width: 1280px) {
   .maintain-header-main {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .maintain-toolbar-strip {
-    grid-template-columns: 1fr;
   }
 
   .maintain-tool-fields {
@@ -707,4 +713,16 @@
   .maintain-tool-actions .ant-popover-open {
     width: 100%;
   }
+}
+
+.maintain-attrs-collapse {
+  margin-top: 4px;
+}
+
+.maintain-attrs-collapse .ant-collapse-header {
+  padding: 6px 0 !important;
+}
+
+.maintain-attrs-collapse .ant-collapse-content-box {
+  padding: 0 !important;
 }

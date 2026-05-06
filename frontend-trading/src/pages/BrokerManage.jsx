@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Collapse,
+  Dropdown,
   FloatButton,
   AutoComplete,
   Button,
@@ -928,76 +930,66 @@ export default function InfoMaintain() {
       {moduleKey === 'knowledge' && (
         <>
           <div className="maintain-toolbar-strip">
-            <div className="maintain-tool-group">
-              <div className="maintain-tool-label">检索</div>
-              <div className="maintain-tool-fields">
-                <Select
-                  size="small"
-                  allowClear
-                  value={knowledgeFilters.category}
-                  options={knowledgeCategoryOptions}
-                  placeholder="分类"
-                  onChange={(v) => setKnowledgeFilters((p) => ({ ...p, category: v }))}
-                />
-                <Select
-                  size="small"
-                  allowClear
-                  value={knowledgeFilters.status}
-                  options={KNOWLEDGE_STATUS_OPTIONS}
-                  placeholder="状态"
-                  onChange={(v) => setKnowledgeFilters((p) => ({ ...p, status: v }))}
-                />
-                <Select
-                  size="small"
-                  allowClear
-                  value={knowledgeFilters.tag}
-                  options={knowledgeTagOptions}
-                  placeholder="标签"
-                  onChange={(v) => setKnowledgeFilters((p) => ({ ...p, tag: v }))}
-                />
-                <Search
-                  size="small"
-                  allowClear
-                  value={knowledgeFilters.q}
-                  placeholder="搜索标题/标签/次级分类/内容"
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (!value) setKnowledgeFilters((p) => ({ ...p, q: '' }));
-                  }}
-                  onSearch={(v) => setKnowledgeFilters((p) => ({ ...p, q: v }))}
-                />
-              </div>
+            <div className="maintain-tool-fields">
+              <Select
+                size="small"
+                allowClear
+                value={knowledgeFilters.category}
+                options={knowledgeCategoryOptions}
+                placeholder="分类"
+                onChange={(v) => setKnowledgeFilters((p) => ({ ...p, category: v }))}
+              />
+              <Select
+                size="small"
+                allowClear
+                value={knowledgeFilters.status}
+                options={KNOWLEDGE_STATUS_OPTIONS}
+                placeholder="状态"
+                onChange={(v) => setKnowledgeFilters((p) => ({ ...p, status: v }))}
+              />
+              <Select
+                size="small"
+                allowClear
+                value={knowledgeFilters.tag}
+                options={knowledgeTagOptions}
+                placeholder="标签"
+                onChange={(v) => setKnowledgeFilters((p) => ({ ...p, tag: v }))}
+              />
+              <Search
+                size="small"
+                allowClear
+                value={knowledgeFilters.q}
+                placeholder="搜索标题/标签/次级分类/内容"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (!value) setKnowledgeFilters((p) => ({ ...p, q: '' }));
+                }}
+                onSearch={(v) => setKnowledgeFilters((p) => ({ ...p, q: v }))}
+              />
             </div>
-            <div className="maintain-tool-group maintain-tool-group-meta">
-              <div className="maintain-tool-label">分类</div>
-              <div className="maintain-tool-inline-text">
-                当前：{knowledgeFilters.category ? mapLabel(KNOWLEDGE_CATEGORY_ZH, knowledgeFilters.category) : '未选择'}
-              </div>
-              <Space size={6} wrap className="maintain-category-actions">
-                <Button size="small" onClick={openCreateKnowledgeCategoryModal}>新建一级分类</Button>
-                <Button size="small" danger disabled={!knowledgeFilters.category} onClick={openDeleteKnowledgeCategoryModal}>删除当前分类</Button>
-              </Space>
-            </div>
-            <div className="maintain-tool-group maintain-tool-group-actions">
-              <div className="maintain-tool-label">条目</div>
-              <div className="maintain-tool-actions">
-                <Button size="small" type="primary" onClick={createKnowledge} icon={<PlusOutlined />}>新建</Button>
-                <ReadEditActions
-                  editing={knowledgeEditing}
-                  saving={knowledgeSaving}
-                  onEdit={startEditKnowledge}
-                  onSave={saveKnowledge}
-                  onCancel={cancelKnowledgeEdit}
-                  editDisabled={!selectedKnowledgeId}
-                />
-                <Popconfirm
-                  title={selectedKnowledge ? `确认删除知识条目「${selectedKnowledge.title || '#'+selectedKnowledge.id}」并移入回收站？` : '请先选择知识条目'}
-                  onConfirm={deleteKnowledge}
-                  disabled={!selectedKnowledgeId}
-                >
-                  <Button size="small" danger icon={<DeleteOutlined />} disabled={!selectedKnowledgeId}>删除条目</Button>
-                </Popconfirm>
-              </div>
+            <div className="maintain-toolbar-actions">
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'create',
+                      label: '新建一级分类',
+                      onClick: openCreateKnowledgeCategoryModal,
+                    },
+                    {
+                      key: 'delete',
+                      label: '删除当前分类',
+                      danger: true,
+                      disabled: !knowledgeFilters.category,
+                      onClick: openDeleteKnowledgeCategoryModal,
+                    },
+                  ],
+                }}
+                trigger={['click']}
+              >
+                <Button size="small">分类管理</Button>
+              </Dropdown>
+              <Button size="small" type="primary" onClick={createKnowledge} icon={<PlusOutlined />}>新建</Button>
             </div>
           </div>
 
@@ -1067,7 +1059,33 @@ export default function InfoMaintain() {
             ) : null}
 
             <Col xs={24} xl={maintainSidebarCollapsed ? 24 : 18} xxl={maintainSidebarCollapsed ? 24 : 19}>
-              <InkSection className="maintain-editor-card">
+              <InkSection
+                className="maintain-editor-card"
+                title={
+                  knowledgeEditing
+                    ? (selectedKnowledgeId ? '编辑知识条目' : '新建知识条目')
+                    : (selectedKnowledge ? (selectedKnowledge.title || `知识 #${selectedKnowledge.id}`) : ' ')
+                }
+                extra={
+                  <Space size={6}>
+                    <ReadEditActions
+                      editing={knowledgeEditing}
+                      saving={knowledgeSaving}
+                      onEdit={startEditKnowledge}
+                      onSave={saveKnowledge}
+                      onCancel={cancelKnowledgeEdit}
+                      editDisabled={!selectedKnowledgeId}
+                    />
+                    <Popconfirm
+                      title={selectedKnowledge ? `确认删除知识条目「${selectedKnowledge.title || '#'+selectedKnowledge.id}」并移入回收站？` : '请先选择知识条目'}
+                      onConfirm={deleteKnowledge}
+                      disabled={!selectedKnowledgeId}
+                    >
+                      <Button size="small" danger icon={<DeleteOutlined />} disabled={!selectedKnowledgeId}>删除条目</Button>
+                    </Popconfirm>
+                  </Space>
+                }
+              >
                 {knowledgeEditing ? (
                   <Form form={knowledgeForm} layout="vertical" initialValues={{ category: 'pattern_dictionary', sub_category: undefined, status: 'active', priority: 'medium', tags: [], related_note_ids: [] }}>
                     <div className="maintain-form-section">
@@ -1095,63 +1113,71 @@ export default function InfoMaintain() {
                       </Row>
                     </div>
 
-                    <div className="maintain-form-section">
-                      <div className="maintain-group-header">
-                        <span className="maintain-group-name"><ShareAltOutlined />知识属性与关联</span>
-                      </div>
-                      <Row gutter={12}>
-                        <Col span={8}>
-                          <Form.Item name="sub_category" label="次级分类">
-                            <AutoComplete
-                              options={knowledgeSubCategoryOptions}
-                              placeholder="输入或选择次级分类"
-                              filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={8}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
-                        <Col span={8}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
-                        <Col span={12}>
-                          <Form.Item name="source_ref" label="来源引用">
-                            <AutoComplete
-                              options={knowledgeSourceRefOptions}
-                              placeholder="链接/来源（输入或选择历史）"
-                              filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item name="tags" label="标签">
-                            <Select mode="tags" tokenSeparators={[',', '，']} options={knowledgeTagOptions} placeholder="输入标签并回车" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={24}>
-                          <Form.Item name="related_note_ids" label="关联文档">
-                            <Select
-                              mode="multiple"
-                              allowClear
-                              showSearch
-                              filterOption={false}
-                              optionFilterProp="label"
-                              options={knowledgeDocOptions}
-                              onSearch={searchKnowledgeDocs}
-                              onChange={(vals) => knowledgeForm.setFieldValue('related_note_ids', normalizeNoteIdList(vals))}
-                              placeholder="输入关键字搜索笔记文档并多选"
-                              notFoundContent={knowledgeDocSearching ? '搜索中...' : '无匹配文档'}
-                            />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                    </div>
+                    <Collapse
+                      ghost
+                      className="maintain-attrs-collapse"
+                      items={[
+                        {
+                          key: 'attrs',
+                          label: (
+                            <span className="maintain-group-name"><ShareAltOutlined />知识属性与关联</span>
+                          ),
+                          children: (
+                            <div className="maintain-form-section">
+                              <Row gutter={12}>
+                                <Col span={8}>
+                                  <Form.Item name="sub_category" label="次级分类">
+                                    <AutoComplete
+                                      options={knowledgeSubCategoryOptions}
+                                      placeholder="输入或选择次级分类"
+                                      filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())}
+                                    />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={8}><Form.Item name="status" label="状态"><Select options={KNOWLEDGE_STATUS_OPTIONS} /></Form.Item></Col>
+                                <Col span={8}><Form.Item name="priority" label="优先级"><Select options={KNOWLEDGE_PRIORITY_OPTIONS} /></Form.Item></Col>
+                                <Col span={12}>
+                                  <Form.Item name="source_ref" label="来源引用">
+                                    <AutoComplete
+                                      options={knowledgeSourceRefOptions}
+                                      placeholder="链接/来源（输入或选择历史）"
+                                      filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())}
+                                    />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                  <Form.Item name="tags" label="标签">
+                                    <Select mode="tags" tokenSeparators={[',', '，']} options={knowledgeTagOptions} placeholder="输入标签并回车" />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={24}>
+                                  <Form.Item name="related_note_ids" label="关联文档">
+                                    <Select
+                                      mode="multiple"
+                                      allowClear
+                                      showSearch
+                                      filterOption={false}
+                                      optionFilterProp="label"
+                                      options={knowledgeDocOptions}
+                                      onSearch={searchKnowledgeDocs}
+                                      onChange={(vals) => knowledgeForm.setFieldValue('related_note_ids', normalizeNoteIdList(vals))}
+                                      placeholder="输入关键字搜索笔记文档并多选"
+                                      notFoundContent={knowledgeDocSearching ? '搜索中...' : '无匹配文档'}
+                                    />
+                                  </Form.Item>
+                                </Col>
+                              </Row>
+                            </div>
+                          ),
+                        },
+                      ]}
+                    />
                   </Form>
                 ) : !selectedKnowledge ? (
                   <Empty description="请选择左侧知识条目或新建" />
                 ) : (
                   <div className="maintain-detail-layout">
                     <div className="maintain-reading-toolbar">
-                      <Typography.Text type="secondary" className="maintain-reading-title">
-                        {selectedKnowledge.title || `知识 #${selectedKnowledge.id}`}
-                      </Typography.Text>
                       <Space size={6} className="maintain-reading-actions">
                         <Popover
                           trigger="click"
@@ -1350,8 +1376,7 @@ export default function InfoMaintain() {
       {moduleKey === 'broker' && (
         <>
           <div className="maintain-toolbar-strip">
-            <div className="maintain-tool-group">
-              <div className="maintain-tool-label">检索</div>
+            <div className="maintain-tool-fields maintain-tool-fields-broker">
               <Search
                 size="small"
                 allowClear
@@ -1360,28 +1385,10 @@ export default function InfoMaintain() {
                 onChange={(e) => setBrokerKeyword(e.target.value || '')}
                 onSearch={(v) => setBrokerKeyword(v || '')}
               />
-              <div className="maintain-tool-inline-text">显示 {brokerFilteredRows.length} / {brokerRows.length} 条来源</div>
+              <span className="maintain-tool-inline-text">显示 {brokerFilteredRows.length} / {brokerRows.length} 条来源</span>
             </div>
-            <div className="maintain-tool-group maintain-tool-group-actions">
-              <div className="maintain-tool-label">来源操作</div>
-              <div className="maintain-tool-actions">
-                <Button size="small" type="primary" onClick={createBroker} icon={<PlusOutlined />}>新建</Button>
-                <ReadEditActions
-                  editing={brokerEditing}
-                  saving={brokerSaving}
-                  onEdit={startEditBroker}
-                  onSave={saveBroker}
-                  onCancel={cancelBrokerEdit}
-                  editDisabled={!selectedBrokerId}
-                />
-                <Popconfirm
-                  title={selectedBroker ? `确认删除券商来源「${selectedBroker.name || '#'+selectedBroker.id}」并移入回收站？` : '请先选择券商来源'}
-                  onConfirm={deleteBroker}
-                  disabled={!selectedBrokerId}
-                >
-                  <Button size="small" danger icon={<DeleteOutlined />} disabled={!selectedBrokerId}>删除来源</Button>
-                </Popconfirm>
-              </div>
+            <div className="maintain-toolbar-actions">
+              <Button size="small" type="primary" onClick={createBroker} icon={<PlusOutlined />}>新建</Button>
             </div>
           </div>
 
@@ -1411,7 +1418,29 @@ export default function InfoMaintain() {
             ) : null}
 
             <Col xs={24} xl={maintainSidebarCollapsed ? 24 : 16} xxl={maintainSidebarCollapsed ? 24 : 17}>
-              <InkSection title={selectedBrokerId ? `券商来源 #${selectedBrokerId}` : '新建券商来源'} className="maintain-editor-card">
+              <InkSection
+                title={selectedBrokerId ? `券商来源 #${selectedBrokerId}` : '新建券商来源'}
+                className="maintain-editor-card"
+                extra={
+                  <Space size={6}>
+                    <ReadEditActions
+                      editing={brokerEditing}
+                      saving={brokerSaving}
+                      onEdit={startEditBroker}
+                      onSave={saveBroker}
+                      onCancel={cancelBrokerEdit}
+                      editDisabled={!selectedBrokerId}
+                    />
+                    <Popconfirm
+                      title={selectedBroker ? `确认删除券商来源「${selectedBroker.name || '#'+selectedBroker.id}」并移入回收站？` : '请先选择券商来源'}
+                      onConfirm={deleteBroker}
+                      disabled={!selectedBrokerId}
+                    >
+                      <Button size="small" danger icon={<DeleteOutlined />} disabled={!selectedBrokerId}>删除来源</Button>
+                    </Popconfirm>
+                  </Space>
+                }
+              >
                 {brokerEditing ? (
                   <Form form={brokerForm} layout="vertical">
                     <Row gutter={12}>

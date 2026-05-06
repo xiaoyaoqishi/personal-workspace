@@ -232,6 +232,67 @@ def purge_recycle_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+def clear_recycle_trades(db: Session = Depends(get_db)):
+    rows = db.query(Trade).filter(Trade.is_deleted == True).all()
+    if not rows:
+        return {"ok": True, "cleared": 0}
+    trade_ids = [r.id for r in rows]
+    db.query(ReviewSessionTradeLink).filter(ReviewSessionTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
+    db.query(TradePlanTradeLink).filter(TradePlanTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
+    db.query(ReviewTradeLink).filter(ReviewTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    return {"ok": True, "cleared": len(rows)}
+
+
+def clear_recycle_knowledge_items(db: Session = Depends(get_db)):
+    rows = db.query(KnowledgeItem).filter(KnowledgeItem.is_deleted == True).all()
+    if not rows:
+        return {"ok": True, "cleared": 0}
+    contents = [row.content for row in rows]
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    for content in contents:
+        cleanup_unreferenced_uploads(db, content)
+    return {"ok": True, "cleared": len(rows)}
+
+
+def clear_recycle_trade_brokers(db: Session = Depends(get_db)):
+    rows = db.query(TradeBroker).filter(TradeBroker.is_deleted == True).all()
+    if not rows:
+        return {"ok": True, "cleared": 0}
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    return {"ok": True, "cleared": len(rows)}
+
+
+def clear_recycle_review_sessions(db: Session = Depends(get_db)):
+    rows = db.query(ReviewSession).filter(ReviewSession.is_deleted == True).all()
+    if not rows:
+        return {"ok": True, "cleared": 0}
+    session_ids = [r.id for r in rows]
+    db.query(TradePlanReviewSessionLink).filter(
+        TradePlanReviewSessionLink.review_session_id.in_(session_ids)
+    ).delete(synchronize_session=False)
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    return {"ok": True, "cleared": len(rows)}
+
+
+def clear_recycle_trade_plans(db: Session = Depends(get_db)):
+    rows = db.query(TradePlan).filter(TradePlan.is_deleted == True).all()
+    if not rows:
+        return {"ok": True, "cleared": 0}
+    for row in rows:
+        db.delete(row)
+    db.commit()
+    return {"ok": True, "cleared": len(rows)}
+
+
 list_recycle_notes = notes_runtime.list_recycle_notes
 restore_note = notes_runtime.restore_note
 purge_note = notes_runtime.purge_note

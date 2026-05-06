@@ -95,6 +95,16 @@ export default function TradingRecycleBin() {
     }
   };
 
+  const handleClear = async () => {
+    try {
+      const res = await activeTab.api.clear();
+      message.success(`已清空 ${res.data?.cleared || 0} 条记录`);
+      await loadRows();
+    } catch (e) {
+      message.error(e.response?.data?.detail || '清空失败');
+    }
+  };
+
   return (
     <div className="review-workspace">
       <div className="review-toolbar">
@@ -103,6 +113,15 @@ export default function TradingRecycleBin() {
             <Typography.Title level={4} style={{ margin: 0 }}>交易回收站</Typography.Title>
             <Typography.Text type="secondary">删除后会先进入回收站，可恢复或彻底删除。</Typography.Text>
           </div>
+          <Popconfirm
+            title={`将彻底删除「${activeTab.label}」分类下所有 ${rows.length} 条记录，此操作不可恢复，确认继续？`}
+            onConfirm={handleClear}
+            disabled={rows.length === 0}
+          >
+            <Button danger disabled={rows.length === 0}>
+              清空当前分类
+            </Button>
+          </Popconfirm>
         </div>
       </div>
 
