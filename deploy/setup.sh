@@ -10,8 +10,11 @@ git clone https://github.com/xiaoyaoqishi/tradingRecords.git
 cd tradingRecords
 
 echo "=== 3. 后端 ==="
+/usr/bin/python3 -m venv /opt/tradingRecords/.venv
+/opt/tradingRecords/.venv/bin/pip install -U pip
+/opt/tradingRecords/.venv/bin/pip install -r /opt/tradingRecords/backend/requirements.txt
+
 cd backend
-pip3 install -r requirements.txt
 mkdir -p data
 mkdir -p /opt/tradingRecordsData/uploads
 if [ -d /opt/tradingRecords/backend/services/data/uploads ]; then

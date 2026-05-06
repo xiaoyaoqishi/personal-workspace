@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 cd /opt/tradingRecords
+VENV_DIR="/opt/tradingRecords/.venv"
+PYTHON_BIN="$VENV_DIR/bin/python"
+PIP_BIN="$VENV_DIR/bin/pip"
 
 run_privileged() {
   if [ "$(id -u)" -eq 0 ]; then
@@ -36,8 +39,12 @@ echo "=== 拉取最新代码 ==="
 git pull
 
 echo "=== 安装后端依赖 ==="
+if [ ! -x "$PYTHON_BIN" ]; then
+  /usr/bin/python3 -m venv "$VENV_DIR"
+fi
+"$PIP_BIN" install -U pip -q
+"$PIP_BIN" install -r /opt/tradingRecords/backend/requirements.txt -q
 cd backend
-pip3 install -r requirements.txt --break-system-packages -q
 run_privileged mkdir -p /opt/tradingRecordsData/uploads
 migrate_upload_dir /opt/tradingRecords/backend/services/data/uploads
 migrate_upload_dir /opt/tradingRecords/backend/data/uploads
@@ -80,6 +87,7 @@ run_privileged cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-availab
 run_privileged ln -sf /etc/nginx/sites-available/trading /etc/nginx/sites-enabled/trading
 run_privileged rm -f /etc/nginx/sites-enabled/default
 run_privileged nginx -t
+run_privileged systemctl daemon-reload
 run_privileged systemctl restart nginx
 run_privileged systemctl restart trading
 

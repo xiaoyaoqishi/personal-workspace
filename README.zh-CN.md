@@ -94,7 +94,7 @@
 ### 安装依赖
 ```bash
 cd backend
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 
 cd ../frontend-trading
 npm install
@@ -184,7 +184,7 @@ cd frontend-ledger && npm run build
 ```
 
 ## 部署说明
-首次在 Linux 主机部署时使用 `deploy/setup.sh`，已有环境更新时使用 `deploy/update.sh`。生产路径分发定义在 `deploy/nginx.conf`，后端服务由 `deploy/trading.service` 管理。上传文件通过 `UPLOAD_DIR` 放在 `/opt/tradingRecordsData/uploads`，避免用户上传污染 Git 工作区。生产部署已纳入 `/ledger/`，并已配置好前端应用所需的 SPA fallback。
+首次在 Linux 主机部署时使用 `deploy/setup.sh`，已有环境更新时使用 `deploy/update.sh`。两份脚本都会统一创建/复用 `/opt/tradingRecords/.venv` 管理后端依赖，避免系统 Python 包管理策略（PEP 668）导致安装失败。生产路径分发定义在 `deploy/nginx.conf`，后端服务由 `deploy/trading.service` 管理，且 `ExecStart` 使用 venv 内 Python 解释器。上传文件通过 `UPLOAD_DIR` 放在 `/opt/tradingRecordsData/uploads`，避免用户上传污染 Git 工作区。生产部署已纳入 `/ledger/`，并已配置好前端应用所需的 SPA fallback。
 
 ## 文档与验收
 - [docs/MODULE_REGISTRY.md](./docs/MODULE_REGISTRY.md)

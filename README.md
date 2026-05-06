@@ -94,7 +94,7 @@
 ### Install Dependencies
 ```bash
 cd backend
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 
 cd ../frontend-trading
 npm install
@@ -184,7 +184,7 @@ cd frontend-ledger && npm run build
 ```
 
 ## Deployment
-Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for routine updates on an existing server. Production routing lives in `deploy/nginx.conf`, and the backend service is managed by `deploy/trading.service`. Uploaded files are placed in `/opt/tradingRecordsData/uploads` via `UPLOAD_DIR`, so user uploads do not dirty the Git checkout. The deployed path layout includes `/ledger/`, and SPA fallback handling is already configured for the frontend apps.
+Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for routine updates on an existing server. Both scripts now provision and reuse `/opt/tradingRecords/.venv` for backend dependency management to avoid system Python package policy conflicts (PEP 668). Production routing lives in `deploy/nginx.conf`, and the backend service is managed by `deploy/trading.service` with `ExecStart` pointing to the venv Python interpreter. Uploaded files are placed in `/opt/tradingRecordsData/uploads` via `UPLOAD_DIR`, so user uploads do not dirty the Git checkout. The deployed path layout includes `/ledger/`, and SPA fallback handling is already configured for the frontend apps.
 
 ## Docs & Validation
 - [docs/MODULE_REGISTRY.md](./docs/MODULE_REGISTRY.md)

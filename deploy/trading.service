@@ -7,7 +7,7 @@ Type=simple
 User=root
 WorkingDirectory=/opt/tradingRecords/backend
 Environment=UPLOAD_DIR=/opt/tradingRecordsData/uploads
-ExecStart=/usr/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8000
+ExecStart=/opt/tradingRecords/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3
 
