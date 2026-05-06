@@ -20,6 +20,7 @@ from models import (
 from services import notes_runtime
 from services import review_runtime
 from services import trade_plan_runtime
+from services.utility_runtime import cleanup_unreferenced_uploads
 from trading.knowledge_service import attach_knowledge_item_related_notes as _knowledge_attach_related_notes
 from trading.source_service import attach_trade_view_fields as _attach_trade_view_fields
 from trading.tag_service import attach_knowledge_item_tags as _attach_knowledge_item_tags
@@ -98,8 +99,10 @@ def purge_recycle_knowledge_item(item_id: int, db: Session = Depends(get_db)):
     row = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == True).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Knowledge item not found in recycle bin")
+    previous_content = row.content
     db.delete(row)
     db.commit()
+    cleanup_unreferenced_uploads(db, previous_content)
     return {"ok": True}
 
 

@@ -10,6 +10,7 @@ from core.db import get_db
 from models import KnowledgeCategory, KnowledgeItem
 from schemas import KnowledgeItemCreate, KnowledgeItemUpdate
 from services import runtime as legacy_runtime
+from services.utility_runtime import cleanup_unreferenced_uploads
 from trading.knowledge_service import (
     attach_knowledge_item_related_notes as _knowledge_attach_related_notes,
     create_knowledge_category as _knowledge_create_category,
@@ -103,6 +104,7 @@ def update_knowledge_item(item_id: int, data: KnowledgeItemUpdate, db: Session =
     row = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Knowledge item not found")
+    previous_content = row.content
     payload = _knowledge_normalize_payload(data.model_dump(exclude_unset=True))
     tags_raw = payload.pop("tags", None) if "tags" in payload else None
     related_note_ids_raw = payload.pop("related_note_ids", None) if "related_note_ids" in payload else None
@@ -118,6 +120,7 @@ def update_knowledge_item(item_id: int, data: KnowledgeItemUpdate, db: Session =
         _knowledge_sync_note_links(db, row.id, _knowledge_normalize_related_note_ids(related_note_ids_raw))
     db.commit()
     db.refresh(row)
+    cleanup_unreferenced_uploads(db, previous_content)
     rows = _attach_knowledge_item_tags(db, [row])
     rows = _knowledge_attach_related_notes(db, rows)
     return rows[0]

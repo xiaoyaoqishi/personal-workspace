@@ -5,6 +5,7 @@ __pycache__/
 .env.*
 !.env.example
 backend/data/
+backend/services/data/
 
 node_modules/
 dist/

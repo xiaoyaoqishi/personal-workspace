@@ -25,6 +25,7 @@ def _csv_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
 class Settings:
     base_dir: Path = Path(__file__).resolve().parents[1]
     data_dir: Path = Path(__file__).resolve().parents[1] / "data"
+    upload_dir: Path = Path(os.environ.get("UPLOAD_DIR", Path(__file__).resolve().parents[1] / "data" / "uploads"))
     db_name: str = "trading.db"
     auth_cookie: str = "session_token"
     auth_whitelist: tuple[str, ...] = ("/api/auth/login", "/api/auth/check", "/api/auth/setup")

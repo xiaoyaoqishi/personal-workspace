@@ -128,7 +128,7 @@ Open the portal at `http://127.0.0.1:5172`.
 - `/api/*`: Shared FastAPI API for auth, trading, notes, monitor, ledger, uploads, and related services.
 
 ## Architecture Overview
-The portal is the entry layer for the workspace. Each frontend is built independently and served on its own subpath, while FastAPI provides the shared API surface behind `/api/*`. Persistent data is stored in SQLite under `backend/data`. In production, Nginx handles path dispatch for the portal, each SPA, and the API, including SPA fallbacks; `/ledger` is redirected to `/ledger/`.
+The portal is the entry layer for the workspace. Each frontend is built independently and served on its own subpath, while FastAPI provides the shared API surface behind `/api/*`. Persistent SQLite data is stored under `backend/data`; production uploads are stored outside the Git checkout through `UPLOAD_DIR`. In production, Nginx handles path dispatch for the portal, each SPA, and the API, including SPA fallbacks; `/ledger` is redirected to `/ledger/`.
 
 ## Directory Structure
 - `backend/`: Shared FastAPI backend, including the trading domain and the standalone ledger backend domain under `/api/ledger/*`.
@@ -138,7 +138,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
   - `models/`: SQLAlchemy models for workspace domains.
   - `schemas/`: Pydantic schemas for API input and output.
   - `trading/`: Trading-specific business logic such as imports, analytics, reviews, plans, and knowledge.
-  - `data/`: SQLite database, uploads, and runtime data.
+  - `data/`: SQLite database and local runtime data. Production uploads are configured outside the repo.
 - `frontend-trading/`: Trading frontend served under `/trading/`.
 - `frontend-notes/`: Notes frontend served under `/notes/`.
 - `frontend-monitor/`: Monitor and admin frontend served under `/monitor/`.
@@ -184,7 +184,7 @@ cd frontend-ledger && npm run build
 ```
 
 ## Deployment
-Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for routine updates on an existing server. Production routing lives in `deploy/nginx.conf`, and the backend service is managed by `deploy/trading.service`. The deployed path layout includes `/ledger/`, and SPA fallback handling is already configured for the frontend apps.
+Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for routine updates on an existing server. Production routing lives in `deploy/nginx.conf`, and the backend service is managed by `deploy/trading.service`. Uploaded files are placed in `/opt/tradingRecordsData/uploads` via `UPLOAD_DIR`, so user uploads do not dirty the Git checkout. The deployed path layout includes `/ledger/`, and SPA fallback handling is already configured for the frontend apps.
 
 ## Docs & Validation
 - [docs/MODULE_REGISTRY.md](./docs/MODULE_REGISTRY.md)

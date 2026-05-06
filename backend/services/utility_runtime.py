@@ -7,17 +7,21 @@ import threading
 import time as _time
 import uuid
 from datetime import datetime
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Set
 
 import httpx
 from fastapi import File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
+from core.config import settings
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "uploads")
+
+UPLOAD_DIR = str(settings.upload_dir)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"}
+UPLOAD_URL_RE = r'/(?:api/)?uploads/([^"\'\s)<>]+)'
 
 
 async def upload_file(file: UploadFile = File(...)):
@@ -37,6 +41,56 @@ def get_upload(filename: str):
     if not os.path.exists(path):
         raise HTTPException(404, "File not found")
     return FileResponse(path)
+
+
+def extract_upload_filenames(text: Optional[str]) -> Set[str]:
+    import re
+
+    filenames: Set[str] = set()
+    for match in re.finditer(UPLOAD_URL_RE, str(text or "")):
+        safe = os.path.basename(match.group(1))
+        if safe:
+            filenames.add(safe)
+    return filenames
+
+
+def _referenced_upload_filenames(db) -> Set[str]:
+    from models import KnowledgeItem, Review, ReviewSession, TradePlan, TradeReview
+
+    referenced: Set[str] = set()
+    query_specs = [
+        (KnowledgeItem, (KnowledgeItem.content,)),
+        (TradeReview, (TradeReview.research_notes,)),
+        (Review, (Review.content, Review.research_notes)),
+        (ReviewSession, (ReviewSession.content, ReviewSession.research_notes)),
+        (TradePlan, (TradePlan.research_notes,)),
+    ]
+    for _model, columns in query_specs:
+        for row in db.query(*columns).all():
+            values = tuple(row)
+            for value in values:
+                referenced.update(extract_upload_filenames(value))
+    return referenced
+
+
+def cleanup_unreferenced_uploads(db, *content_values: Optional[str]) -> Set[str]:
+    candidates: Set[str] = set()
+    for value in content_values:
+        candidates.update(extract_upload_filenames(value))
+    if not candidates:
+        return set()
+
+    referenced = _referenced_upload_filenames(db)
+    removable = candidates - referenced
+    deleted: Set[str] = set()
+    upload_dir = Path(UPLOAD_DIR).resolve()
+    for filename in removable:
+        path = (upload_dir / os.path.basename(filename)).resolve()
+        if path.parent != upload_dir or not path.exists() or not path.is_file():
+            continue
+        path.unlink()
+        deleted.add(filename)
+    return deleted
 
 
 def _build_poem_payload(entry: dict, source: str) -> dict:

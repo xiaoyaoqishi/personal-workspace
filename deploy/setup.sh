@@ -13,6 +13,13 @@ echo "=== 3. 后端 ==="
 cd backend
 pip3 install -r requirements.txt
 mkdir -p data
+mkdir -p /opt/tradingRecordsData/uploads
+if [ -d /opt/tradingRecords/backend/services/data/uploads ]; then
+  cp -an /opt/tradingRecords/backend/services/data/uploads/. /opt/tradingRecordsData/uploads/
+fi
+if [ -d /opt/tradingRecords/backend/data/uploads ]; then
+  cp -an /opt/tradingRecords/backend/data/uploads/. /opt/tradingRecordsData/uploads/
+fi
 
 echo "=== 4. 前端构建 ==="
 cd ../frontend-trading

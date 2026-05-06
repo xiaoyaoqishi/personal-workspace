@@ -40,6 +40,12 @@
   - 数据目录权限受控。
   - 部署迁移时不要意外覆盖现有 secret，否则会导致现有登录态失效。
 
+### Upload Storage
+
+- 上传文件目录由 `UPLOAD_DIR` 配置。
+- 本地默认落在 `backend/data/uploads`；生产 systemd 服务使用 `/opt/tradingRecordsData/uploads`。
+- 生产环境必须保证上传目录不在 Git 工作区内，避免用户上传文件阻塞代码更新或被误提交。
+
 ## 生产环境禁止项
 
 - 禁止 `DEV_MODE=1` 进入生产环境。

@@ -1,5 +1,7 @@
 import uuid
 
+from services import utility_runtime
+
 
 def test_knowledge_category_create_list_delete(admin_login):
     client = admin_login
@@ -114,3 +116,58 @@ def test_delete_implicit_category_without_category_row(admin_login):
     target = next((x for x in listed.json() if x.get('id') == item_id), None)
     assert target is not None
     assert target['category'] == 'uncategorized'
+
+
+def test_knowledge_image_cleanup_only_after_unreferenced(admin_login, tmp_path):
+    client = admin_login
+    utility_runtime.UPLOAD_DIR = str(tmp_path)
+
+    uploaded = tmp_path / "knowledge.png"
+    uploaded.write_bytes(b"image")
+    content = '{"kind":"research_v2","images":[{"url":"/api/uploads/knowledge.png"}]}'
+
+    created = client.post(
+        "/api/knowledge-items",
+        json={"category": "pattern_dictionary", "title": "image-item", "content": content},
+    )
+    assert created.status_code == 200
+    item_id = created.json()["id"]
+
+    updated = client.put(f"/api/knowledge-items/{item_id}", json={"content": ""})
+    assert updated.status_code == 200
+    assert not uploaded.exists()
+
+
+def test_shared_upload_is_not_removed_when_knowledge_content_changes(admin_login, tmp_path):
+    client = admin_login
+    utility_runtime.UPLOAD_DIR = str(tmp_path)
+
+    uploaded = tmp_path / "shared.png"
+    uploaded.write_bytes(b"image")
+    content = '{"kind":"research_v2","images":[{"url":"/api/uploads/shared.png"}]}'
+
+    trade = client.post(
+        "/api/trades",
+        json={
+            "trade_date": "2026-04-20",
+            "instrument_type": "futures",
+            "symbol": "IF",
+            "direction": "long",
+            "open_time": "2026-04-20T09:30:00",
+            "open_price": 3500,
+            "quantity": 1,
+        },
+    )
+    assert trade.status_code == 200
+    review = client.put(f"/api/trades/{trade.json()['id']}/review", json={"research_notes": content})
+    assert review.status_code == 200
+
+    created = client.post(
+        "/api/knowledge-items",
+        json={"category": "pattern_dictionary", "title": "shared-image-item", "content": content},
+    )
+    assert created.status_code == 200
+
+    updated = client.put(f"/api/knowledge-items/{created.json()['id']}", json={"content": ""})
+    assert updated.status_code == 200
+    assert uploaded.exists()

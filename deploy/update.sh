@@ -24,12 +24,23 @@ clean_frontend_dist() {
   run_privileged rm -rf dist
 }
 
+migrate_upload_dir() {
+  local src="$1"
+  local dst="/opt/tradingRecordsData/uploads"
+  if [ -d "$src" ]; then
+    run_privileged cp -an "$src"/. "$dst"/
+  fi
+}
+
 echo "=== 拉取最新代码 ==="
 git pull
 
 echo "=== 安装后端依赖 ==="
 cd backend
 pip3 install -r requirements.txt --break-system-packages -q
+run_privileged mkdir -p /opt/tradingRecordsData/uploads
+migrate_upload_dir /opt/tradingRecords/backend/services/data/uploads
+migrate_upload_dir /opt/tradingRecords/backend/data/uploads
 
 echo "=== 构建交易前端 ==="
 cd ../frontend-trading

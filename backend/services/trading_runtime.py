@@ -22,6 +22,7 @@ from schemas import (
     TradeUpdate,
 )
 from services import runtime as legacy_runtime
+from services.utility_runtime import cleanup_unreferenced_uploads
 from trade_review_taxonomy import trade_review_taxonomy
 from trading.source_service import (
     apply_source_keyword_filter as _source_apply_source_keyword_filter,
@@ -479,6 +480,7 @@ def upsert_trade_review(trade_id: int, data: TradeReviewUpsert, db: Session = De
         raise HTTPException(404, "Trade not found")
 
     review = db.query(TradeReview).filter(TradeReview.trade_id == trade_id).first()
+    previous_research_notes = review.research_notes if review else None
     if not review:
         review = TradeReview(trade_id=trade_id)
         db.add(review)
@@ -497,6 +499,7 @@ def upsert_trade_review(trade_id: int, data: TradeReviewUpsert, db: Session = De
 
     db.commit()
     db.refresh(review)
+    cleanup_unreferenced_uploads(db, previous_research_notes)
     return _attach_trade_review_tags(db, [review])[0]
 
 
@@ -507,8 +510,10 @@ def delete_trade_review(trade_id: int, db: Session = Depends(get_db)):
     review = db.query(TradeReview).filter(TradeReview.trade_id == trade_id).first()
     if not review:
         return {"ok": True}
+    previous_research_notes = review.research_notes
     db.delete(review)
     db.commit()
+    cleanup_unreferenced_uploads(db, previous_research_notes)
     return {"ok": True}
 
 
