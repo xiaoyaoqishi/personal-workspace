@@ -8,6 +8,7 @@ import {
   Form,
   Input,
   Popconfirm,
+  Segmented,
   Select,
   Space,
   Spin,
@@ -17,7 +18,7 @@ import {
   Typography,
   message,
 } from 'antd'
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   DeleteOutlined,
   EditOutlined,
@@ -118,6 +119,7 @@ export default function AssetsPage() {
   const [listError, setListError] = useState('')
   const [summaryError, setSummaryError] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
+  const [analysisTheme, setAnalysisTheme] = useState('investment')
   const [assetForm] = Form.useForm()
   const [formDrawerOpen, setFormDrawerOpen] = useState(false)
   const [formSubmitting, setFormSubmitting] = useState(false)
@@ -129,6 +131,10 @@ export default function AssetsPage() {
   const [deletingId, setDeletingId] = useState(null)
   const [selectedAssetId, setSelectedAssetId] = useState(null)
   const [lifecycleFormOpen, setLifecycleFormOpen] = useState(false)
+  const [categoryDrillDrawer, setCategoryDrillDrawer] = useState({ open: false, category: null })
+  const [channelDrillDrawer, setChannelDrillDrawer] = useState({ open: false, channel: null })
+  const [trendDrillYear, setTrendDrillYear] = useState(null) // null=年份视图, '2024'=月份视图
+  const [trendDetailDrawer, setTrendDetailDrawer] = useState({ open: false, title: '', items: [] })
 
   const dashboardAnalytics = useMemo(() => computeAssetAnalytics(allAssets), [allAssets])
   // 按资产类型分组：数量 + 平均总成本
@@ -158,6 +164,41 @@ export default function AssetsPage() {
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).map(([year, count]) => ({ year, count }))
   }, [dashboardAnalytics])
 
+  const byMonthData = useMemo(() => {
+    if (!trendDrillYear) return []
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const pd = entry.purchaseDate || entry.purchase_date
+      if (!pd) return
+      const yearStr = String(pd).slice(0, 4)
+      if (yearStr !== trendDrillYear) return
+      const monthStr = String(pd).slice(5, 7)
+      if (!monthStr || monthStr === 'nu') return
+      map[monthStr] = (map[monthStr] || 0) + 1
+    })
+    return Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([m, count]) => ({ month: `${parseInt(m)}月`, monthKey: m, count }))
+  }, [dashboardAnalytics, trendDrillYear])
+
+  const categoryDrillAssets = useMemo(() => {
+    if (!categoryDrillDrawer.category) return []
+    return dashboardAnalytics.items
+      .filter((e) => e.category === categoryDrillDrawer.category)
+      .map((e) => e.asset || e)
+  }, [dashboardAnalytics, categoryDrillDrawer.category])
+
+  const channelDrillAssets = useMemo(() => {
+    if (!channelDrillDrawer.channel) return []
+    return dashboardAnalytics.items
+      .filter((e) => (e.asset?.purchase_channel || '') === channelDrillDrawer.channel)
+      .map((e) => e.asset || e)
+  }, [dashboardAnalytics, channelDrillDrawer.channel])
+
+  const openTrendDetailDrawer = (title, items) => {
+    setTrendDetailDrawer({ open: true, title, items: items.map((e) => e.asset || e) })
+  }
+
   // 使用中资产效率（in_use，日均成本排序）
   const inUseEfficiency = useMemo(() => {
     return dashboardAnalytics.items
@@ -173,23 +214,6 @@ export default function AssetsPage() {
       }))
   }, [dashboardAnalytics])
 
-  // 附加成本占比（有附加成本的资产，取前 10）
-  const extraCostRatio = useMemo(() => {
-    return dashboardAnalytics.items
-      .filter((e) => {
-        const extra = e.extraCost != null ? e.extraCost : e.extra_cost
-        const total = e.totalCost != null ? e.totalCost : e.total_cost
-        return extra > 0 && total > 0
-      })
-      .map((e) => {
-        const extra = e.extraCost != null ? e.extraCost : (e.extra_cost || 0)
-        const total = e.totalCost != null ? e.totalCost : (e.total_cost || 0)
-        return { ...e, extraCost: extra, totalCost: total, ratio: Math.round((extra / total) * 100), name: e.name || '未命名' }
-      })
-      .sort((a, b) => b.ratio - a.ratio)
-      .slice(0, 10)
-  }, [dashboardAnalytics])
-
   // 已卖出 ROI
   const soldWithROI = useMemo(() => {
     return dashboardAnalytics.soldProfitLossAssets
@@ -203,6 +227,89 @@ export default function AssetsPage() {
         return { ...e, roi: Math.round((pl / total) * 100), name: e.name || '未命名', profitLoss: pl }
       })
       .sort((a, b) => b.roi - a.roi)
+  }, [dashboardAnalytics])
+
+  const byBrandData = useMemo(() => {
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const brand = entry.asset?.brand || ''
+      if (!brand) return
+      if (!map[brand]) map[brand] = { brand, totalCost: 0, count: 0 }
+      map[brand].totalCost += entry.totalCost || 0
+      map[brand].count++
+    })
+    return Object.values(map)
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, 8)
+  }, [dashboardAnalytics])
+
+  const byChannelData = useMemo(() => {
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const channel = entry.asset?.purchase_channel || ''
+      if (!channel) return
+      if (!map[channel]) map[channel] = { channel, count: 0, totalCost: 0 }
+      map[channel].count++
+      map[channel].totalCost += entry.totalCost || 0
+    })
+    return Object.values(map).sort((a, b) => b.totalCost - a.totalCost)
+  }, [dashboardAnalytics])
+
+  const costStructureData = useMemo(() => {
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const cat = entry.category || '未分类'
+      if (!map[cat]) map[cat] = { category: cat, purchaseCost: 0, extraCost: 0 }
+      map[cat].purchaseCost += entry.purchasePrice || 0
+      map[cat].extraCost += entry.extraCost || 0
+    })
+    return Object.values(map)
+      .map((item) => ({ ...item, total: item.purchaseCost + item.extraCost }))
+      .sort((a, b) => b.total - a.total)
+  }, [dashboardAnalytics])
+
+  const yearSpendingData = useMemo(() => {
+    const map = {}
+    dashboardAnalytics.items.forEach((entry) => {
+      const pd = entry.purchaseDate || entry.purchase_date
+      if (!pd) return
+      const year = String(pd).slice(0, 4)
+      if (!year || year === 'null') return
+      if (!map[year]) map[year] = { year, purchaseCost: 0, extraCost: 0 }
+      map[year].purchaseCost += entry.purchasePrice || 0
+      map[year].extraCost += entry.extraCost || 0
+    })
+    return Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([, v]) => v)
+  }, [dashboardAnalytics])
+
+  const holdingPeriodData = useMemo(() => {
+    const buckets = [
+      { label: '0-3个月', min: 0, max: 90, count: 0 },
+      { label: '3-6个月', min: 91, max: 180, count: 0 },
+      { label: '6-12个月', min: 181, max: 365, count: 0 },
+      { label: '1-2年', min: 366, max: 730, count: 0 },
+      { label: '2年以上', min: 731, max: Infinity, count: 0 },
+    ]
+    dashboardAnalytics.items.forEach((entry) => {
+      const days = entry.holdingDays || entry.holding_days
+      if (days == null || days <= 0) return
+      const bucket = buckets.find((b) => days >= b.min && days <= b.max)
+      if (bucket) bucket.count++
+    })
+    return buckets.filter((b) => b.count > 0)
+  }, [dashboardAnalytics])
+
+  const residualValueData = useMemo(() => {
+    return dashboardAnalytics.items
+      .filter((e) => e.status === 'sold' && (e.totalCost || 0) > 0 && e.salePrice != null)
+      .map((e) => ({
+        ...e,
+        recoveryRate: Math.round(((e.salePrice || 0) / (e.totalCost || 1)) * 100),
+      }))
+      .sort((a, b) => b.recoveryRate - a.recoveryRate)
+      .slice(0, 10)
   }, [dashboardAnalytics])
 
   const categoryOptions = useMemo(() => {
@@ -666,38 +773,46 @@ export default function AssetsPage() {
         </div>
 
         <div className="al-card">
-          <div className="al-card-title">附加成本排行</div>
-          {dashboardAnalytics.topExtraCostAssets.length
+          <div className="al-card-title">总投入 TOP</div>
+          {dashboardAnalytics.topDailyCostAssets.length || dashboardAnalytics.items.length
             ? (() => {
-                const items = dashboardAnalytics.topExtraCostAssets.slice(0, 5)
-                const maxExtraCost = Math.max(...items.map((i) => i.extra_cost || 0), 1)
+                const topCostItems = [...dashboardAnalytics.items]
+                  .sort((a, b) => ((b.totalCost || b.total_cost || 0) - (a.totalCost || a.total_cost || 0)))
+                  .slice(0, 5)
+                const maxCost = Math.max(...topCostItems.map((i) => i.totalCost || i.total_cost || 0), 1)
+                if (!topCostItems.length) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无资产数据" />
                 return (
                   <div className="al-rank-list">
-                    {items.map((item) => {
-                      const metrics = buildAssetMetricsSnapshot(item)
-                      const pct = metrics.total_cost ? Math.round((item.extra_cost / metrics.total_cost) * 100) : 0
+                    {topCostItems.map((item) => {
+                      const metrics = buildAssetMetricsSnapshot(item.asset || item)
+                      const totalCost = metrics.total_cost || 0
+                      const purchasePrice = item.purchasePrice || item.purchase_price || 0
+                      const extraCost = item.extraCost || item.extra_cost || 0
                       return (
                         <div className="al-rank-row" key={item.id}>
                           <div className="al-rank-header">
                             <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>
                               {item.name}
                             </button>
-                            <span className="al-rank-value">{formatMoney(item.extra_cost)}</span>
+                            <span className="al-rank-value">{formatMoney(totalCost)}</span>
                           </div>
                           <div className="al-rank-bar-bg">
                             <div
                               className="al-rank-bar-fill"
-                              style={{ width: `${Math.round((item.extra_cost / maxExtraCost) * 100)}%`, background: '#8b5cf6' }}
+                              style={{ width: `${Math.round((totalCost / maxCost) * 100)}%`, background: '#06b6d4' }}
                             />
                           </div>
-                          <span className="al-rank-sub">总投入 {formatMoney(metrics.total_cost)} · 占比 {pct}%</span>
+                          <span className="al-rank-sub">
+                            买入 {formatMoney(purchasePrice)}{extraCost > 0 ? ` · 附加 ${formatMoney(extraCost)}` : ''}
+                            {item.category ? ` · ${item.category}` : ''}
+                          </span>
                         </div>
                       )
                     })}
                   </div>
                 )
               })()
-            : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无附加成本数据" />}
+            : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无资产数据" />}
         </div>
       </div>
     </div>
@@ -705,184 +820,417 @@ export default function AssetsPage() {
 
   const analysisTab = (
     <div className="al-analysis-root">
+      <Segmented
+        value={analysisTheme}
+        onChange={setAnalysisTheme}
+        block
+        options={[
+          { value: 'investment', label: '投入分析' },
+          { value: 'trend', label: '趋势分析' },
+          { value: 'efficiency', label: '效率分析' },
+          { value: 'sale', label: '卖出复盘' },
+        ]}
+        style={{ marginBottom: 16 }}
+      />
 
-      {/* Row 1: 两列 */}
-      <div className="al-overview-main">
+      {analysisTheme === 'investment' && (
+        <>
+          <div className="al-overview-main">
+            <div className="al-card">
+              <div className="al-card-title">分类成本占比</div>
+              {categoryBreakdown.length ? (
+                <>
+                  <div style={{ position: 'relative' }}>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={categoryBreakdown}
+                          dataKey="totalCost"
+                          nameKey="category"
+                          innerRadius={52}
+                          outerRadius={88}
+                          paddingAngle={2}
+                          onClick={(data) => {
+                            if (data?.name) setCategoryDrillDrawer({ open: true, category: data.name })
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {categoryBreakdown.map((item, idx) => (
+                            <Cell
+                              key={item.category}
+                              fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}
+                              onClick={() => setCategoryDrillDrawer({ open: true, category: item.category })}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v) => formatMoney(v)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="al-donut-center">
+                      <span className="al-donut-total" style={{ fontSize: 16 }}>{categoryBreakdown.length}</span>
+                      <span className="al-donut-label">分类</span>
+                    </div>
+                  </div>
+                  <div className="al-legend-grid">
+                    {(() => {
+                      const total = categoryBreakdown.reduce((s, i) => s + (i.totalCost || 0), 0)
+                      return categoryBreakdown.map((item, idx) => (
+                        <div
+                          key={item.category}
+                          className="al-legend-row"
+                          onClick={() => setCategoryDrillDrawer({ open: true, category: item.category })}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="al-legend-dot" style={{ background: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }} />
+                          <span className="al-legend-name">{item.category}</span>
+                          <span className="al-legend-count">{formatMoney(item.totalCost)}</span>
+                          <span className="al-legend-pct">{total ? Math.round((item.totalCost / total) * 100) : 0}%</span>
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                </>
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无分类数据" />}
+            </div>
 
-        {/* 分类成本占比饼图 */}
-        <div className="al-card">
-          <div className="al-card-title">分类成本占比</div>
-          {categoryBreakdown.length ? (
-            <>
-              <div style={{ position: 'relative' }}>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={categoryBreakdown} dataKey="totalCost" nameKey="category" innerRadius={52} outerRadius={88} paddingAngle={2}>
-                      {categoryBreakdown.map((item, idx) => (
-                        <Cell key={item.category} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => formatMoney(v)} />
-                  </PieChart>
+            <div className="al-card">
+              <div className="al-card-title">购入渠道分布</div>
+              {byChannelData.length ? (
+                <>
+                  <div style={{ position: 'relative' }}>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={byChannelData}
+                          dataKey="totalCost"
+                          nameKey="channel"
+                          innerRadius={52}
+                          outerRadius={88}
+                          paddingAngle={2}
+                          onClick={(data) => {
+                            if (data?.name) setChannelDrillDrawer({ open: true, channel: data.name })
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {byChannelData.map((item, idx) => (
+                            <Cell
+                              key={item.channel}
+                              fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}
+                              onClick={() => setChannelDrillDrawer({ open: true, channel: item.channel })}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v, name) => [formatMoney(v), name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="al-donut-center">
+                      <span className="al-donut-total" style={{ fontSize: 16 }}>{byChannelData.length}</span>
+                      <span className="al-donut-label">渠道</span>
+                    </div>
+                  </div>
+                  <div className="al-legend-grid">
+                    {(() => {
+                      const total = byChannelData.reduce((s, i) => s + (i.totalCost || 0), 0)
+                      return byChannelData.map((item, idx) => (
+                        <div
+                          key={item.channel}
+                          className="al-legend-row"
+                          onClick={() => setChannelDrillDrawer({ open: true, channel: item.channel })}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="al-legend-dot" style={{ background: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }} />
+                          <span className="al-legend-name">{item.channel}</span>
+                          <span className="al-legend-count">{item.count} 件</span>
+                          <span className="al-legend-pct">{total ? Math.round((item.totalCost / total) * 100) : 0}%</span>
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                </>
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无渠道数据" />}
+            </div>
+          </div>
+
+          <div className="al-overview-main">
+            <div className="al-card">
+              <div className="al-card-title">品牌投入 TOP</div>
+              {byBrandData.length ? (
+                <ResponsiveContainer width="100%" height={Math.max(200, byBrandData.length * 36)}>
+                  <BarChart data={byBrandData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
+                    <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${Math.round(v / 100) / 10}k`} />
+                    <YAxis type="category" dataKey="brand" width={80} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
+                    <Tooltip formatter={(v, name) => [name === '件数' ? `${v} 件` : formatMoney(v), name]} />
+                    <Bar dataKey="totalCost" name="总投入" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
-                <div className="al-donut-center">
-                  <span className="al-donut-total" style={{ fontSize: 16 }}>{categoryBreakdown.length}</span>
-                  <span className="al-donut-label">分类</span>
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无品牌数据" />}
+            </div>
+
+            <div className="al-card">
+              <div className="al-card-title">成本结构对比</div>
+              {costStructureData.length ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={costStructureData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                    <XAxis dataKey="category" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <Tooltip formatter={(v, name) => [formatMoney(v), name]} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="purchaseCost" name="购入成本" stackId="cost" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="extraCost" name="附加成本" stackId="cost" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无成本数据" />}
+            </div>
+          </div>
+        </>
+      )}
+
+      {analysisTheme === 'trend' && (
+        <>
+          <div className="al-card">
+            <div className="al-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {trendDrillYear ? (
+                <>
+                  <button
+                    className="al-link-btn"
+                    style={{ fontSize: 13, color: 'var(--lk-color-text-muted)' }}
+                    onClick={() => setTrendDrillYear(null)}
+                  >
+                    全部年份
+                  </button>
+                  <span style={{ color: 'var(--lk-color-text-muted)' }}>/</span>
+                  <span>{trendDrillYear} 年</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--lk-color-text-muted)', fontWeight: 400 }}>
+                    点击柱子查看当月资产
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>购入数量趋势</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--lk-color-text-muted)', fontWeight: 400 }}>
+                    点击年份下钻月份
+                  </span>
+                </>
+              )}
+            </div>
+            {!trendDrillYear ? (
+              byYearData.length ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={byYearData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                    <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'var(--lk-color-text-muted)' }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <Tooltip formatter={(v) => [`${v} 件`, '购入数量']} />
+                    <Bar
+                      dataKey="count"
+                      name="购入数量"
+                      fill="#06b6d4"
+                      radius={[4, 4, 0, 0]}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data) => {
+                        const year = data?.year
+                        if (!year) return
+                        const yearAssets = dashboardAnalytics.items.filter((e) => {
+                          const pd = e.purchaseDate || e.purchase_date
+                          return pd && String(pd).slice(0, 4) === year
+                        })
+                        setTrendDrillYear(year)
+                        openTrendDetailDrawer(`${year} 年购入资产`, yearAssets)
+                      }}
+                    >
+                      {byYearData.map((entry, idx) => (
+                        <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无购入记录" />
+              )
+            ) : (
+              byMonthData.length ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={byMonthData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--lk-color-text-muted)' }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <Tooltip formatter={(v) => [`${v} 件`, '购入数量']} />
+                    <Bar
+                      dataKey="count"
+                      name="购入数量"
+                      fill="#06b6d4"
+                      radius={[4, 4, 0, 0]}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data) => {
+                        const { month, monthKey } = data
+                        if (!monthKey) return
+                        const monthAssets = dashboardAnalytics.items.filter((e) => {
+                          const pd = e.purchaseDate || e.purchase_date
+                          return pd && String(pd).slice(0, 4) === trendDrillYear && String(pd).slice(5, 7) === monthKey
+                        })
+                        openTrendDetailDrawer(`${trendDrillYear} 年 ${month}购入资产`, monthAssets)
+                      }}
+                    >
+                      {byMonthData.map((entry, idx) => (
+                        <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`${trendDrillYear} 年暂无购入记录`} />
+              )
+            )}
+          </div>
+
+          <div className="al-card">
+            <div className="al-card-title">年度投入金额趋势</div>
+            {yearSpendingData.length ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={yearSpendingData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                  <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'var(--lk-color-text-muted)' }} />
+                  <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                  <Tooltip formatter={(v, name) => [formatMoney(v), name]} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="purchaseCost" name="购入成本" stackId="spend" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="extraCost" name="附加成本" stackId="spend" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无年度投入数据" />}
+          </div>
+
+          <div className="al-card">
+            <div className="al-card-title">持有周期分布</div>
+            {holdingPeriodData.length ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={holdingPeriodData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                  <Tooltip formatter={(v) => [`${v} 件`, '资产数量']} />
+                  <Bar dataKey="count" name="资产数量" fill="#06b6d4" radius={[4, 4, 0, 0]}>
+                    {holdingPeriodData.map((entry, idx) => (
+                      <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无持有周期数据" />}
+          </div>
+        </>
+      )}
+
+      {analysisTheme === 'efficiency' && (
+        <>
+          <div className="al-overview-main">
+            <div className="al-card">
+              <div className="al-card-title">资产类型分布</div>
+              {byTypeData.length ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={byTypeData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <YAxis yAxisId="cost" orientation="right" tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
+                    <Tooltip formatter={(v, name) => name === '件数' ? `${v} 件` : formatMoney(v)} />
+                    <Bar yAxisId="count" dataKey="count" name="件数" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
+                    <Bar yAxisId="cost" dataKey="avgCost" name="平均成本" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={18} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无类型数据" />}
+            </div>
+
+            <div className="al-card">
+              <div className="al-card-title">使用中资产 · 日均成本</div>
+              {inUseEfficiency.length ? (
+                <div className="al-rank-list">
+                  {(() => {
+                    const maxVal = Math.max(...inUseEfficiency.map((i) => i.cashDailyCost || 0), 1)
+                    return inUseEfficiency.map((item) => (
+                      <div className="al-rank-row" key={item.id}>
+                        <div className="al-rank-header">
+                          <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>{item.name}</button>
+                          <span className="al-rank-value">{formatMoney(item.cashDailyCost)}/天</span>
+                        </div>
+                        <div className="al-rank-bar-bg">
+                          <div className="al-rank-bar-fill" style={{ width: `${Math.round(((item.cashDailyCost || 0) / maxVal) * 100)}%`, background: '#3b82f6' }} />
+                        </div>
+                        <span className="al-rank-sub">使用 {item.useDays || 0} 天 · 投入 {formatMoney(item.totalCost)}</span>
+                      </div>
+                    ))
+                  })()}
                 </div>
-              </div>
-              <div className="al-legend-grid">
-                {(() => {
-                  const total = categoryBreakdown.reduce((s, i) => s + (i.totalCost || 0), 0)
-                  return categoryBreakdown.map((item, idx) => (
-                    <div key={item.category} className="al-legend-row">
-                      <span className="al-legend-dot" style={{ background: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }} />
-                      <span className="al-legend-name">{item.category}</span>
-                      <span className="al-legend-count">{formatMoney(item.totalCost)}</span>
-                      <span className="al-legend-pct">{total ? Math.round((item.totalCost / total) * 100) : 0}%</span>
-                    </div>
-                  ))
-                })()}
-              </div>
-            </>
-          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无分类数据" />}
-        </div>
-
-        {/* 资产类型分布 */}
-        <div className="al-card">
-          <div className="al-card-title">资产类型分布</div>
-          {byTypeData.length ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={byTypeData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
-                <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
-                <YAxis yAxisId="cost" orientation="right" tickFormatter={(v) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
-                <Tooltip formatter={(v, name) => name === '件数' ? `${v} 件` : formatMoney(v)} />
-                <Bar yAxisId="count" dataKey="count" name="件数" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
-                <Bar yAxisId="cost" dataKey="avgCost" name="平均成本" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={18} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无类型数据" />}
-        </div>
-      </div>
-
-      {/* Row 2: 购入年份趋势（全宽） */}
-      <div className="al-card">
-        <div className="al-card-title">购入年份趋势</div>
-        {byYearData.length ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={byYearData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--lk-color-border)" />
-              <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'var(--lk-color-text-muted)' }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} />
-              <Tooltip formatter={(v) => [`${v} 件`, '购入数量']} />
-              <Bar dataKey="count" name="购入数量" fill="#06b6d4" radius={[4, 4, 0, 0]}>
-                {byYearData.map((entry, idx) => (
-                  <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无购入记录" />}
-      </div>
-
-      {/* Row 3: 两列 */}
-      <div className="al-overview-main">
-
-        {/* 使用中资产效率 */}
-        <div className="al-card">
-          <div className="al-card-title">使用中资产 · 日均成本</div>
-          {inUseEfficiency.length ? (
-            <div className="al-rank-list">
-              {(() => {
-                const maxVal = Math.max(...inUseEfficiency.map((i) => i.cashDailyCost || 0), 1)
-                return inUseEfficiency.map((item) => (
-                  <div className="al-rank-row" key={item.id}>
-                    <div className="al-rank-header">
-                      <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>{item.name}</button>
-                      <span className="al-rank-value">{formatMoney(item.cashDailyCost)}/天</span>
-                    </div>
-                    <div className="al-rank-bar-bg">
-                      <div className="al-rank-bar-fill" style={{ width: `${Math.round(((item.cashDailyCost || 0) / maxVal) * 100)}%`, background: '#3b82f6' }} />
-                    </div>
-                    <span className="al-rank-sub">使用 {item.useDays || 0} 天 · 投入 {formatMoney(item.totalCost)}</span>
-                  </div>
-                ))
-              })()}
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无使用中资产" />}
             </div>
-          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无使用中资产" />}
-        </div>
+          </div>
 
-        {/* 附加成本占比 */}
-        <div className="al-card">
-          <div className="al-card-title">附加成本占比</div>
-          {extraCostRatio.length ? (
-            <div className="al-rank-list">
-              {(() => {
-                const maxRatio = Math.max(...extraCostRatio.map((i) => i.ratio || 0), 1)
-                return extraCostRatio.map((item) => (
-                  <div className="al-rank-row" key={item.id}>
-                    <div className="al-rank-header">
-                      <button className="al-link-btn" onClick={() => openAssetDetail(item.id)}>{item.name}</button>
-                      <span className="al-rank-value" style={{ color: item.ratio > 30 ? '#ef4444' : 'var(--lk-color-text)' }}>{item.ratio}%</span>
-                    </div>
-                    <div className="al-rank-bar-bg">
-                      <div className="al-rank-bar-fill" style={{ width: `${Math.round((item.ratio / maxRatio) * 100)}%`, background: item.ratio > 30 ? '#ef4444' : '#8b5cf6' }} />
-                    </div>
-                    <span className="al-rank-sub">附加 {formatMoney(item.extraCost)} · 总投入 {formatMoney(item.totalCost)}</span>
-                  </div>
-                ))
-              })()}
-            </div>
-          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无附加成本数据" />}
-        </div>
-      </div>
+          <div className="al-card">
+            <div className="al-card-title">闲置资产 · 天数分析</div>
+            {dashboardAnalytics.topIdleAssets.length ? (
+              <ResponsiveContainer width="100%" height={Math.max(220, dashboardAnalytics.topIdleAssets.slice(0, 8).length * 40)}>
+                <BarChart
+                  data={dashboardAnalytics.topIdleAssets.slice(0, 8).map((item) => ({ ...item, idleDaysValue: item.idleDays || item.idle_days || 0 }))}
+                  layout="vertical"
+                  margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}天`} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
+                  <Tooltip formatter={(v) => [`${v} 天`, '闲置天数']} />
+                  <Bar dataKey="idleDaysValue" name="闲置天数" radius={[0, 4, 4, 0]}>
+                    {dashboardAnalytics.topIdleAssets.slice(0, 8).map((entry, index) => (
+                      <Cell key={index} fill={(entry.idleDays || entry.idle_days || 0) > 90 ? '#ef4444' : '#f59e0b'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无闲置资产数据" />}
+          </div>
+        </>
+      )}
 
-      {/* Row 4: 两列 */}
-      <div className="al-overview-main">
+      {analysisTheme === 'sale' && (
+        <div className="al-overview-main">
+          <div className="al-card">
+            <div className="al-card-title">盈亏与 ROI</div>
+            {soldWithROI.length ? (
+              <ResponsiveContainer width="100%" height={Math.max(220, soldWithROI.length * 40)}>
+                <BarChart data={soldWithROI} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
+                  <Tooltip formatter={(v, name) => [`${v}%`, 'ROI']} labelFormatter={(label) => label} />
+                  <Bar dataKey="roi" name="ROI" radius={[0, 4, 4, 0]}>
+                    {soldWithROI.map((entry, index) => (
+                      <Cell key={index} fill={(entry.roi || 0) >= 0 ? '#22c55e' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已卖出复盘数据" />}
+          </div>
 
-        {/* 已卖出盈亏 + ROI */}
-        <div className="al-card">
-          <div className="al-card-title">已卖出 · 盈亏与 ROI</div>
-          {soldWithROI.length ? (
-            <ResponsiveContainer width="100%" height={Math.max(220, soldWithROI.length * 40)}>
-              <BarChart data={soldWithROI} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
-                <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
-                <Tooltip formatter={(v, name) => [`${v}%`, 'ROI']} labelFormatter={(label) => label} />
-                <Bar dataKey="roi" name="ROI" radius={[0, 4, 4, 0]}>
-                  {soldWithROI.map((entry, index) => (
-                    <Cell key={index} fill={(entry.roi || 0) >= 0 ? '#22c55e' : '#ef4444'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已卖出复盘数据" />}
+          <div className="al-card">
+            <div className="al-card-title">残值回收率</div>
+            {residualValueData.length ? (
+              <ResponsiveContainer width="100%" height={Math.max(220, residualValueData.length * 36)}>
+                <BarChart data={residualValueData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}%`} domain={[0, (max) => Math.max(max, 100)]} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
+                  <Tooltip formatter={(v) => [`${v}%`, '回收率']} />
+                  <Bar dataKey="recoveryRate" name="回收率" radius={[0, 4, 4, 0]}>
+                    {residualValueData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.recoveryRate >= 80 ? '#22c55e' : entry.recoveryRate >= 50 ? '#f59e0b' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已卖出资产数据" />}
+          </div>
         </div>
-
-        {/* 闲置资产 */}
-        <div className="al-card">
-          <div className="al-card-title">闲置资产 · 天数分析</div>
-          {dashboardAnalytics.topIdleAssets.length ? (
-            <ResponsiveContainer width="100%" height={Math.max(220, dashboardAnalytics.topIdleAssets.slice(0, 8).length * 40)}>
-              <BarChart
-                data={dashboardAnalytics.topIdleAssets.slice(0, 8).map((item) => ({ ...item, idleDaysValue: item.idleDays || item.idle_days || 0 }))}
-                layout="vertical"
-                margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
-              >
-                <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--lk-color-text-muted)' }} tickFormatter={(v) => `${v}天`} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: 'var(--lk-color-text-secondary)' }} />
-                <Tooltip formatter={(v) => [`${v} 天`, '闲置天数']} />
-                <Bar dataKey="idleDaysValue" name="闲置天数" radius={[0, 4, 4, 0]}>
-                  {dashboardAnalytics.topIdleAssets.slice(0, 8).map((entry, index) => (
-                    <Cell key={index} fill={(entry.idleDays || entry.idle_days || 0) > 90 ? '#ef4444' : '#f59e0b'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无闲置资产数据" />}
-        </div>
-      </div>
+      )}
 
     </div>
   )
@@ -1089,6 +1437,262 @@ export default function AssetsPage() {
           onSubmit={handleSubmitAsset}
           submitting={formSubmitting}
           onCancel={() => setFormDrawerOpen(false)}
+        />
+      </Drawer>
+
+      <Drawer
+        title={`分类：${categoryDrillDrawer.category} · 资产明细`}
+        open={categoryDrillDrawer.open}
+        onClose={() => setCategoryDrillDrawer({ open: false, category: null })}
+        width="min(960px, calc(100vw - 24px))"
+        destroyOnClose
+      >
+        <Table
+          rowKey="id"
+          dataSource={categoryDrillAssets}
+          pagination={false}
+          size="small"
+          scroll={{ x: 900 }}
+          columns={[
+            {
+              title: '资产',
+              key: 'name',
+              width: 180,
+              render: (_, row) => (
+                <Space direction="vertical" size={2}>
+                  <Button
+                    type="link"
+                    style={{ padding: 0, height: 'auto' }}
+                    onClick={() => {
+                      setCategoryDrillDrawer({ open: false, category: null })
+                      openAssetDetail(row.id)
+                    }}
+                  >
+                    {row.name}
+                  </Button>
+                  <Space size={4} wrap>
+                    <AssetStatusTag value={row.status} />
+                    <Tag>{getAssetTypeLabel(row.asset_type)}</Tag>
+                  </Space>
+                </Space>
+              ),
+            },
+            {
+              title: '购入日期',
+              dataIndex: 'purchase_date',
+              width: 120,
+              render: (v) => formatDate(v),
+            },
+            {
+              title: '购入成本',
+              dataIndex: 'purchase_price',
+              width: 110,
+              render: (v) => formatMoney(v),
+              sorter: (a, b) => (a.purchase_price || 0) - (b.purchase_price || 0),
+            },
+            {
+              title: '附加成本',
+              dataIndex: 'extra_cost',
+              width: 110,
+              render: (v) => formatMoney(v),
+              sorter: (a, b) => (a.extra_cost || 0) - (b.extra_cost || 0),
+            },
+            {
+              title: '总投入',
+              key: 'total_cost',
+              width: 110,
+              render: (_, row) => formatMoney(buildAssetMetricsSnapshot(row).total_cost),
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).total_cost || 0) - (buildAssetMetricsSnapshot(b).total_cost || 0),
+            },
+            {
+              title: '使用天数',
+              key: 'use_days',
+              width: 100,
+              render: (_, row) => {
+                const m = buildAssetMetricsSnapshot(row)
+                return m.use_days != null ? `${m.use_days} 天` : '--'
+              },
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).use_days || 0) - (buildAssetMetricsSnapshot(b).use_days || 0),
+            },
+            {
+              title: '日均成本',
+              key: 'cash_daily_cost',
+              width: 110,
+              render: (_, row) => {
+                const m = buildAssetMetricsSnapshot(row)
+                return m.cash_daily_cost != null ? `${formatMoney(m.cash_daily_cost)}/天` : '--'
+              },
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).cash_daily_cost || 0) - (buildAssetMetricsSnapshot(b).cash_daily_cost || 0),
+            },
+          ]}
+        />
+      </Drawer>
+
+      <Drawer
+        title={`渠道：${channelDrillDrawer.channel} · 资产明细`}
+        open={channelDrillDrawer.open}
+        onClose={() => setChannelDrillDrawer({ open: false, channel: null })}
+        width="min(960px, calc(100vw - 24px))"
+        destroyOnClose
+      >
+        <Table
+          rowKey="id"
+          dataSource={channelDrillAssets}
+          pagination={false}
+          size="small"
+          scroll={{ x: 900 }}
+          columns={[
+            {
+              title: '资产',
+              key: 'name',
+              width: 180,
+              render: (_, row) => (
+                <Space direction="vertical" size={2}>
+                  <Button
+                    type="link"
+                    style={{ padding: 0, height: 'auto' }}
+                    onClick={() => {
+                      setChannelDrillDrawer({ open: false, channel: null })
+                      openAssetDetail(row.id)
+                    }}
+                  >
+                    {row.name}
+                  </Button>
+                  <Space size={4} wrap>
+                    <AssetStatusTag value={row.status} />
+                    <Tag>{getAssetTypeLabel(row.asset_type)}</Tag>
+                    {row.category ? <Tag>{row.category}</Tag> : null}
+                  </Space>
+                </Space>
+              ),
+            },
+            {
+              title: '购入日期',
+              dataIndex: 'purchase_date',
+              width: 120,
+              render: (v) => formatDate(v),
+            },
+            {
+              title: '购入成本',
+              dataIndex: 'purchase_price',
+              width: 110,
+              render: (v) => formatMoney(v),
+              sorter: (a, b) => (a.purchase_price || 0) - (b.purchase_price || 0),
+            },
+            {
+              title: '附加成本',
+              dataIndex: 'extra_cost',
+              width: 110,
+              render: (v) => formatMoney(v),
+              sorter: (a, b) => (a.extra_cost || 0) - (b.extra_cost || 0),
+            },
+            {
+              title: '总投入',
+              key: 'total_cost',
+              width: 110,
+              render: (_, row) => formatMoney(buildAssetMetricsSnapshot(row).total_cost),
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).total_cost || 0) - (buildAssetMetricsSnapshot(b).total_cost || 0),
+            },
+            {
+              title: '使用天数',
+              key: 'use_days',
+              width: 100,
+              render: (_, row) => {
+                const m = buildAssetMetricsSnapshot(row)
+                return m.use_days != null ? `${m.use_days} 天` : '--'
+              },
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).use_days || 0) - (buildAssetMetricsSnapshot(b).use_days || 0),
+            },
+            {
+              title: '日均成本',
+              key: 'cash_daily_cost',
+              width: 110,
+              render: (_, row) => {
+                const m = buildAssetMetricsSnapshot(row)
+                return m.cash_daily_cost != null ? `${formatMoney(m.cash_daily_cost)}/天` : '--'
+              },
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).cash_daily_cost || 0) - (buildAssetMetricsSnapshot(b).cash_daily_cost || 0),
+            },
+          ]}
+        />
+      </Drawer>
+
+      <Drawer
+        title={trendDetailDrawer.title}
+        open={trendDetailDrawer.open}
+        onClose={() => setTrendDetailDrawer({ open: false, title: '', items: [] })}
+        width="min(960px, calc(100vw - 24px))"
+        destroyOnClose
+      >
+        <Table
+          rowKey="id"
+          dataSource={trendDetailDrawer.items}
+          pagination={false}
+          size="small"
+          scroll={{ x: 900 }}
+          columns={[
+            {
+              title: '资产',
+              key: 'name',
+              width: 180,
+              render: (_, row) => (
+                <Space direction="vertical" size={2}>
+                  <Button
+                    type="link"
+                    style={{ padding: 0, height: 'auto' }}
+                    onClick={() => {
+                      setTrendDetailDrawer({ open: false, title: '', items: [] })
+                      openAssetDetail(row.id)
+                    }}
+                  >
+                    {row.name}
+                  </Button>
+                  <Space size={4} wrap>
+                    <AssetStatusTag value={row.status} />
+                    <Tag>{getAssetTypeLabel(row.asset_type)}</Tag>
+                    {row.category ? <Tag>{row.category}</Tag> : null}
+                  </Space>
+                </Space>
+              ),
+            },
+            {
+              title: '购入日期',
+              dataIndex: 'purchase_date',
+              width: 120,
+              render: (v) => formatDate(v),
+              defaultSortOrder: 'descend',
+              sorter: (a, b) => String(a.purchase_date || '').localeCompare(String(b.purchase_date || '')),
+            },
+            {
+              title: '购入渠道',
+              dataIndex: 'purchase_channel',
+              width: 120,
+              render: (v) => displayEmpty(v),
+            },
+            {
+              title: '购入成本',
+              dataIndex: 'purchase_price',
+              width: 110,
+              render: (v) => formatMoney(v),
+              sorter: (a, b) => (a.purchase_price || 0) - (b.purchase_price || 0),
+            },
+            {
+              title: '总投入',
+              key: 'total_cost',
+              width: 110,
+              render: (_, row) => formatMoney(buildAssetMetricsSnapshot(row).total_cost),
+              sorter: (a, b) => (buildAssetMetricsSnapshot(a).total_cost || 0) - (buildAssetMetricsSnapshot(b).total_cost || 0),
+            },
+            {
+              title: '使用天数',
+              key: 'use_days',
+              width: 100,
+              render: (_, row) => {
+                const m = buildAssetMetricsSnapshot(row)
+                return m.use_days != null ? `${m.use_days} 天` : '--'
+              },
+            },
+          ]}
         />
       </Drawer>
 

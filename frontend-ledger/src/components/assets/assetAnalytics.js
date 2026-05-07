@@ -161,7 +161,10 @@ export function computeAssetAnalytics(assets = []) {
   const portfolioTotals = {
     totalPurchaseCost: roundNumber(entries.reduce((sum, entry) => sum + (entry.purchasePrice ?? 0), 0)) ?? 0,
     totalExtraCost: roundNumber(entries.reduce((sum, entry) => sum + (entry.extraCost ?? 0), 0)) ?? 0,
-    totalCost: roundNumber(entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0)) ?? 0,
+    totalCost: roundNumber(entries.reduce((sum, entry) => {
+      if (entry.status === 'sold') return sum + (entry.extraCost ?? 0)
+      return sum + (entry.totalCost ?? 0)
+    }, 0)) ?? 0,
     totalRealizedProfitLoss: roundNumber(entries.reduce((sum, entry) => sum + (entry.profitLoss ?? 0), 0)) ?? 0,
     activeCount: entries.filter((entry) => ACTIVE_ASSET_STATUSES.has(entry.status)).length,
     idleCount: entries.filter((entry) => entry.status === 'idle').length,
