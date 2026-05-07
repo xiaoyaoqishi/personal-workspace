@@ -89,7 +89,7 @@
 - Node.js
 - npm
 - Optional: `tmux`
-- For production deployment: Linux, `nginx`, and `systemd`
+- For production deployment: Linux and Docker (`docker compose`)
 
 ### Install Dependencies
 ```bash
@@ -97,16 +97,16 @@ cd backend
 python3 -m pip install -r requirements.txt
 
 cd ../frontend-trading
-npm install
+npm ci
 
 cd ../frontend-notes
-npm install
+npm ci
 
 cd ../frontend-monitor
-npm install
+npm ci
 
 cd ../frontend-ledger
-npm install
+npm ci
 ```
 
 ### Fastest Local Start
@@ -144,7 +144,9 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 - `frontend-monitor/`: Monitor and admin frontend served under `/monitor/`.
 - `frontend-ledger/`: Independent ledger frontend served under `/ledger/`.
 - `portal/`: Static portal and login entry used in local development and production.
-- `deploy/`: Deployment scripts, Nginx config, and the systemd service unit.
+- `deploy/`: Deployment scripts and Docker/Nginx runtime config.
+- `docker-compose.yml`: Container orchestration entry for production deployment.
+- `Dockerfile.backend` / `Dockerfile.web`: Backend and web runtime image definitions.
 - `dev.sh`: Unified local development script for backend, portal, and auto-discovered frontends.
 
 ## Tech Stack
@@ -152,7 +154,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 - SQLite
 - React / Vite / Axios / Ant Design
 - Recharts
-- Nginx / systemd / shell scripts
+- Docker / Nginx / shell scripts
 
 ## Environment Variables
 | Variable | Purpose |
@@ -184,7 +186,12 @@ cd frontend-ledger && npm run build
 ```
 
 ## Deployment
-Use `deploy/setup.sh` for first-time Linux host setup and `deploy/update.sh` for routine updates on an existing server. Both scripts now provision and reuse `/opt/tradingRecords/.venv` for backend dependency management to avoid system Python package policy conflicts (PEP 668). Production routing lives in `deploy/nginx.conf`, and the backend service is managed by `deploy/trading.service` with `ExecStart` pointing to the venv Python interpreter. Uploaded files are placed in `/opt/tradingRecordsData/uploads` via `UPLOAD_DIR`, so user uploads do not dirty the Git checkout. The deployed path layout includes `/ledger/`, and SPA fallback handling is already configured for the frontend apps.
+Production deployment now uses Docker Compose as the default path. Use `deploy/docker-up.sh` for first-time server deployment and `deploy/docker-update.sh` for routine updates. The runtime is split into two containers: `backend` (FastAPI) and `web` (Nginx + portal + built frontend apps). API traffic is proxied from the web container to `backend:8000`, and persistent data is isolated in Docker volumes (`backend_data`, `backend_uploads`).
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
 
 ## Docs & Validation
 - [docs/MODULE_REGISTRY.md](./docs/MODULE_REGISTRY.md)

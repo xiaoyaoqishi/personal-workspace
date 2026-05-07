@@ -1,22 +1,23 @@
 # Dependency Policy
 
-本文件记录当前依赖现状，并限制跨模块无理由漂移。
+本文件记录当前依赖基线，并限制跨模块无理由漂移。
 
-## 当前现状
+## 当前基线
 
 ### 后端
 
-- `backend/requirements.txt` 当前未 pin 版本，属于历史状态。
-- 这意味着同一份依赖文件在不同时间重新安装，结果可能不完全一致。
+- `backend/requirements.txt` 已切换为精确版本（`==`）锁定。
+- 部署与构建时必须使用该锁定文件，不得临时放宽版本范围。
 
 ### 前端
 
+- 所有前端模块保留各自 `package-lock.json` 作为锁定源，安装使用 `npm ci`。
 - `trading` (`frontend-trading`)：`React 19`、`antd 6`、`vite 8`。
 - `notes` (`frontend-notes`)：`React 19`、`antd 6`、`vite 8`。
 - `ledger` (`frontend-ledger`)：`React 19`、`antd 6`、`vite 8`。
-- `monitor` (`frontend-monitor`)：`React 18`、`antd 5`、`vite 6`。
+- `monitor` (`frontend-monitor`)：`React 19`、`antd 6`、`vite 8`。
 
-当前前端栈并不完全一致，这属于已知现状，不应为了“看起来统一”而随手跨模块升级。
+当前四个前端模块已统一为同代核心栈；后续升级仍需按模块说明原因与影响范围。
 
 ## 新增依赖规则
 
@@ -30,8 +31,8 @@
 ## 升级规则
 
 - 依赖升级必须按模块说明原因，不做“顺手升级一片”。
-- `monitor` 维持自身技术栈，直到专门的升级任务出现。
-- 后端若要从未 pin 走向 pin，需单独设计迁移与验证，不在普通业务改动中夹带完成。
+- 依赖升级必须按模块说明原因，不做“顺手升级一片”。
+- 后端若要升级基础依赖，需单独调整 `requirements.txt` 并验证。
 
 ## 验证规则
 

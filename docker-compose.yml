@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      DEV_MODE: "0"
+      COOKIE_SECURE: "1"
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - backend_data:/app/backend/data
+      - backend_uploads:/data/uploads
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+  backend_uploads:
