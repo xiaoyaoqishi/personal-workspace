@@ -917,3 +917,14 @@
   font-size: 11px;
   color: var(--lk-color-text-muted);
 }
+
+.asset-library-autoname-input {
+  background: var(--lk-color-bg-soft, #f5f5f5) !important;
+  cursor: default !important;
+  font-weight: 500;
+  color: var(--lk-color-text-primary, rgba(0,0,0,0.88)) !important;
+}
+.asset-library-autoname-input input {
+  cursor: default !important;
+  background: transparent !important;
+}

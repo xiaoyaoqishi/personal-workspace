@@ -84,6 +84,13 @@ function computePreview(values = {}) {
   }
 }
 
+function buildAutoName(category, brand, model) {
+  return [category, brand, model]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .join('-')
+}
+
 function hasAdvancedValues(values = {}) {
   return Boolean(
     (values.status && values.status !== 'in_use') ||
@@ -162,7 +169,7 @@ export function buildAssetPayload(values) {
     .filter(Boolean)
 
   return {
-    name: String(values.name || '').trim(),
+    name: buildAutoName(values.category, values.brand, values.model) || String(values.name || '').trim(),
     asset_type: toStringOrNull(values.asset_type) || DEFAULT_ASSET_TYPE,
     category: toStringOrNull(values.category),
     status: toStringOrNull(values.status) || 'in_use',
@@ -211,6 +218,15 @@ export default function AssetForm({
   const hasPurchasePrice = toNumberOrNull(watchedValues?.purchase_price) !== null
   const hasExtraCost = toNumberOrNull(watchedValues?.extra_cost) !== null
   const hasEffectiveStartUseDate = Boolean(watchedValues?.start_use_date || watchedValues?.purchase_date)
+
+  const autoName = useMemo(
+    () => buildAutoName(watchedValues?.category, watchedValues?.brand, watchedValues?.model),
+    [watchedValues?.category, watchedValues?.brand, watchedValues?.model]
+  )
+
+  useEffect(() => {
+    form.setFieldValue('name', autoName || '')
+  }, [autoName, form])
 
   useEffect(() => {
     if (advancedInitializedRef.current) return
@@ -293,17 +309,8 @@ export default function AssetForm({
             </Flex>
 
             <div className="asset-library-form-grid asset-library-form-grid-3 asset-library-form-grid-compact">
-              <Form.Item label="资产名称" name="name" rules={[{ required: true, message: '请输入资产名称' }]} extra="必填">
-                <Input placeholder="例如：MacBook Pro 14" />
-              </Form.Item>
-              <Form.Item label="资产类型" name="asset_type">
-                <Select
-                  allowClear
-                  showSearch
-                  options={ASSET_TYPE_OPTIONS}
-                  placeholder="默认电子设备"
-                  optionFilterProp="label"
-                />
+              <Form.Item name="name" hidden>
+                <Input />
               </Form.Item>
               <Form.Item label="分类" name="category" extra="可稍后补充">
                 <Input placeholder="例如：办公设备 / 家电" />
@@ -313,6 +320,28 @@ export default function AssetForm({
               </Form.Item>
               <Form.Item label="型号" name="model" extra="可稍后补充">
                 <Input placeholder="例如：MacBook Pro 14 / M3 Pro" />
+              </Form.Item>
+              <Form.Item
+                label="资产名称"
+                className="asset-library-form-item-span-3"
+                extra={autoName ? null : '填写分类、品牌或型号后自动生成'}
+              >
+                <Input
+                  value={autoName || ''}
+                  readOnly
+                  placeholder="自动由分类 · 品牌 · 型号组合生成"
+                  style={{ color: autoName ? undefined : undefined, cursor: 'default' }}
+                  className="asset-library-autoname-input"
+                />
+              </Form.Item>
+              <Form.Item label="资产类型" name="asset_type">
+                <Select
+                  allowClear
+                  showSearch
+                  options={ASSET_TYPE_OPTIONS}
+                  placeholder="默认电子设备"
+                  optionFilterProp="label"
+                />
               </Form.Item>
               <Form.Item label="购买渠道" name="purchase_channel" extra="可稍后补充">
                 <Input placeholder="例如：Apple Store / 京东自营" />
