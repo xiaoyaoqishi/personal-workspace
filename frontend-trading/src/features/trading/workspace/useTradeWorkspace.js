@@ -1,17 +1,15 @@
 ﻿import { useEffect, useState } from 'react';
 import { message } from 'antd';
 import dayjs from 'dayjs';
-import { reviewSessionApi, tradeApi, tradePlanApi, tradeReviewApi, tradeSourceApi } from '../../../api';
+import { reviewSessionApi, tradeApi, tradeLinkedPlanApi, tradePlanApi, tradeReviewApi } from '../../../api';
 import {
   EMPTY_REVIEW,
   EMPTY_REVIEW_TAXONOMY,
-  EMPTY_SOURCE,
   REVIEW_FIELD_KEYS,
   normalizeText,
 } from './constants';
 import { taxonomyCanonicalValues } from '../localization';
 import { normalizeTagList } from '../display';
-import { normalizeSourceLabelForDisplay } from '../sourceDisplay';
 import { futuresNameBySymbol } from '../../../utils/futures';
 
 export function useTradeWorkspace() {
@@ -42,13 +40,10 @@ export function useTradeWorkspace() {
   const [activeTradeId, setActiveTradeId] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailSavingReview, setDetailSavingReview] = useState(false);
-  const [detailSavingSource, setDetailSavingSource] = useState(false);
-  const [detailSavingLegacy, setDetailSavingLegacy] = useState(false);
   const [detailTrade, setDetailTrade] = useState(null);
   const [detailReview, setDetailReview] = useState(EMPTY_REVIEW);
   const [detailReviewExists, setDetailReviewExists] = useState(false);
-  const [detailSource, setDetailSource] = useState(EMPTY_SOURCE);
-  const [detailLegacy, setDetailLegacy] = useState({ review_note: '', notes: '' });
+  const [detailLinkedPlans, setDetailLinkedPlans] = useState([]);
 
   useEffect(() => {
     if (viewMode === 'fills') loadTrades();
@@ -172,15 +167,14 @@ export function useTradeWorkspace() {
   const loadTradeDetail = async (tradeId) => {
     setDetailLoading(true);
     try {
-      const [tradeRes, reviewRes, sourceRes] = await Promise.all([
+      const [tradeRes, reviewRes, linkedPlansRes] = await Promise.all([
         tradeApi.get(tradeId),
         tradeReviewApi.get(tradeId).catch((e) => (e.response?.status === 404 ? { data: null } : Promise.reject(e))),
-        tradeSourceApi.get(tradeId),
+        tradeLinkedPlanApi.get(tradeId).catch(() => ({ data: [] })),
       ]);
+      setDetailLinkedPlans(Array.isArray(linkedPlansRes.data) ? linkedPlansRes.data : []);
       const tradeData = tradeRes.data || null;
       setDetailTrade(tradeData);
-      setDetailLegacy({ review_note: tradeData?.review_note || '', notes: tradeData?.notes || '' });
-
       const reviewData = reviewRes.data || {};
       const normalizedReview = { ...EMPTY_REVIEW };
       REVIEW_FIELD_KEYS.forEach((k) => {
@@ -191,17 +185,6 @@ export function useTradeWorkspace() {
         : normalizeTagList(String(reviewData?.review_tags || ''));
       setDetailReview(normalizedReview);
       setDetailReviewExists(!!reviewRes.data);
-
-      const sourceData = sourceRes.data || {};
-      setDetailSource({
-        ...EMPTY_SOURCE,
-        ...sourceData,
-        broker_name: sourceData?.broker_name || '',
-        source_label: normalizeSourceLabelForDisplay(sourceData?.source_label),
-        import_channel: sourceData?.import_channel || '',
-        parser_version: sourceData?.parser_version || '',
-        source_note_snapshot: sourceData?.source_note_snapshot || '',
-      });
     } catch {
       message.error('详情加载失败');
     }
@@ -253,49 +236,6 @@ export function useTradeWorkspace() {
       message.error(e.response?.data?.detail || '结构化复盘保存失败');
     }
     setDetailSavingReview(false);
-  };
-
-  const handleSaveDetailSource = async () => {
-    if (!activeTradeId) return;
-    setDetailSavingSource(true);
-    try {
-      const payload = {
-        broker_name: normalizeText(detailSource.broker_name),
-        source_label: normalizeText(detailSource.source_label),
-        import_channel: normalizeText(detailSource.import_channel),
-        parser_version: normalizeText(detailSource.parser_version),
-        source_note_snapshot: normalizeText(detailSource.source_note_snapshot) || normalizeText(detailLegacy.notes),
-        derived_from_notes: false,
-      };
-      const hasSourceData = Object.values(payload).some((v) => v !== null && v !== false);
-      if (!hasSourceData && !detailSource.exists_in_db) {
-        message.info('来源元数据为空，无需保存');
-        return;
-      }
-      await tradeSourceApi.upsert(activeTradeId, payload);
-      message.success('来源元数据已保存');
-      await Promise.all([loadTradeDetail(activeTradeId), loadSources(), loadTrades()]);
-    } catch (e) {
-      message.error(e.response?.data?.detail || '来源元数据保存失败');
-    }
-    setDetailSavingSource(false);
-  };
-
-  const handleSaveDetailLegacy = async () => {
-    if (!activeTradeId) return;
-    setDetailSavingLegacy(true);
-    try {
-      await tradeApi.update(activeTradeId, {
-        review_note: normalizeText(detailLegacy.review_note),
-        notes: normalizeText(detailLegacy.notes),
-      });
-      message.success('兼容字段已保存');
-      await loadTradeDetail(activeTradeId);
-      await loadTrades();
-    } catch (e) {
-      message.error(e.response?.data?.detail || '兼容字段保存失败');
-    }
-    setDetailSavingLegacy(false);
   };
 
   const handleUpdateTradeSignal = async (patch) => {
@@ -541,21 +481,16 @@ export function useTradeWorkspace() {
     activeTradeId,
     detailLoading,
     detailSavingReview,
-    detailSavingSource,
-    detailSavingLegacy,
     detailTrade,
     detailReview,
     detailReviewExists,
-    detailSource,
-    detailLegacy,
+    detailLinkedPlans,
     // setters for UI wiring
     setViewMode,
     setSelectedRowKeys,
     setPagination,
     setDetailOpen,
     setDetailReview,
-    setDetailSource,
-    setDetailLegacy,
     setImportBroker,
     setImportText,
     setImportOpen,
@@ -570,8 +505,6 @@ export function useTradeWorkspace() {
     loadTradeDetail,
     handleDeleteTrade,
     handleSaveDetailReview,
-    handleSaveDetailSource,
-    handleSaveDetailLegacy,
     handleUpdateTradeSignal,
     handleImportTrades,
     openImportModal,

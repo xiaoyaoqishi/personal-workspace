@@ -20,6 +20,7 @@ class TradeCreate(BaseModel):
     quantity: float
     margin: Optional[float] = None
     commission: Optional[float] = 0
+    leverage: Optional[float] = None
     slippage: Optional[float] = 0
     pnl: Optional[float] = None
     pnl_points: Optional[float] = None
@@ -87,6 +88,7 @@ class TradeUpdate(BaseModel):
     quantity: Optional[float] = None
     margin: Optional[float] = None
     commission: Optional[float] = None
+    leverage: Optional[float] = None
     slippage: Optional[float] = None
     pnl: Optional[float] = None
     pnl_points: Optional[float] = None
@@ -152,6 +154,7 @@ class TradeResponse(TradeCreate):
     source_display: Optional[str] = None
     source_is_metadata: Optional[bool] = None
     has_trade_review: Optional[bool] = None
+    discipline_violated: Optional[bool] = None
 
 
 class TradePasteImportRequest(BaseModel):
@@ -178,7 +181,8 @@ class TradePositionResponse(BaseModel):
     side: str
     avg_open_price: float
     open_since: Optional[date] = None
-    last_trade_date: Optional[date] = None
+    commission: Optional[float] = None
+    leverage: Optional[float] = None
 
 
 class TradeSearchOptionItemResponse(BaseModel):
@@ -213,6 +217,7 @@ class TradeReviewUpsert(BaseModel):
     invalidation_boundary: Optional[str] = None
     management_actions: Optional[str] = None
     exit_reason: Optional[str] = None
+    discipline_violated: Optional[bool] = None
     tags: Optional[Union[List[str], str]] = None
     review_tags: Optional[str] = None
     research_notes: Optional[str] = None

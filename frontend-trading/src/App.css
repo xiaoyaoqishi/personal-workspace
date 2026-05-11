@@ -269,9 +269,6 @@ body {
 }
 
 .ink-filter-bar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
   padding: 12px 14px;
   background: var(--td-color-surface-muted);
   border-bottom: 1px solid var(--td-color-border-light);

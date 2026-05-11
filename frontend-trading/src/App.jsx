@@ -118,7 +118,7 @@ function AppLayout({ theme, setTheme }) {
       <IconSidebar theme={theme} setTheme={setTheme} />
       <div className="app-content">
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/trades" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/trades" element={<TradeList />} />
           <Route path="/trades/new" element={<TradeForm />} />

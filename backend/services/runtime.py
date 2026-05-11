@@ -215,6 +215,7 @@ def _migrate_legacy_schema():
         if "deleted_at" not in trade_cols:
             db.execute(text("ALTER TABLE trades ADD COLUMN deleted_at DATETIME"))
         _ensure_sqlite_column(db, "trades", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+        _ensure_sqlite_column(db, "trades", "leverage", "FLOAT")
 
         if _table_exists(db, "trade_brokers"):
             _ensure_sqlite_column(db, "trade_brokers", "is_deleted", "BOOLEAN DEFAULT 0")
@@ -245,6 +246,8 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "review_sessions", "is_deleted", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "review_sessions", "deleted_at", "DATETIME")
             _ensure_sqlite_column(db, "review_sessions", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+        if _table_exists(db, "trade_reviews"):
+            _ensure_sqlite_column(db, "trade_reviews", "discipline_violated", "BOOLEAN DEFAULT 0")
         if _table_exists(db, "trade_plans"):
             _ensure_sqlite_column(db, "trade_plans", "status", "VARCHAR(20) DEFAULT 'draft'")
             _ensure_sqlite_column(db, "trade_plans", "symbol", "VARCHAR(50)")

@@ -21,3 +21,4 @@ upsert_trade_review = trading_runtime.upsert_trade_review
 delete_trade_review = trading_runtime.delete_trade_review
 get_trade_source_metadata = trading_runtime.get_trade_source_metadata
 upsert_trade_source_metadata = trading_runtime.upsert_trade_source_metadata
+get_trade_linked_plans = trading_runtime.get_trade_linked_plans

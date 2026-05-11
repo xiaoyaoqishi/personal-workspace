@@ -78,6 +78,10 @@ export const tradeSourceApi = {
   upsert: (tradeId, data) => api.put(`/trades/${tradeId}/source-metadata`, data),
 };
 
+export const tradeLinkedPlanApi = {
+  get: (tradeId) => api.get(`/trades/${tradeId}/linked-plans`),
+};
+
 export const knowledgeApi = {
   list: (params) => api.get('/knowledge-items', { params }),
   categories: () => api.get('/knowledge-items/categories'),

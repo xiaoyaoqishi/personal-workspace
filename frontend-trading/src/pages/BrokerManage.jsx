@@ -1456,13 +1456,11 @@ export default function InfoMaintain() {
                 ) : (
                   <div className="maintain-detail-layout">
                     <div className="maintain-detail-hero">
-                      <Typography.Title level={3} className="maintain-detail-title">{selectedBroker.name || '-'}</Typography.Title>
-                      <Space wrap className="maintain-detail-hero-meta">
-                        <Tag className="maintain-pill maintain-pill-plain">账号: {selectedBroker.account || '--'}</Tag>
-                      </Space>
+                      <Typography.Title level={5} className="maintain-detail-title">{selectedBroker.name || '-'}</Typography.Title>
                     </div>
                     <section className="maintain-detail-section">
                       <Descriptions size="small" column={1}>
+                        <Descriptions.Item label="账号">{selectedBroker.account || '--'}</Descriptions.Item>
                         <Descriptions.Item label="密码">{selectedBroker.password || '-'}</Descriptions.Item>
                         <Descriptions.Item label="其他信息">{selectedBroker.extra_info || '-'}</Descriptions.Item>
                         <Descriptions.Item label="备注">

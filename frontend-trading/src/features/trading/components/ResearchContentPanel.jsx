@@ -33,14 +33,7 @@ const HIGHLIGHT_PRESETS = [
   { label: '蓝', value: '#bae7ff' },
   { label: '粉', value: '#ffd6e7' },
 ];
-const STANDARD_FIELD_DEFS = [
-  { key: 'entry_thesis', label: '入场论点', placeholder: '记录本次入场的核心论点' },
-  { key: 'invalidation_valid_evidence', label: '有效证据', placeholder: '哪些证据支持当前判断' },
-  { key: 'invalidation_trigger_evidence', label: '失效证据', placeholder: '哪些证据出现时判断失效' },
-  { key: 'invalidation_boundary', label: '边界', placeholder: '相似但不同的边界条件' },
-  { key: 'management_actions', label: '管理动作', placeholder: '仓位、加减仓、保护动作等' },
-  { key: 'exit_reason', label: '离场原因', placeholder: '最终离场的触发原因' },
-];
+const STANDARD_FIELD_DEFS = [];
 
 function normalizeStandardFields(input) {
   const source = input && typeof input === 'object' ? input : {};
@@ -515,7 +508,7 @@ export default function ResearchContentPanel({
               <Typography.Text type="secondary">标准字段</Typography.Text>
               <Row gutter={12} style={{ marginTop: 8 }}>
                 {STANDARD_FIELD_DEFS.map((field) => (
-                  <Col key={field.key} span={field.key.includes('evidence') ? 12 : 24}>
+                  <Col key={field.key} span={24}>
                     <Typography.Text type="secondary">{field.label}</Typography.Text>
                     <TextArea
                       rows={2}

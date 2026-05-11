@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from core.db import get_db
 from models import Trade, TradeReview, TradeSourceMetadata
+from models.review import TradePlan, TradePlanTradeLink
 from schemas import (
     TradeCreate,
     TradePositionResponse,
@@ -78,6 +79,8 @@ def _ensure_symbol_state(
             "avg_open_price": 0.0,
             "open_since": None,
             "last_trade_date": trade_day,
+            "commission": 0.0,
+            "leverage": None,
         }
     current = state[key]
     if contract:
@@ -94,15 +97,21 @@ def _build_position_state_from_db(db: Session, source_keyword: Optional[str] = N
     for row in rows:
         symbol = _normalize_contract_symbol(row.contract or row.symbol or "")
         side = row.direction
+        is_futures = (row.instrument_type or "") == "期货"
         current = _ensure_symbol_state(state, symbol, side, row.contract, row.trade_date)
         previous_qty = float(current["quantity"])
         added_qty = float(row.quantity or 0)
-        if added_qty <= 0:
+        if is_futures and added_qty <= 0:
             continue
+        if not is_futures and added_qty <= 0:
+            added_qty = 1.0
         total_qty = previous_qty + added_qty
         previous_cost = float(current["avg_open_price"]) * previous_qty
         current["avg_open_price"] = (previous_cost + float(row.open_price or 0) * added_qty) / total_qty
         current["quantity"] = total_qty
+        current["commission"] = float(current.get("commission") or 0) + float(row.commission or 0)
+        if current.get("leverage") is None and getattr(row, "leverage", None) is not None:
+            current["leverage"] = row.leverage
         if current["open_since"] is None:
             current["open_since"] = row.trade_date
         if row.open_time and (current["last_trade_date"] is None or row.trade_date >= current["last_trade_date"]):
@@ -125,15 +134,21 @@ def _build_position_state_from_db_with_owner_role(
     for row in rows:
         symbol = _normalize_contract_symbol(row.contract or row.symbol or "")
         side = row.direction
+        is_futures = (row.instrument_type or "") == "期货"
         current = _ensure_symbol_state(state, symbol, side, row.contract, row.trade_date)
         previous_qty = float(current["quantity"])
         added_qty = float(row.quantity or 0)
-        if added_qty <= 0:
+        if is_futures and added_qty <= 0:
             continue
+        if not is_futures and added_qty <= 0:
+            added_qty = 1.0
         total_qty = previous_qty + added_qty
         previous_cost = float(current["avg_open_price"]) * previous_qty
         current["avg_open_price"] = (previous_cost + float(row.open_price or 0) * added_qty) / total_qty
         current["quantity"] = total_qty
+        current["commission"] = float(current.get("commission") or 0) + float(row.commission or 0)
+        if current.get("leverage") is None and getattr(row, "leverage", None) is not None:
+            current["leverage"] = row.leverage
         if current["open_since"] is None:
             current["open_since"] = row.trade_date
         if row.open_time and (current["last_trade_date"] is None or row.trade_date >= current["last_trade_date"]):
@@ -255,7 +270,8 @@ def list_trade_positions(
                 side=current.get("side") or "做多",
                 avg_open_price=round(float(current.get("avg_open_price") or 0), 4),
                 open_since=current.get("open_since"),
-                last_trade_date=current.get("last_trade_date"),
+                commission=round(float(current.get("commission") or 0), 2),
+                leverage=current.get("leverage"),
             )
         )
     items.sort(key=lambda item: (item.symbol, item.side))
@@ -578,3 +594,43 @@ def upsert_trade_source_metadata(trade_id: int, data: TradeSourceMetadataUpsert,
         updated_at=row.updated_at,
         exists_in_db=True,
     )
+
+
+def get_trade_linked_plans(trade_id: int, db: Session = Depends(get_db)):
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
+    if not trade:
+        raise HTTPException(404, "Trade not found")
+    links = (
+        db.query(TradePlanTradeLink)
+        .filter(TradePlanTradeLink.trade_id == trade_id)
+        .all()
+    )
+    plan_ids = [link.trade_plan_id for link in links]
+    if not plan_ids:
+        return []
+    plans = (
+        db.query(TradePlan)
+        .filter(TradePlan.id.in_(plan_ids), TradePlan.is_deleted == False)  # noqa: E712
+        .all()
+    )
+    return [
+        {
+            "id": p.id,
+            "title": p.title,
+            "plan_date": str(p.plan_date) if p.plan_date else None,
+            "status": p.status,
+            "symbol": p.symbol,
+            "contract": p.contract,
+            "direction_bias": p.direction_bias,
+            "setup_type": p.setup_type,
+            "entry_zone": p.entry_zone,
+            "stop_loss_plan": p.stop_loss_plan,
+            "target_plan": p.target_plan,
+            "invalid_condition": p.invalid_condition,
+            "thesis": p.thesis,
+            "risk_notes": p.risk_notes,
+            "execution_checklist": p.execution_checklist,
+            "priority": p.priority,
+        }
+        for p in plans
+    ]

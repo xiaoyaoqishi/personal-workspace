@@ -26,6 +26,7 @@ const TRADE_REVIEW_FIELDS = [
   'edge_source',
   'failure_type',
   'review_conclusion',
+  'discipline_violated',
   'entry_thesis',
   'invalidation_valid_evidence',
   'invalidation_trigger_evidence',
@@ -292,7 +293,18 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Form.Item shouldUpdate={(prev, curr) => prev.instrument_type !== curr.instrument_type} noStyle>
+            {({ getFieldValue }) => {
+              const t = getFieldValue('instrument_type');
+              if (t === '期货') return (
+                <Col span={8}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+              );
+              if (t === '加密货币') return (
+                <Col span={8}><Form.Item label="杠杆倍数" name="leverage"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
+              );
+              return null;
+            }}
+          </Form.Item>
           <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
@@ -352,28 +364,30 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="开仓时间" name="open_time" rules={[{ required: true }]}><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Form.Item shouldUpdate={(prev, curr) => prev.instrument_type !== curr.instrument_type} noStyle>
+            {({ getFieldValue }) => {
+              const t = getFieldValue('instrument_type');
+              if (t === '期货') return (
+                <Col span={8}><Form.Item label="手数" name="quantity" rules={[{ required: true, message: '请填写手数' }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+              );
+              if (t === '加密货币') return (
+                <Col span={8}><Form.Item label="杠杆倍数" name="leverage" rules={[{ required: true, message: '请填写杠杆倍数' }]}><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
+              );
+              return null;
+            }}
+          </Form.Item>
 
-          {/* 更多交易信息（折叠，默认收起） */}
-          <Col span={24} style={{ marginTop: 8 }}>
-            <Collapse ghost>
-              <Panel header="更多交易信息" key="more">
-                <Row gutter={16}>
-                  <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
-                  <Col span={8}>
-                    <Form.Item label="状态" name="status" initialValue="open">
-                      <Select options={[{ label: '持仓', value: 'open' }, { label: '已平', value: 'closed' }]} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-                </Row>
-              </Panel>
-            </Collapse>
+          <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
+          <Col span={8}>
+            <Form.Item label="状态" name="status" initialValue="open">
+              <Select options={[{ label: '持仓', value: 'open' }, { label: '已平', value: 'closed' }]} />
+            </Form.Item>
           </Col>
+          <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
         </Row>
       ),
     },
@@ -532,6 +546,9 @@ export default function TradeForm() {
               <Select mode="tags" tokenSeparators={[',', '，']} placeholder="输入并回车添加标签" />
             </Form.Item>
           </Col>
+          <Col span={12}>
+            <Form.Item label="违反纪律" name="discipline_violated" valuePropName="checked"><Switch /></Form.Item>
+          </Col>
           <Col span={24}>
             <Form.Item name="entry_thesis" hidden><Input /></Form.Item>
             <Form.Item name="invalidation_valid_evidence" hidden><Input /></Form.Item>
@@ -545,25 +562,10 @@ export default function TradeForm() {
                 <Form.Item label="图文录入">
                   <ResearchContentPanel
                     editing
+                    showStandardFields={false}
                     title="交易图文研究"
                     value={form.getFieldValue('research_notes') || ''}
                     onChange={(next) => form.setFieldValue('research_notes', next)}
-                    standardFieldsValue={{
-                      entry_thesis: form.getFieldValue('entry_thesis') || '',
-                      invalidation_valid_evidence: form.getFieldValue('invalidation_valid_evidence') || '',
-                      invalidation_trigger_evidence: form.getFieldValue('invalidation_trigger_evidence') || '',
-                      invalidation_boundary: form.getFieldValue('invalidation_boundary') || '',
-                      management_actions: form.getFieldValue('management_actions') || '',
-                      exit_reason: form.getFieldValue('exit_reason') || '',
-                    }}
-                    onStandardFieldsChange={(next) => {
-                      form.setFieldValue('entry_thesis', next.entry_thesis || '');
-                      form.setFieldValue('invalidation_valid_evidence', next.invalidation_valid_evidence || '');
-                      form.setFieldValue('invalidation_trigger_evidence', next.invalidation_trigger_evidence || '');
-                      form.setFieldValue('invalidation_boundary', next.invalidation_boundary || '');
-                      form.setFieldValue('management_actions', next.management_actions || '');
-                      form.setFieldValue('exit_reason', next.exit_reason || '');
-                    }}
                   />
                 </Form.Item>
               )}

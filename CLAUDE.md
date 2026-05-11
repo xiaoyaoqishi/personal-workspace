@@ -4,8 +4,7 @@
 
 工作分工：
 - Claude Code 是主 agent，负责需求理解、方案拆解、架构判断、review 和最终汇总。
-- 具体代码实现、重构、测试补充、bug 修复，优先调用 `codex-implementer`。
-- `codex-implementer` 只通过 Codex MCP 执行，不直接改代码。
+- 具体代码实现、重构、测试补充、bug 修复，优先调用 `sonnet 4.6 medium`。
 
 规则：
 - 不要自动 commit。

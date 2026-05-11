@@ -86,14 +86,17 @@ def attach_trade_view_fields(db: Session, rows: List[Trade]) -> List[Trade]:
         return rows
     metadata_rows = db.query(TradeSourceMetadata).filter(TradeSourceMetadata.trade_id.in_(trade_ids)).all()
     metadata_by_trade_id = {row.trade_id: row for row in metadata_rows}
-    review_trade_ids = {
-        trade_id for (trade_id,) in db.query(TradeReview.trade_id).filter(TradeReview.trade_id.in_(trade_ids)).all()
-    }
+    review_rows = db.query(TradeReview.trade_id, TradeReview.discipline_violated).filter(
+        TradeReview.trade_id.in_(trade_ids)
+    ).all()
+    review_trade_ids = {row.trade_id for row in review_rows}
+    discipline_by_trade = {row.trade_id: bool(row.discipline_violated) for row in review_rows}
     for trade in rows:
         source_fields = resolve_trade_source_fields(trade, metadata_by_trade_id.get(trade.id))
         for key, value in source_fields.items():
             setattr(trade, key, value)
         setattr(trade, "has_trade_review", trade.id in review_trade_ids)
+        setattr(trade, "discipline_violated", discipline_by_trade.get(trade.id, False))
     return rows
 
 

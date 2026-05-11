@@ -67,21 +67,14 @@ export default function TradeList() {
         trade={ws.detailTrade}
         review={ws.detailReview}
         reviewExists={ws.detailReviewExists}
-        source={ws.detailSource}
-        legacy={ws.detailLegacy}
+        linkedPlans={ws.detailLinkedPlans}
         reviewTaxonomy={ws.reviewTaxonomy}
         savingReview={ws.detailSavingReview}
-        savingSource={ws.detailSavingSource}
-        savingLegacy={ws.detailSavingLegacy}
         onClose={() => ws.setDetailOpen(false)}
         onReload={() => ws.activeTradeId && ws.loadTradeDetail(ws.activeTradeId)}
         onOpenEdit={() => ws.activeTradeId && navigate(`/trades/${ws.activeTradeId}/edit`)}
         onChangeReview={(k, v) => ws.setDetailReview((p) => ({ ...p, [k]: v }))}
-        onChangeSource={(k, v) => ws.setDetailSource((p) => ({ ...p, [k]: v }))}
-        onChangeLegacy={(k, v) => ws.setDetailLegacy((p) => ({ ...p, [k]: v }))}
         onSaveReview={ws.handleSaveDetailReview}
-        onSaveSource={ws.handleSaveDetailSource}
-        onSaveLegacy={ws.handleSaveDetailLegacy}
         onUpdateTradeSignal={ws.handleUpdateTradeSignal}
       />
 

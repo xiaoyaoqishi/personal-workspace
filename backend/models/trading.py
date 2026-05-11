@@ -26,6 +26,7 @@ class Trade(Base):
     quantity = Column(Float, nullable=False)
     margin = Column(Float)
     commission = Column(Float, default=0)
+    leverage = Column(Float)
     slippage = Column(Float, default=0)
     pnl = Column(Float)
     pnl_points = Column(Float)
@@ -109,6 +110,7 @@ class TradeReview(Base):
     invalidation_boundary = Column(Text)
     management_actions = Column(Text)
     exit_reason = Column(Text)
+    discipline_violated = Column(Boolean, default=False)
     review_tags = Column(Text)
     research_notes = Column(Text)
 

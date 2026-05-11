@@ -295,31 +295,6 @@ export default function TradePlanList() {
               <>
                 <Form form={form} layout="vertical" initialValues={{ status: 'draft', plan_date: dayjs(), tags: [] }}>
                   <Row gutter={12}>
-                    <Col span={24}>
-                      <div className="review-group-header">
-                        <span className="review-group-name"><ReadOutlined />研究内容</span>
-                      </div>
-                    </Col>
-                    <Col span={24}><Form.Item name="thesis" label="交易论点"><TextArea rows={2} /></Form.Item></Col>
-                    <Col span={24}><Form.Item name="post_result_summary" label="结果摘要"><Input /></Form.Item></Col>
-                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
-                    <Col span={24}>
-                      <Form.Item shouldUpdate noStyle>
-                        {() => (
-                          <ResearchContentPanel
-                            editing
-                            title="研究内容"
-                            value={form.getFieldValue('research_notes')}
-                            onChange={(next) => form.setFieldValue('research_notes', next)}
-                          />
-                        )}
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <div className="review-group-header">
-                        <span className="review-group-name"><ShareAltOutlined />计划属性与关联</span>
-                      </div>
-                    </Col>
                     <Col span={10}><Form.Item name="title" label="标题" rules={[{ required: true }]}><Input /></Form.Item></Col>
                     <Col span={7}><Form.Item name="plan_date" label="计划日期" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
                     <Col span={7}><Form.Item name="status" label="状态"><Select options={STATUS_OPTIONS} /></Form.Item></Col>
@@ -327,7 +302,6 @@ export default function TradePlanList() {
                     <Col span={8}><Form.Item name="contract" label="合约"><Input /></Form.Item></Col>
                     <Col span={8}><Form.Item name="direction_bias" label="方向偏好"><Input /></Form.Item></Col>
                     <Col span={12}><Form.Item name="setup_type" label="形态"><Input /></Form.Item></Col>
-                    <Col span={12}><Form.Item name="market_regime" label="市场环境"><Input /></Form.Item></Col>
                     <Col span={12}><Form.Item name="entry_zone" label="入场区"><Input /></Form.Item></Col>
                     <Col span={12}><Form.Item name="invalid_condition" label="失效条件"><Input /></Form.Item></Col>
                     <Col span={12}><Form.Item name="stop_loss_plan" label="止损计划"><Input /></Form.Item></Col>
@@ -335,8 +309,23 @@ export default function TradePlanList() {
                     <Col span={12}><Form.Item name="risk_notes" label="风险备注"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="execution_checklist" label="执行清单"><TextArea rows={2} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="priority" label="优先级"><Select options={PRIORITY_OPTIONS} /></Form.Item></Col>
-                    <Col span={12}><Form.Item name="tags" label="标签"><Select mode="tags" tokenSeparators={[',', '，']} /></Form.Item></Col>
                     <Col span={12}><Form.Item name="source_ref" label="来源引用"><Input /></Form.Item></Col>
+                    <Form.Item name="research_notes" hidden><Input /></Form.Item>
+                    <Col span={12}>
+                      <Form.Item shouldUpdate noStyle>
+                        {() => (
+                          <Form.Item label="图文录入">
+                            <ResearchContentPanel
+                              editing
+                              showStandardFields={false}
+                              title="研究内容"
+                              value={form.getFieldValue('research_notes')}
+                              onChange={(next) => form.setFieldValue('research_notes', next)}
+                            />
+                          </Form.Item>
+                        )}
+                      </Form.Item>
+                    </Col>
                   </Row>
                 </Form>
 
@@ -412,15 +401,7 @@ export default function TradePlanList() {
                 </div>
 
                 <div className="review-article-paper review-article-reading" style={planReaderStyle}>
-                  {selected.thesis ? (
-                    <Typography.Paragraph className="review-reader-lead">{selected.thesis}</Typography.Paragraph>
-                  ) : null}
                   <ResearchContentPanel showStandardFields={false} value={selected.research_notes} />
-                  {selected.post_result_summary ? (
-                    <Typography.Paragraph className="review-reader-footnote">
-                      {selected.post_result_summary}
-                    </Typography.Paragraph>
-                  ) : null}
                 </div>
 
                 <Drawer
@@ -453,7 +434,6 @@ export default function TradePlanList() {
                     <div className="review-drawer-block">
                       <Descriptions size="small" column={1}>
                         <Descriptions.Item label="形态">{selected.setup_type || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="市场环境">{selected.market_regime || '-'}</Descriptions.Item>
                         <Descriptions.Item label="入场区">{selected.entry_zone || '-'}</Descriptions.Item>
                         <Descriptions.Item label="止损计划">{selected.stop_loss_plan || '-'}</Descriptions.Item>
                         <Descriptions.Item label="目标计划">{selected.target_plan || '-'}</Descriptions.Item>
@@ -462,14 +442,6 @@ export default function TradePlanList() {
                         <Descriptions.Item label="执行清单">{selected.execution_checklist || '-'}</Descriptions.Item>
                         <Descriptions.Item label="来源引用">{selected.source_ref || '-'}</Descriptions.Item>
                       </Descriptions>
-                      <dl className="review-meta-list">
-                        <dt><Typography.Text type="secondary">标签</Typography.Text></dt>
-                        <dd className="review-detail-tags">
-                          {selectedPlanTags.length > 0
-                            ? selectedPlanTags.map((tag) => <Tag key={tag}>{tag}</Tag>)
-                            : <Typography.Text type="secondary">-</Typography.Text>}
-                        </dd>
-                      </dl>
                     </div>
                   </div>
 

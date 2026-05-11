@@ -1,4 +1,4 @@
-﻿import { Col, Modal, Row, Select, Typography } from 'antd';
+import { Col, Modal, Row, Select, Switch, Typography } from 'antd';
 import { normalizeTagList } from '../display';
 import { taxonomyOptionsWithZh } from '../localization';
 import ResearchContentPanel from '../components/ResearchContentPanel';
@@ -30,7 +30,7 @@ export default function TradeBatchStructuredReviewModal({
       <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
         将把以下结构化复盘字段批量写入当前勾选交易，支持图文录入。
       </Typography.Paragraph>
-      <Row gutter={12}>
+      <Row gutter={[12, 8]}>
         <Col span={12}>
           <Typography.Text type="secondary">机会结构</Typography.Text>
           <Select
@@ -75,6 +75,16 @@ export default function TradeBatchStructuredReviewModal({
             style={{ width: '100%' }}
           />
         </Col>
+        <Col span={12}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+            <Typography.Text type="secondary">违反纪律</Typography.Text>
+            <Switch
+              size="small"
+              checked={!!review.discipline_violated}
+              onChange={(v) => onChange('discipline_violated', v)}
+            />
+          </div>
+        </Col>
         <Col span={24}>
           <Typography.Text type="secondary">标签</Typography.Text>
           <Select
@@ -89,25 +99,10 @@ export default function TradeBatchStructuredReviewModal({
         <Col span={24}>
           <ResearchContentPanel
             editing
+            showStandardFields={false}
             title="多选交易图文研究"
             value={review.research_notes || ''}
             onChange={(next) => onChange('research_notes', next)}
-            standardFieldsValue={{
-              entry_thesis: review.entry_thesis,
-              invalidation_valid_evidence: review.invalidation_valid_evidence,
-              invalidation_trigger_evidence: review.invalidation_trigger_evidence,
-              invalidation_boundary: review.invalidation_boundary,
-              management_actions: review.management_actions,
-              exit_reason: review.exit_reason,
-            }}
-            onStandardFieldsChange={(next) => {
-              onChange('entry_thesis', next.entry_thesis || '');
-              onChange('invalidation_valid_evidence', next.invalidation_valid_evidence || '');
-              onChange('invalidation_trigger_evidence', next.invalidation_trigger_evidence || '');
-              onChange('invalidation_boundary', next.invalidation_boundary || '');
-              onChange('management_actions', next.management_actions || '');
-              onChange('exit_reason', next.exit_reason || '');
-            }}
           />
         </Col>
       </Row>
