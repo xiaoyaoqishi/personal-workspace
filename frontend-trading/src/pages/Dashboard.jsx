@@ -1,6 +1,11 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { Col, Empty, Row, Spin, Typography } from 'antd';
-import InkSection from '../components/InkSection';
+import { useEffect, useMemo, useState } from 'react';
+import { Col, Collapse, Empty, Row, Spin, Tabs, Typography } from 'antd';
+import {
+  LineChartOutlined,
+  PieChartOutlined,
+  AuditOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { tradeApi } from '../api';
 import './Dashboard.css';
@@ -11,7 +16,15 @@ import DimensionPanel from '../features/trading/analytics/DimensionPanel';
 import StructuredReviewPanels from '../features/trading/analytics/StructuredReviewPanels';
 import BehaviorPanels from '../features/trading/analytics/BehaviorPanels';
 import CoverageAndPositions from '../features/trading/analytics/CoverageAndPositions';
+import EquityCurvePanel from '../features/trading/analytics/EquityCurvePanel';
+import PnlDistributionPanel from '../features/trading/analytics/PnlDistributionPanel';
+import MonthlyReturnsGrid from '../features/trading/analytics/MonthlyReturnsGrid';
+import StreaksPanel from '../features/trading/analytics/StreaksPanel';
+import DisciplinePanel from '../features/trading/analytics/DisciplinePanel';
+import HoldingAnalysisPanel from '../features/trading/analytics/HoldingAnalysisPanel';
 import { formatSymbolDimensionKey } from '../features/trading/display';
+
+const DIRECTION_ZH = { 做多: '做多', 做空: '做空', 买入: '买入', 卖出: '卖出' };
 
 export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
@@ -53,10 +66,7 @@ export default function Dashboard() {
       .map((row) => {
         const key = String(row?.key || '').trim();
         if (!key) return null;
-        return {
-          value: key,
-          label: formatSymbolDimensionKey(key),
-        };
+        return { value: key, label: formatSymbolDimensionKey(key) };
       })
       .filter(Boolean);
   }, [analytics]);
@@ -101,6 +111,85 @@ export default function Dashboard() {
   const positions = analytics.positions || {};
   const timeSeries = analytics.time_series || {};
 
+  const tabItems = [
+    {
+      key: 'performance',
+      label: (
+        <span><LineChartOutlined /> 绩效总览</span>
+      ),
+      children: (
+        <div className="analytics-workspace">
+          <OverviewKpis overview={overview} />
+          <EquityCurvePanel data={analytics.equity_curve} />
+          <TimeSeriesPanel series={timeSeries} />
+        </div>
+      ),
+    },
+    {
+      key: 'dimensions',
+      label: (
+        <span><PieChartOutlined /> 维度分析</span>
+      ),
+      children: (
+        <div className="analytics-workspace">
+          <Row gutter={[12, 12]}>
+            <Col xs={24} xl={12}>
+              <DimensionPanel
+                title="品种维度"
+                rows={dimensions.by_symbol || []}
+                keyLabel="品种"
+                valueFormatter={formatSymbolDimensionKey}
+                tablePageSize={5}
+                pageSizeOptions={[5, 10, 20, 50, 100]}
+              />
+            </Col>
+            <Col xs={24} xl={12}>
+              <DimensionPanel title="来源维度" rows={dimensions.by_source || []} keyLabel="来源" />
+            </Col>
+          </Row>
+          <DimensionPanel
+            title="方向维度"
+            rows={(dimensions.by_direction || []).map((r) => ({
+              ...r,
+              key_display: DIRECTION_ZH[r.key] || r.key,
+            }))}
+            keyLabel="方向"
+            valueFormatter={(key) => DIRECTION_ZH[key] || key}
+          />
+          <MonthlyReturnsGrid data={analytics.monthly_grid} />
+        </div>
+      ),
+    },
+    {
+      key: 'review',
+      label: (
+        <span><AuditOutlined /> 复盘与纪律</span>
+      ),
+      children: (
+        <div className="analytics-workspace">
+          <StructuredReviewPanels byReviewField={dimensions.by_review_field || {}} />
+          <BehaviorPanels behavior={behavior} />
+          <DisciplinePanel data={analytics.discipline} />
+          <CoverageAndPositions coverage={coverage} positions={positions} hidePositions />
+        </div>
+      ),
+    },
+    {
+      key: 'risk',
+      label: (
+        <span><SafetyCertificateOutlined /> 风控与持仓</span>
+      ),
+      children: (
+        <div className="analytics-workspace">
+          <PnlDistributionPanel data={analytics.pnl_distribution} />
+          <StreaksPanel data={analytics.streaks} />
+          <HoldingAnalysisPanel data={analytics.holding_analysis} />
+          <CoverageAndPositions coverage={coverage} positions={positions} hideCoverage />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="analytics-workspace">
       <div className="analytics-header">
@@ -109,7 +198,7 @@ export default function Dashboard() {
             交易分析工作台
           </Typography.Title>
           <Typography.Text type="secondary">
-            多维复盘视角：收益、来源、结构化复盘、行为质量与数据覆盖率。
+            多维复盘视角：绩效、维度、复盘纪律与风控持仓。
           </Typography.Text>
         </div>
       </div>
@@ -123,39 +212,30 @@ export default function Dashboard() {
         onSetSource={setSource}
       />
 
-      <OverviewKpis overview={overview} />
+      <Tabs
+        className="analytics-tabs"
+        defaultActiveKey="performance"
+        items={tabItems}
+        destroyInactiveTabPane={false}
+      />
 
-      <TimeSeriesPanel series={timeSeries} />
-
-      <Row gutter={[12, 12]}>
-        <Col xs={24} xl={12}>
-          <DimensionPanel
-            title="品种维度"
-            rows={dimensions.by_symbol || []}
-            keyLabel="品种"
-            valueFormatter={formatSymbolDimensionKey}
-            tablePageSize={5}
-            pageSizeOptions={[5, 10, 20, 50, 100]}
-          />
-        </Col>
-        <Col xs={24} xl={12}>
-          <DimensionPanel title="来源维度" rows={dimensions.by_source || []} keyLabel="来源" />
-        </Col>
-      </Row>
-
-      <StructuredReviewPanels byReviewField={dimensions.by_review_field || {}} />
-
-      <BehaviorPanels behavior={behavior} />
-
-      <CoverageAndPositions coverage={coverage} positions={positions} />
-
-      <InkSection size="small" title="口径说明">
-        <div className="analytics-note-list">
-          <div>1. 结构化复盘分类字段的标准键保持英文，界面统一显示中文标签。</div>
-          <div>2. 来源展示优先使用来源元数据，旧备注仅作兼容回退。</div>
-          <div>3. 本页不改变粘贴导入、平仓匹配、统计/持仓业务语义。</div>
-        </div>
-      </InkSection>
+      <Collapse
+        ghost
+        size="small"
+        items={[
+          {
+            key: 'notes',
+            label: '口径说明',
+            children: (
+              <div className="analytics-note-list">
+                <div>1. 结构化复盘分类字段的标准键保持英文，界面统一显示中文标签。</div>
+                <div>2. 来源展示优先使用来源元数据，旧备注仅作兼容回退。</div>
+                <div>3. 本页不改变粘贴导入、平仓匹配、统计/持仓业务语义。</div>
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

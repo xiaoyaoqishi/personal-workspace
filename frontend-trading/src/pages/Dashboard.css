@@ -28,3 +28,47 @@
   font-size: 13px;
   line-height: 1.75;
 }
+
+.analytics-tabs .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.monthly-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: center;
+}
+
+.monthly-grid-table th,
+.monthly-grid-table td {
+  border: 1px solid var(--td-color-border, #f0f0f0);
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.monthly-grid-table th {
+  background: var(--td-color-bg-container-hover, #fafafa);
+  font-weight: 500;
+}
+
+.monthly-grid-year {
+  font-weight: 600;
+  text-align: left;
+}
+
+.monthly-grid-val {
+  cursor: default;
+}
+
+.monthly-grid-empty {
+  color: var(--td-color-text-quaternary, #ccc);
+}
+
+.pnl-pos {
+  color: #cf1322;
+}
+
+.pnl-neg {
+  color: #3f8600;
+}

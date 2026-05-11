@@ -2,7 +2,7 @@ import { Col, Progress, Row, Statistic, Table, Tag } from 'antd';
 import InkSection from '../../../components/InkSection';
 import { formatInstrumentDisplay } from '../display';
 
-export default function CoverageAndPositions({ coverage, positions }) {
+export default function CoverageAndPositions({ coverage, positions, hideCoverage, hidePositions }) {
   const positionColumns = [
     {
       title: '品种',
@@ -23,34 +23,42 @@ export default function CoverageAndPositions({ coverage, positions }) {
 
   const positionRows = (positions?.open_positions || []).map((x, idx) => ({ ...x, key: `${x.symbol}-${x.side}-${idx}` }));
 
+  const coverageCol = hideCoverage ? null : (
+    <Col xs={24} xl={hidePositions ? 24 : 8}>
+      <InkSection title="数据覆盖率">
+        <Statistic title="结构化复盘覆盖率" value={coverage?.trade_review_rate || 0} suffix="%" precision={2} />
+        <Progress percent={coverage?.trade_review_rate || 0} showInfo={false} />
+        <Statistic style={{ marginTop: 12 }} title="来源元数据覆盖率" value={coverage?.source_metadata_rate || 0} suffix="%" precision={2} />
+        <Progress percent={coverage?.source_metadata_rate || 0} showInfo={false} />
+        <div style={{ marginTop: 12, color: '#666' }}>
+          <div>结构化复盘记录: {coverage?.trade_review_count || 0}</div>
+          <div>显式来源记录: {coverage?.source_metadata_count || 0}</div>
+          <div>仅旧备注回退来源: {coverage?.legacy_source_only_count || 0}</div>
+          <div>来源缺失: {coverage?.source_missing_count || 0}</div>
+        </div>
+      </InkSection>
+    </Col>
+  );
+
+  const positionsCol = hidePositions ? null : (
+    <Col xs={24} xl={hideCoverage ? 24 : 16}>
+      <InkSection title="当前持仓视角">
+        <Table
+          rowKey="key"
+          columns={positionColumns}
+          dataSource={positionRows}
+          pagination={false}
+          size="small"
+          locale={{ emptyText: '当前无持仓' }}
+        />
+      </InkSection>
+    </Col>
+  );
+
   return (
     <Row gutter={[12, 12]}>
-      <Col xs={24} xl={8}>
-        <InkSection title="数据覆盖率">
-          <Statistic title="结构化复盘覆盖率" value={coverage?.trade_review_rate || 0} suffix="%" precision={2} />
-          <Progress percent={coverage?.trade_review_rate || 0} showInfo={false} />
-          <Statistic style={{ marginTop: 12 }} title="来源元数据覆盖率" value={coverage?.source_metadata_rate || 0} suffix="%" precision={2} />
-          <Progress percent={coverage?.source_metadata_rate || 0} showInfo={false} />
-          <div style={{ marginTop: 12, color: '#666' }}>
-            <div>结构化复盘记录: {coverage?.trade_review_count || 0}</div>
-            <div>显式来源记录: {coverage?.source_metadata_count || 0}</div>
-            <div>仅旧备注回退来源: {coverage?.legacy_source_only_count || 0}</div>
-            <div>来源缺失: {coverage?.source_missing_count || 0}</div>
-          </div>
-        </InkSection>
-      </Col>
-      <Col xs={24} xl={16}>
-        <InkSection title="当前持仓视角">
-          <Table
-            rowKey="key"
-            columns={positionColumns}
-            dataSource={positionRows}
-            pagination={false}
-            size="small"
-            locale={{ emptyText: '当前无持仓' }}
-          />
-        </InkSection>
-      </Col>
+      {coverageCol}
+      {positionsCol}
     </Row>
   );
 }

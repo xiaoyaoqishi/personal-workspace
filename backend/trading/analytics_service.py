@@ -122,6 +122,149 @@ def _counter_to_rows(counter: Counter, key_name: str = "key") -> List[Dict[str, 
     return rows
 
 
+def _build_equity_curve(daily_pnl_map: Dict[str, float]) -> List[Dict[str, Any]]:
+    curve = []
+    cumulative = 0.0
+    for date_key in sorted(daily_pnl_map.keys()):
+        cumulative += daily_pnl_map[date_key]
+        curve.append({"date": date_key, "cumulative_pnl": round(cumulative, 2), "daily_pnl": round(daily_pnl_map[date_key], 2)})
+    return curve
+
+
+def _build_pnl_distribution(pnls: List[float], n_bins: int = 20) -> List[Dict[str, Any]]:
+    if not pnls:
+        return []
+    min_pnl = min(pnls)
+    max_pnl = max(pnls)
+    if max_pnl - min_pnl < 1e-9:
+        return [{"range_label": f"{min_pnl:.0f}", "count": len(pnls)}]
+    bin_width = (max_pnl - min_pnl) / n_bins
+    bins = []
+    for i in range(n_bins):
+        start = min_pnl + i * bin_width
+        end = start + bin_width
+        count = sum(1 for p in pnls if (start <= p < end) or (i == n_bins - 1 and p == end))
+        bins.append({"range_label": f"{start:.0f}", "range_start": round(start, 2), "range_end": round(end, 2), "count": count})
+    return bins
+
+
+def _build_streaks(pnls: List[float]) -> Dict[str, Any]:
+    if not pnls:
+        return {"max_win_streak": 0, "max_loss_streak": 0, "max_win_streak_pnl": 0.0, "max_loss_streak_pnl": 0.0, "streaks": []}
+    streaks: List[Dict[str, Any]] = []
+    current_type: Optional[str] = None
+    current_count = 0
+    current_pnl = 0.0
+    for p in pnls:
+        t = "win" if p > 0 else ("loss" if p < 0 else "flat")
+        if t == current_type:
+            current_count += 1
+            current_pnl += p
+        else:
+            if current_type:
+                streaks.append({"type": current_type, "count": current_count, "pnl": round(current_pnl, 2)})
+            current_type = t
+            current_count = 1
+            current_pnl = p
+    if current_type:
+        streaks.append({"type": current_type, "count": current_count, "pnl": round(current_pnl, 2)})
+    win_streaks = [s for s in streaks if s["type"] == "win"]
+    loss_streaks = [s for s in streaks if s["type"] == "loss"]
+    return {
+        "max_win_streak": max((s["count"] for s in win_streaks), default=0),
+        "max_loss_streak": max((s["count"] for s in loss_streaks), default=0),
+        "max_win_streak_pnl": round(max((s["pnl"] for s in win_streaks), default=0.0), 2),
+        "max_loss_streak_pnl": round(min((s["pnl"] for s in loss_streaks), default=0.0), 2),
+        "streaks": streaks,
+    }
+
+
+_HOLDING_BUCKETS = [
+    ("< 1h", 0, 3600),
+    ("1-4h", 3600, 14400),
+    ("4-24h", 14400, 86400),
+    ("1-3d", 86400, 259200),
+    ("3-7d", 259200, 604800),
+    ("> 7d", 604800, float("inf")),
+]
+
+
+def _build_holding_analysis(closed_trades: List[Trade]) -> List[Dict[str, Any]]:
+    results = []
+    for label, lo, hi in _HOLDING_BUCKETS:
+        bucket_pnls: List[float] = []
+        for t in closed_trades:
+            if t.open_time and t.close_time:
+                dur = (t.close_time - t.open_time).total_seconds()
+                if lo <= dur < hi:
+                    bucket_pnls.append(float(t.pnl or 0.0))
+        count = len(bucket_pnls)
+        win_count = sum(1 for p in bucket_pnls if p > 0)
+        results.append({
+            "bucket": label,
+            "count": count,
+            "total_pnl": round(sum(bucket_pnls), 2),
+            "avg_pnl": round(sum(bucket_pnls) / count, 2) if count else 0.0,
+            "win_rate": round(win_count / count * 100.0, 2) if count else 0.0,
+        })
+    return results
+
+
+_DISCIPLINE_FIELDS = [
+    ("is_impulsive", "冲动交易"),
+    ("is_chasing", "追涨杀跌"),
+    ("is_holding_loss", "死扛亏损"),
+    ("is_early_profit", "过早止盈"),
+    ("is_extended_stop", "扩大止损"),
+    ("is_overweight", "过度加仓"),
+    ("is_revenge", "报复交易"),
+    ("is_emotional", "情绪交易"),
+]
+
+
+def _build_discipline_stats(trades: List[Trade]) -> List[Dict[str, Any]]:
+    rows = []
+    total = len(trades)
+    for field, label in _DISCIPLINE_FIELDS:
+        flagged = [t for t in trades if getattr(t, field, False) is True]
+        count = len(flagged)
+        pnl = sum(float(t.pnl or 0.0) for t in flagged if t.status == "closed")
+        rows.append({
+            "key": field,
+            "label": label,
+            "count": count,
+            "rate": round(count / total * 100.0, 2) if total else 0.0,
+            "total_pnl": round(pnl, 2),
+        })
+    return rows
+
+
+def _build_monthly_grid(closed_trades: List[Trade]) -> List[Dict[str, Any]]:
+    grid: Dict[tuple, Dict[str, Any]] = {}
+    for t in closed_trades:
+        year = t.trade_date.year
+        month = t.trade_date.month
+        key = (year, month)
+        if key not in grid:
+            grid[key] = {"year": year, "month": month, "pnl": 0.0, "count": 0, "win_count": 0}
+        g = grid[key]
+        pnl = float(t.pnl or 0.0)
+        g["pnl"] += pnl
+        g["count"] += 1
+        if pnl > 0:
+            g["win_count"] += 1
+    rows = []
+    for (year, month), g in sorted(grid.items()):
+        rows.append({
+            "year": year,
+            "month": month,
+            "pnl": round(g["pnl"], 2),
+            "count": g["count"],
+            "win_rate": round(g["win_count"] / g["count"] * 100.0, 2) if g["count"] else 0.0,
+        })
+    return rows
+
+
 def build_trade_analytics(
     db: Session,
     *,
@@ -189,6 +332,7 @@ def build_trade_analytics(
 
     by_symbol = _group_trade_metrics(trades, lambda t: t.symbol)
     by_source = _group_trade_metrics(trades, lambda t: getattr(t, "source_display", None) or "未知来源")
+    by_direction = _group_trade_metrics(trades, lambda t: t.direction)
 
     trade_ids = [t.id for t in trades if t.id]
     review_by_trade_id: Dict[int, TradeReview] = {}
@@ -309,6 +453,13 @@ def build_trade_analytics(
             source_missing_count += 1
     trade_review_count = len(review_by_trade_id)
 
+    equity_curve = _build_equity_curve(daily_pnl_map)
+    pnl_distribution = _build_pnl_distribution(closed_pnls)
+    streaks = _build_streaks(closed_pnls)
+    holding_analysis = _build_holding_analysis(closed_trades)
+    discipline = _build_discipline_stats(trades)
+    monthly_grid = _build_monthly_grid(closed_trades)
+
     return {
         "overview": {
             "total_trades": total,
@@ -343,6 +494,7 @@ def build_trade_analytics(
         "dimensions": {
             "by_symbol": by_symbol,
             "by_source": by_source,
+            "by_direction": by_direction,
             "by_review_field": review_dimensions,
         },
         "behavior": {
@@ -365,4 +517,10 @@ def build_trade_analytics(
             "legacy_source_only_count": legacy_source_only_count,
             "source_missing_count": source_missing_count,
         },
+        "equity_curve": equity_curve,
+        "pnl_distribution": pnl_distribution,
+        "streaks": streaks,
+        "holding_analysis": holding_analysis,
+        "discipline": discipline,
+        "monthly_grid": monthly_grid,
     }
