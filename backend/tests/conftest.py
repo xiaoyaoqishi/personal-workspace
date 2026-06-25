@@ -20,6 +20,7 @@ def test_db_path(tmp_path_factory):
 @pytest.fixture(scope="session")
 def app(test_db_path):
     import core.db as core_db
+    from services import auth_runtime
     from services import runtime
 
     test_engine = create_engine(f"sqlite:///{test_db_path}", connect_args={"check_same_thread": False})
@@ -31,6 +32,7 @@ def app(test_db_path):
     runtime.SessionLocal = test_session_local
     runtime.COOKIE_SECURE = False
     runtime._RUNTIME_INITIALIZED = False
+    auth_runtime.COOKIE_SECURE = False
 
     from app import create_app
 

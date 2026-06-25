@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from bs4 import BeautifulSoup
 from fastapi import Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core import context
@@ -17,6 +18,8 @@ from schemas.notes import NoteCreate, NoteUpdate, NotebookCreate, NotebookUpdate
 
 
 TODO_PRIORITIES = {"low", "medium", "high"}
+DEFAULT_NOTE_SCOPE = "notes"
+TRADING_NOTE_SCOPE = "trading"
 
 
 def _current_is_admin() -> bool:
@@ -36,17 +39,34 @@ def _owner_role_filter_for_admin(model, owner_role: Optional[str]):
     return None
 
 
+def _normalize_module_scope(module_scope: Optional[str]) -> str:
+    value = (module_scope or DEFAULT_NOTE_SCOPE).strip().lower()
+    return value or DEFAULT_NOTE_SCOPE
+
+
 def init_default_notebooks():
     db = SessionLocal()
     try:
-        if db.query(Notebook).count() == 0:
+        notebook_cols = {row[1] for row in db.execute(text("PRAGMA table_info(notebooks)")).fetchall()}
+        if notebook_cols and "module_scope" not in notebook_cols:
+            db.execute(text("ALTER TABLE notebooks ADD COLUMN module_scope VARCHAR(30) DEFAULT 'notes'"))
+            db.execute(text("UPDATE notebooks SET module_scope='notes' WHERE module_scope IS NULL OR module_scope=''"))
+            db.commit()
+        note_cols = {row[1] for row in db.execute(text("PRAGMA table_info(notes)")).fetchall()}
+        if note_cols and "module_scope" not in note_cols:
+            db.execute(text("ALTER TABLE notes ADD COLUMN module_scope VARCHAR(30) DEFAULT 'notes'"))
+            db.execute(text("UPDATE notes SET module_scope='notes' WHERE module_scope IS NULL OR module_scope=''"))
+            db.commit()
+        if db.query(Notebook).filter(Notebook.module_scope == DEFAULT_NOTE_SCOPE).count() == 0:
             db.add_all(
                 [
-                    Notebook(name="日记本", icon="📔", sort_order=0, owner_role="admin"),
-                    Notebook(name="文档", icon="📄", sort_order=1, owner_role="admin"),
+                    Notebook(name="日记本", icon="📔", sort_order=0, owner_role="admin", module_scope=DEFAULT_NOTE_SCOPE),
+                    Notebook(name="文档", icon="📄", sort_order=1, owner_role="admin", module_scope=DEFAULT_NOTE_SCOPE),
                 ]
             )
-            db.commit()
+        if db.query(Notebook).filter(Notebook.module_scope == TRADING_NOTE_SCOPE).count() == 0:
+            db.add(Notebook(name="研究", icon="🔎", sort_order=0, owner_role="admin", module_scope=TRADING_NOTE_SCOPE))
+        db.commit()
     finally:
         db.close()
 
@@ -58,8 +78,9 @@ def _normalize_todo_priority(priority: Optional[str]) -> str:
     return val
 
 
-def list_notebooks(owner_role: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(Notebook)
+def list_notebooks(module_scope: Optional[str] = None, owner_role: Optional[str] = None, db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
+    q = db.query(Notebook).filter(Notebook.module_scope == scope)
     role_filter = _owner_role_filter_for_admin(Notebook, owner_role)
     if role_filter is not None:
         q = q.filter(role_filter)
@@ -67,27 +88,40 @@ def list_notebooks(owner_role: Optional[str] = None, db: Session = Depends(get_d
 
 
 def create_notebook(data: NotebookCreate, db: Session = Depends(get_db)):
-    obj = Notebook(**data.model_dump(), owner_role=_owner_role_value_for_create())
+    payload = data.model_dump()
+    payload["module_scope"] = _normalize_module_scope(payload.get("module_scope"))
+    obj = Notebook(**payload, owner_role=_owner_role_value_for_create())
     db.add(obj)
     db.commit()
     db.refresh(obj)
     return obj
 
 
-def update_notebook(nb_id: int, data: NotebookUpdate, db: Session = Depends(get_db)):
+def update_notebook(nb_id: int, module_scope: Optional[str] = None, data: NotebookUpdate = None, db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
     nb = db.query(Notebook).filter(Notebook.id == nb_id).first()
     if not nb:
         raise HTTPException(404, "Notebook not found")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    if nb.module_scope != scope:
+        raise HTTPException(404, "Notebook not found")
+    updates = data.model_dump(exclude_unset=True)
+    if "module_scope" in updates:
+        updates["module_scope"] = _normalize_module_scope(updates.get("module_scope"))
+    for k, v in updates.items():
         setattr(nb, k, v)
+    if "module_scope" in updates:
+        db.query(Note).filter(Note.notebook_id == nb.id).update({"module_scope": nb.module_scope}, synchronize_session=False)
     db.commit()
     db.refresh(nb)
     return nb
 
 
-def delete_notebook(nb_id: int, db: Session = Depends(get_db)):
+def delete_notebook(nb_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
     nb = db.query(Notebook).filter(Notebook.id == nb_id).first()
     if not nb:
+        raise HTTPException(404, "Notebook not found")
+    if nb.module_scope != scope:
         raise HTTPException(404, "Notebook not found")
     db.delete(nb)
     db.commit()
@@ -101,12 +135,14 @@ def list_notes(
     keyword: Optional[str] = None,
     tag: Optional[str] = None,
     is_pinned: Optional[bool] = None,
+    module_scope: Optional[str] = None,
     owner_role: Optional[str] = None,
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Note).filter(Note.is_deleted == False)  # noqa: E712
+    scope = _normalize_module_scope(module_scope)
+    q = db.query(Note).filter(Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
     role_filter = _owner_role_filter_for_admin(Note, owner_role)
     if role_filter is not None:
         q = q.filter(role_filter)
@@ -125,24 +161,25 @@ def list_notes(
     return q.order_by(Note.is_pinned.desc(), Note.updated_at.desc()).offset((page - 1) * size).limit(size).all()
 
 
-def note_stats(db: Session = Depends(get_db)):
+def note_stats(module_scope: Optional[str] = None, db: Session = Depends(get_db)):
     from sqlalchemy import func as sqlfunc
 
-    diary_count = db.query(Note).filter(Note.note_type == "diary", Note.is_deleted == False).count()  # noqa: E712
-    doc_count = db.query(Note).filter(Note.note_type == "doc", Note.is_deleted == False).count()  # noqa: E712
+    scope = _normalize_module_scope(module_scope)
+    diary_count = db.query(Note).filter(Note.note_type == "diary", Note.is_deleted == False, Note.module_scope == scope).count()  # noqa: E712
+    doc_count = db.query(Note).filter(Note.note_type == "doc", Note.is_deleted == False, Note.module_scope == scope).count()  # noqa: E712
     diary_words = (
         db.query(sqlfunc.coalesce(sqlfunc.sum(Note.word_count), 0))
-        .filter(Note.note_type == "diary", Note.is_deleted == False)  # noqa: E712
+        .filter(Note.note_type == "diary", Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
         .scalar()
     )
     doc_words = (
         db.query(sqlfunc.coalesce(sqlfunc.sum(Note.word_count), 0))
-        .filter(Note.note_type == "doc", Note.is_deleted == False)  # noqa: E712
+        .filter(Note.note_type == "doc", Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
         .scalar()
     )
     recent_docs = (
         db.query(Note)
-        .filter(Note.note_type == "doc", Note.is_deleted == False)  # noqa: E712
+        .filter(Note.note_type == "doc", Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
         .order_by(Note.updated_at.desc())
         .limit(8)
         .all()
@@ -156,10 +193,11 @@ def note_stats(db: Session = Depends(get_db)):
     }
 
 
-def history_today(db: Session = Depends(get_db)):
+def history_today(module_scope: Optional[str] = None, db: Session = Depends(get_db)):
     from datetime import date as dt_date
     from sqlalchemy import func as sqlfunc
 
+    scope = _normalize_module_scope(module_scope)
     today = dt_date.today()
     md = today.strftime("%m-%d")
     notes = (
@@ -168,6 +206,7 @@ def history_today(db: Session = Depends(get_db)):
             Note.note_type == "diary",
             Note.note_date.isnot(None),
             Note.is_deleted == False,  # noqa: E712
+            Note.module_scope == scope,
             sqlfunc.strftime("%m-%d", Note.note_date) == md,
             sqlfunc.strftime("%Y", Note.note_date) != str(today.year),
         )
@@ -177,10 +216,15 @@ def history_today(db: Session = Depends(get_db)):
     return [{"id": n.id, "title": n.title, "note_date": str(n.note_date)} for n in notes]
 
 
-def diary_tree(db: Session = Depends(get_db)):
+def diary_tree(module_scope: Optional[str] = None, db: Session = Depends(get_db)):
     notes = (
         db.query(Note.id, Note.title, Note.note_date)
-        .filter(Note.note_type == "diary", Note.note_date.isnot(None), Note.is_deleted == False)  # noqa: E712
+        .filter(
+            Note.note_type == "diary",
+            Note.note_date.isnot(None),
+            Note.is_deleted == False,
+            Note.module_scope == _normalize_module_scope(module_scope),
+        )  # noqa: E712
         .order_by(Note.note_date.desc())
         .all()
     )
@@ -306,19 +350,25 @@ def _parse_note_wikilinks(text: str) -> List[tuple[str, Optional[str]]]:
     return out
 
 
-def _resolve_link_target_id(db: Session, target_name: str) -> Optional[int]:
+def _resolve_link_target_id(db: Session, target_name: str, module_scope: Optional[str] = None) -> Optional[int]:
+    scope = _normalize_module_scope(module_scope)
     name = (target_name or "").strip()
     if not name:
         return None
     note = (
         db.query(Note)
-        .filter(Note.title == name, Note.note_type == "doc", Note.is_deleted == False)  # noqa: E712
+        .filter(Note.title == name, Note.note_type == "doc", Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
         .order_by(Note.updated_at.desc())
         .first()
     )
     if note:
         return note.id
-    note = db.query(Note).filter(Note.title == name, Note.is_deleted == False).order_by(Note.updated_at.desc()).first()  # noqa: E712
+    note = (
+        db.query(Note)
+        .filter(Note.title == name, Note.is_deleted == False, Note.module_scope == scope)
+        .order_by(Note.updated_at.desc())
+        .first()
+    )  # noqa: E712
     return note.id if note else None
 
 
@@ -329,7 +379,7 @@ def _index_note_links(db: Session, note: Note):
         db.add(
             NoteLink(
                 source_note_id=note.id,
-                target_note_id=_resolve_link_target_id(db, name),
+                target_note_id=_resolve_link_target_id(db, name, note.module_scope),
                 target_name=name,
                 target_heading=heading,
             )
@@ -339,7 +389,9 @@ def _index_note_links(db: Session, note: Note):
 def _refresh_link_targets(db: Session):
     links = db.query(NoteLink).all()
     for lk in links:
-        lk.target_note_id = _resolve_link_target_id(db, lk.target_name)
+        source_note = db.query(Note).filter(Note.id == lk.source_note_id).first()
+        source_scope = source_note.module_scope if source_note else DEFAULT_NOTE_SCOPE
+        lk.target_note_id = _resolve_link_target_id(db, lk.target_name, source_scope)
 
 
 def index_links_for_existing_notes():
@@ -354,12 +406,24 @@ def index_links_for_existing_notes():
         db.close()
 
 
-def search_notes(q: str = Query(..., min_length=1), note_type: Optional[str] = Query(None), limit: int = Query(30, ge=1, le=100), db: Session = Depends(get_db)):
+def search_notes(
+    q: str = Query(..., min_length=1),
+    note_type: Optional[str] = Query(None),
+    limit: int = Query(30, ge=1, le=100),
+    module_scope: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
     kw = q.strip()
     keys = _split_keywords(kw)
     if not keys:
         return []
-    rows = db.query(Note).filter(Note.is_deleted == False).order_by(Note.updated_at.desc()).limit(500).all()  # noqa: E712
+    rows = (
+        db.query(Note)
+        .filter(Note.is_deleted == False, Note.module_scope == _normalize_module_scope(module_scope))
+        .order_by(Note.updated_at.desc())
+        .limit(500)
+        .all()
+    )  # noqa: E712
     out = []
     for n in rows:
         if note_type and n.note_type != note_type:
@@ -392,9 +456,9 @@ def search_notes(q: str = Query(..., min_length=1), note_type: Optional[str] = Q
     return trimmed
 
 
-def resolve_note_link(name: str = Query(..., min_length=1), db: Session = Depends(get_db)):
+def resolve_note_link(name: str = Query(..., min_length=1), module_scope: Optional[str] = Query(None), db: Session = Depends(get_db)):
     target_name = name.strip()
-    target_id = _resolve_link_target_id(db, target_name)
+    target_id = _resolve_link_target_id(db, target_name, module_scope)
     if not target_id:
         return {"resolved": False, "matches": []}
     n = db.query(Note).filter(Note.id == target_id, Note.is_deleted == False).first()  # noqa: E712
@@ -414,14 +478,15 @@ def resolve_note_link(name: str = Query(..., min_length=1), db: Session = Depend
     }
 
 
-def note_backlinks(note_id: int, limit: int = Query(100, ge=1, le=300), db: Session = Depends(get_db)):
-    target = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False).first()  # noqa: E712
+def note_backlinks(note_id: int, limit: int = Query(100, ge=1, le=300), module_scope: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
+    target = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False, Note.module_scope == scope).first()  # noqa: E712
     if not target:
         raise HTTPException(404, "Note not found")
     rows = (
         db.query(NoteLink, Note)
         .join(Note, Note.id == NoteLink.source_note_id)
-        .filter(NoteLink.target_note_id == note_id, Note.is_deleted == False)  # noqa: E712
+        .filter(NoteLink.target_note_id == note_id, Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
         .order_by(Note.updated_at.desc())
         .limit(limit)
         .all()
@@ -446,10 +511,20 @@ def note_backlinks(note_id: int, limit: int = Query(100, ge=1, le=300), db: Sess
     return out
 
 
-def diary_summaries(year: int = Query(..., ge=1970, le=2100), month: Optional[int] = Query(None, ge=1, le=12), db: Session = Depends(get_db)):
+def diary_summaries(
+    year: int = Query(..., ge=1970, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    module_scope: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
     from sqlalchemy import extract
 
-    q = db.query(Note).filter(Note.note_type == "diary", Note.note_date.isnot(None), Note.is_deleted == False)  # noqa: E712
+    q = db.query(Note).filter(
+        Note.note_type == "diary",
+        Note.note_date.isnot(None),
+        Note.is_deleted == False,
+        Note.module_scope == _normalize_module_scope(module_scope),
+    )  # noqa: E712
     q = q.filter(extract("year", Note.note_date) == year)
     if month is not None:
         q = q.filter(extract("month", Note.note_date) == month)
@@ -457,7 +532,7 @@ def diary_summaries(year: int = Query(..., ge=1970, le=2100), month: Optional[in
     return [{"id": n.id, "note_date": str(n.note_date), "summary": _note_summary_text(n.content, n.title)} for n in notes]
 
 
-def notes_calendar(year: int = Query(...), month: int = Query(...), db: Session = Depends(get_db)):
+def notes_calendar(year: int = Query(...), month: int = Query(...), module_scope: Optional[str] = Query(None), db: Session = Depends(get_db)):
     from sqlalchemy import extract
 
     dates = (
@@ -466,6 +541,7 @@ def notes_calendar(year: int = Query(...), month: int = Query(...), db: Session 
             Note.note_type == "diary",
             Note.note_date.isnot(None),
             Note.is_deleted == False,  # noqa: E712
+            Note.module_scope == _normalize_module_scope(module_scope),
             extract("year", Note.note_date) == year,
             extract("month", Note.note_date) == month,
         )
@@ -479,7 +555,12 @@ def create_note(data: NoteCreate, db: Session = Depends(get_db)):
     nb = db.query(Notebook).filter(Notebook.id == data.notebook_id).first()
     if not nb:
         raise HTTPException(404, "Notebook not found")
-    obj = Note(**data.model_dump(), owner_role=nb.owner_role or _owner_role_value_for_create())
+    payload = data.model_dump()
+    requested_scope = _normalize_module_scope(payload.get("module_scope"))
+    if nb.module_scope != requested_scope:
+        raise HTTPException(400, "notebook scope mismatch")
+    payload["module_scope"] = nb.module_scope
+    obj = Note(**payload, owner_role=nb.owner_role or _owner_role_value_for_create())
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -489,19 +570,30 @@ def create_note(data: NoteCreate, db: Session = Depends(get_db)):
     return obj
 
 
-def get_note(note_id: int, db: Session = Depends(get_db)):
-    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False).first()  # noqa: E712
+def get_note(note_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False, Note.module_scope == _normalize_module_scope(module_scope)).first()  # noqa: E712
     if not n:
         raise HTTPException(404, "Note not found")
     return n
 
 
-def update_note(note_id: int, data: NoteUpdate, db: Session = Depends(get_db)):
-    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False).first()  # noqa: E712
+def update_note(note_id: int, module_scope: Optional[str] = None, data: NoteUpdate = None, db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
+    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False, Note.module_scope == scope).first()  # noqa: E712
     if not n:
         raise HTTPException(404, "Note not found")
     old_title = (n.title or "").strip()
-    for k, v in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    if "notebook_id" in updates:
+        target_nb = db.query(Notebook).filter(Notebook.id == updates["notebook_id"]).first()
+        if not target_nb:
+            raise HTTPException(404, "Notebook not found")
+        if target_nb.module_scope != scope:
+            raise HTTPException(400, "notebook scope mismatch")
+        updates["module_scope"] = target_nb.module_scope
+    if "module_scope" in updates:
+        updates["module_scope"] = scope
+    for k, v in updates.items():
         setattr(n, k, v)
     _index_note_links(db, n)
     if (n.title or "").strip() != old_title:
@@ -511,8 +603,8 @@ def update_note(note_id: int, data: NoteUpdate, db: Session = Depends(get_db)):
     return n
 
 
-def delete_note(note_id: int, db: Session = Depends(get_db)):
-    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False).first()  # noqa: E712
+def delete_note(note_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False, Note.module_scope == _normalize_module_scope(module_scope)).first()  # noqa: E712
     if not n:
         raise HTTPException(404, "Note not found")
     n.is_deleted = True
@@ -523,15 +615,15 @@ def delete_note(note_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-def list_recycle_notes(note_type: Optional[str] = Query(None), db: Session = Depends(get_db)):
-    q = db.query(Note).filter(Note.is_deleted == True)  # noqa: E712
+def list_recycle_notes(note_type: Optional[str] = Query(None), module_scope: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    q = db.query(Note).filter(Note.is_deleted == True, Note.module_scope == _normalize_module_scope(module_scope))  # noqa: E712
     if note_type:
         q = q.filter(Note.note_type == note_type)
     return q.order_by(Note.deleted_at.desc()).all()
 
 
-def restore_note(note_id: int, db: Session = Depends(get_db)):
-    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == True).first()  # noqa: E712
+def restore_note(note_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == True, Note.module_scope == _normalize_module_scope(module_scope)).first()  # noqa: E712
     if not n:
         raise HTTPException(404, "Note not found in recycle bin")
     n.is_deleted = False
@@ -543,8 +635,8 @@ def restore_note(note_id: int, db: Session = Depends(get_db)):
     return n
 
 
-def purge_note(note_id: int, db: Session = Depends(get_db)):
-    n = db.query(Note).filter(Note.id == note_id).first()
+def purge_note(note_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    n = db.query(Note).filter(Note.id == note_id, Note.module_scope == _normalize_module_scope(module_scope)).first()
     if not n:
         raise HTTPException(404, "Note not found")
     db.query(NoteLink).filter(NoteLink.source_note_id == note_id).delete(synchronize_session=False)
@@ -554,8 +646,8 @@ def purge_note(note_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-def clear_recycle_notes(note_type: Optional[str] = Query(None), db: Session = Depends(get_db)):
-    q = db.query(Note).filter(Note.is_deleted == True)  # noqa: E712
+def clear_recycle_notes(note_type: Optional[str] = Query(None), module_scope: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    q = db.query(Note).filter(Note.is_deleted == True, Note.module_scope == _normalize_module_scope(module_scope))  # noqa: E712
     if note_type:
         q = q.filter(Note.note_type == note_type)
     rows = q.all()

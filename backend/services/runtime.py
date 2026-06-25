@@ -168,6 +168,8 @@ def _migrate_legacy_schema():
         if "sort_order" not in notebook_cols:
             db.execute(text("ALTER TABLE notebooks ADD COLUMN sort_order INTEGER DEFAULT 0"))
         _ensure_sqlite_column(db, "notebooks", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+        _ensure_sqlite_column(db, "notebooks", "module_scope", "VARCHAR(30) DEFAULT 'notes'")
+        db.execute(text("UPDATE notebooks SET module_scope='notes' WHERE module_scope IS NULL OR module_scope=''"))
 
         note_cols = _column_names(db, "notes")
         if "is_deleted" not in note_cols:
@@ -175,6 +177,8 @@ def _migrate_legacy_schema():
         if "deleted_at" not in note_cols:
             db.execute(text("ALTER TABLE notes ADD COLUMN deleted_at DATETIME"))
         _ensure_sqlite_column(db, "notes", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+        _ensure_sqlite_column(db, "notes", "module_scope", "VARCHAR(30) DEFAULT 'notes'")
+        db.execute(text("UPDATE notes SET module_scope='notes' WHERE module_scope IS NULL OR module_scope=''"))
 
         todo_cols = _column_names(db, "todo_items")
         if "source_anchor_text" not in todo_cols:

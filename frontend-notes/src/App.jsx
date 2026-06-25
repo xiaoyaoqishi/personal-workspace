@@ -87,6 +87,9 @@ function RecycleViewWrapper() {
 
 function AppLayout() {
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isEmbed = searchParams.get('embed') === '1';
+  const moduleScope = (searchParams.get('scope') || searchParams.get('module_scope') || 'notes').trim().toLowerCase() || 'notes';
   const [notebooks, setNotebooks] = useState([]);
 
   const loadNotebooks = useCallback(async () => {
@@ -96,15 +99,19 @@ function AppLayout() {
     } catch {}
   }, []);
 
-  useEffect(() => { loadNotebooks(); }, [loadNotebooks]);
+  useEffect(() => { loadNotebooks(); }, [loadNotebooks, location.search]);
   useEffect(() => {
-    auditApi.track({ path: '/notes/', module: 'notes', detail: `path:${location.pathname}` }).catch(() => {});
-  }, [location.pathname]);
+    auditApi.track({
+      path: '/notes/',
+      module: moduleScope === 'trading' ? 'trading' : 'notes',
+      detail: `path:${location.pathname};scope:${moduleScope};embed:${isEmbed ? '1' : '0'}`,
+    }).catch(() => {});
+  }, [isEmbed, location.pathname, moduleScope]);
 
   return (
     <NotebooksContext.Provider value={{ notebooks, reload: loadNotebooks }}>
       <div className="app-layout">
-        <IconSidebar />
+        {!isEmbed ? <IconSidebar /> : null}
         <div className="app-content">
           <Suspense fallback={<LoadingBlock />}>
             <Routes>

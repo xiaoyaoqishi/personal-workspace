@@ -26,6 +26,7 @@
 - Knowledge maintain workspace supports long-content bottom scroll buffer and a back-to-top button for long pages.
 - Review session and trade plan workspaces support long-content bottom scroll buffer and a back-to-top button for long pages.
 - Review session and trade plan workspaces support collapsible sidebars, grouped sections (`研究内容` / `属性与关联`), and title-free main panels.
+- Trading now includes a dedicated `Research` submodule that embeds the same document workspace capabilities as Notes docs, while keeping research data isolated from the main Notes module.
 - Trading recycle bin for trades, brokers, review sessions, plans, and knowledge items.
 
 ### Notes / Knowledge
@@ -121,7 +122,7 @@ Open the portal at `http://127.0.0.1:5172`.
 ## Routes & Entry Points
 - `/`: Portal home page for the workspace.
 - `/login`: Shared login page.
-- `/trading/`: Trading SPA entry; the app redirects to `/trading/dashboard`.
+- `/trading/`: Trading SPA entry; the app redirects to `/trading/dashboard` and includes the `/trading/research` submodule.
 - `/notes/`: Notes workspace entry.
 - `/monitor/`: Monitor and admin workspace entry.
 - `/ledger/`: Ledger SPA entry; the app redirects to `/ledger/imports`.

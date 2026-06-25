@@ -15,6 +15,7 @@ import {
   SunOutlined,
   ThunderboltOutlined,
   DeleteOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import TradeList from './pages/TradeList';
@@ -23,6 +24,7 @@ import ReviewList from './pages/ReviewList';
 import InfoMaintain from './pages/BrokerManage';
 import TradePlanList from './pages/TradePlanList';
 import TradingRecycleBin from './pages/TradingRecycleBin';
+import TradingResearch from './pages/TradingResearch';
 import api from './api';
 import useTheme from './hooks/useTheme';
 import './styles/tokens.css';
@@ -33,6 +35,7 @@ const tabs = [
   { key: '/maintain', icon: <BankOutlined />, label: '信息维护' },
   { key: '/reviews', icon: <FileTextOutlined />, label: '复盘会话' },
   { key: '/plans', icon: <ProjectOutlined />, label: '计划' },
+  { key: '/research', icon: <SearchOutlined />, label: '研究' },
   { key: '/recycle', icon: <DeleteOutlined />, label: '回收站' },
 ];
 
@@ -126,6 +129,7 @@ function AppLayout({ theme, setTheme }) {
           <Route path="/maintain" element={<InfoMaintain />} />
           <Route path="/reviews" element={<ReviewList />} />
           <Route path="/plans" element={<TradePlanList />} />
+          <Route path="/research" element={<TradingResearch />} />
           <Route path="/recycle" element={<TradingRecycleBin />} />
         </Routes>
       </div>

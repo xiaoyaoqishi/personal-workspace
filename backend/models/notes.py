@@ -17,6 +17,7 @@ class Notebook(Base):
     icon = Column(String(10), default="📁")
     parent_id = Column(Integer, ForeignKey("notebooks.id"), nullable=True)
     sort_order = Column(Integer, default=0)
+    module_scope = Column(String(30), default="notes", index=True)
     owner_role = Column(String(20), default="admin", index=True)
 
     notes = relationship("Note", back_populates="notebook", cascade="all, delete-orphan")
@@ -37,6 +38,7 @@ class Note(Base):
     tags = Column(Text)
     is_pinned = Column(Boolean, default=False)
     word_count = Column(Integer, default=0)
+    module_scope = Column(String(30), default="notes", index=True)
     owner_role = Column(String(20), default="admin", index=True)
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime, nullable=True)

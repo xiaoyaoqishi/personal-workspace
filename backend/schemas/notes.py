@@ -12,6 +12,7 @@ class NotebookCreate(BaseModel):
     icon: Optional[str] = "馃搧"
     parent_id: Optional[int] = None
     sort_order: Optional[int] = 0
+    module_scope: Optional[str] = "notes"
 
 
 class NotebookUpdate(BaseModel):
@@ -20,6 +21,7 @@ class NotebookUpdate(BaseModel):
     icon: Optional[str] = None
     parent_id: Optional[int] = None
     sort_order: Optional[int] = None
+    module_scope: Optional[str] = None
 
 
 class NotebookResponse(NotebookCreate):
@@ -42,6 +44,7 @@ class NoteCreate(BaseModel):
     tags: Optional[str] = None
     is_pinned: Optional[bool] = False
     word_count: Optional[int] = 0
+    module_scope: Optional[str] = "notes"
 
 
 class NoteUpdate(BaseModel):
@@ -53,6 +56,7 @@ class NoteUpdate(BaseModel):
     tags: Optional[str] = None
     is_pinned: Optional[bool] = None
     word_count: Optional[int] = None
+    module_scope: Optional[str] = None
 
 
 class NoteResponse(NoteCreate):
