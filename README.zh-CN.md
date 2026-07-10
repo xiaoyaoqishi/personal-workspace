@@ -191,11 +191,11 @@ bash deploy/setup.sh
 bash deploy/update.sh
 ```
 
-- `deploy/setup.sh`：首次部署脚本。负责安装运行时依赖、创建 `.venv`、构建全部前端、安装 Nginx 配置并启用 `trading` systemd 服务。
+- `deploy/setup.sh`：首次部署脚本。负责安装运行时依赖、在 `/opt/tradingRecordsData/venv` 创建生产虚拟环境、构建全部前端、安装 Nginx 配置并启用 `trading` systemd 服务。
 - `deploy/cert-renew.sh`：执行 `certbot renew`，并在续期成功后自动 reload Nginx。
 - `deploy/trading-cert-renew.service` + `deploy/trading-cert-renew.timer`：通过 `systemd timer` 每天两次检查证书续期，`deploy/setup.sh` 会自动安装并启用。
-- `deploy/update.sh`：常规更新脚本。负责拉取最新代码、刷新后端依赖、重建全部前端、同步 portal 文件、重载 Nginx 并重启 `trading` 服务。
-- `deploy/trading.service`：systemd 单元文件，从 `/opt/tradingRecords/.venv` 启动 `uvicorn`，并通过 `UPLOAD_DIR=/opt/tradingRecordsData/uploads` 将上传目录放在仓库外。
+- `deploy/update.sh`：常规更新脚本。负责拉取最新代码、在 `/opt/tradingRecordsData/venv` 刷新后端依赖、重建全部前端、同步 portal 文件、重载 Nginx 并重启 `trading` 服务。
+- `deploy/trading.service`：systemd 单元文件，从 `/opt/tradingRecordsData/venv` 启动 `uvicorn`，并通过 `UPLOAD_DIR=/opt/tradingRecordsData/uploads` 将上传目录放在仓库外。
 - `deploy/nginx.conf`：宿主机 Nginx 配置，负责 `/`、`/trading/`、`/notes/`、`/monitor/`、`/ledger/` 的静态分发和 `/api/*` 到 `127.0.0.1:8000` 的代理。
 
 对于已经存在 Let’s Encrypt 证书的服务器，可以立即手动触发一次续期检查：

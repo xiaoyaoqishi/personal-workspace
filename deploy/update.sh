@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 cd /opt/tradingRecords
-VENV_DIR="/opt/tradingRecords/.venv"
+VENV_DIR="/opt/tradingRecordsData/venv"
 PYTHON_BIN="$VENV_DIR/bin/python"
 PIP_BIN="$VENV_DIR/bin/pip"
 
@@ -45,7 +45,7 @@ fi
 "$PIP_BIN" install -U pip -q
 "$PIP_BIN" install -r /opt/tradingRecords/backend/requirements.txt -q
 cd backend
-run_privileged mkdir -p /opt/tradingRecordsData/uploads
+run_privileged mkdir -p /opt/tradingRecordsData/uploads /opt/tradingRecordsData/venv
 migrate_upload_dir /opt/tradingRecords/backend/services/data/uploads
 migrate_upload_dir /opt/tradingRecords/backend/data/uploads
 

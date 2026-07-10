@@ -10,13 +10,14 @@ git clone https://github.com/xiaoyaoqishi/tradingRecords.git
 cd tradingRecords
 
 echo "=== 3. 后端 ==="
-/usr/bin/python3 -m venv /opt/tradingRecords/.venv
-/opt/tradingRecords/.venv/bin/pip install -U pip
-/opt/tradingRecords/.venv/bin/pip install -r /opt/tradingRecords/backend/requirements.txt
+VENV_DIR="/opt/tradingRecordsData/venv"
+/usr/bin/python3 -m venv "$VENV_DIR"
+"$VENV_DIR/bin/pip" install -U pip
+"$VENV_DIR/bin/pip" install -r /opt/tradingRecords/backend/requirements.txt
 
 cd backend
 mkdir -p data
-mkdir -p /opt/tradingRecordsData/uploads
+mkdir -p /opt/tradingRecordsData/uploads /opt/tradingRecordsData/venv
 if [ -d /opt/tradingRecords/backend/services/data/uploads ]; then
   cp -an /opt/tradingRecords/backend/services/data/uploads/. /opt/tradingRecordsData/uploads/
 fi
