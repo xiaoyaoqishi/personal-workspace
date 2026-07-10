@@ -39,13 +39,14 @@ echo "=== 拉取最新代码 ==="
 git pull
 
 echo "=== 安装后端依赖 ==="
+run_privileged mkdir -p /opt/tradingRecordsData /opt/tradingRecordsData/uploads /opt/tradingRecordsData/venv
 if [ ! -x "$PYTHON_BIN" ]; then
+  run_privileged chown "$(id -un)":"$(id -gn)" /opt/tradingRecordsData/venv
   /usr/bin/python3 -m venv "$VENV_DIR"
 fi
 "$PIP_BIN" install -U pip -q
 "$PIP_BIN" install -r /opt/tradingRecords/backend/requirements.txt -q
 cd backend
-run_privileged mkdir -p /opt/tradingRecordsData/uploads /opt/tradingRecordsData/venv
 migrate_upload_dir /opt/tradingRecords/backend/services/data/uploads
 migrate_upload_dir /opt/tradingRecords/backend/data/uploads
 
@@ -84,11 +85,15 @@ done
 
 echo "=== 重启服务 ==="
 run_privileged cp /opt/tradingRecords/deploy/nginx.conf /etc/nginx/sites-available/trading
+run_privileged cp /opt/tradingRecords/deploy/trading.service /etc/systemd/system/
+run_privileged cp /opt/tradingRecords/deploy/trading-cert-renew.service /etc/systemd/system/
+run_privileged cp /opt/tradingRecords/deploy/trading-cert-renew.timer /etc/systemd/system/
 run_privileged ln -sf /etc/nginx/sites-available/trading /etc/nginx/sites-enabled/trading
 run_privileged rm -f /etc/nginx/sites-enabled/default
 run_privileged nginx -t
 run_privileged systemctl daemon-reload
 run_privileged systemctl restart nginx
 run_privileged systemctl restart trading
+run_privileged systemctl enable --now trading-cert-renew.timer
 
 echo "=== 更新完成 ==="
