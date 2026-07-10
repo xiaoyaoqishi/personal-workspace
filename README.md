@@ -145,8 +145,6 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 - `frontend-ledger/`: Independent ledger frontend served under `/ledger/`.
 - `portal/`: Static portal and login entry used in local development and production.
 - `deploy/`: Bare-metal deployment scripts, systemd service, and Nginx runtime config.
-- `docker-compose.yml`: Legacy container deployment entry, no longer the default production path.
-- `Dockerfile.backend` / `Dockerfile.web`: Legacy container image definitions, kept only for compatibility or rollback.
 - `dev.sh`: Unified local development script for backend, portal, and auto-discovered frontends.
 
 ## Tech Stack
@@ -199,7 +197,6 @@ bash deploy/update.sh
 - `deploy/update.sh`: routine server update. Pulls the latest code, refreshes backend dependencies, rebuilds all frontend apps, syncs portal files, reloads Nginx, and restarts the `trading` service.
 - `deploy/trading.service`: systemd unit that runs `uvicorn` from `/opt/tradingRecords/.venv` and keeps uploads outside the repo through `UPLOAD_DIR=/opt/tradingRecordsData/uploads`.
 - `deploy/nginx.conf`: host-level Nginx config that serves `/`, `/trading/`, `/notes/`, `/monitor/`, `/ledger/`, and proxies `/api/*` to `127.0.0.1:8000`.
-- `deploy/docker-up.sh` and `deploy/docker-update.sh`: deprecated stubs kept only to stop accidental Docker-based deployment.
 
 For existing servers that already have Let's Encrypt certificates, you can force an immediate renewal check with:
 
