@@ -504,13 +504,14 @@ def init_runtime() -> None:
         return
 
     from services.auth_runtime import migrate_legacy_auth_to_users
-    from services.monitor_runtime import init_monitor_runtime
+    from services.monitor_runtime import init_monitor_runtime, purge_obsolete_server_monitoring_data
 
     Base.metadata.create_all(bind=engine)
     _migrate_legacy_schema()
     _migrate_reviews_to_review_sessions()
     _init_default_notebooks()
     migrate_legacy_auth_to_users()
+    purge_obsolete_server_monitoring_data()
     _index_links_for_existing_notes()
     _maintenance_thread.start()
     init_monitor_runtime()

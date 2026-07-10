@@ -19,15 +19,11 @@ export const authApi = {
 };
 
 export const monitorApi = {
-  realtime: () => api.get('/monitor/realtime'),
-  history: () => api.get('/monitor/history'),
   listSites: () => api.get('/monitor/sites'),
   createSite: (data) => api.post('/monitor/sites', data),
   updateSite: (id, data) => api.put(`/monitor/sites/${id}`, data),
   deleteSite: (id) => api.delete(`/monitor/sites/${id}`),
   siteResults: (id, params) => api.get(`/monitor/sites/${id}/results`, { params }),
-  serverSamples: (params) => api.get('/monitor/server-samples', { params }),
-  serverTrend: (params) => api.get('/monitor/server-trend', { params }),
 };
 
 export const userAdminApi = {

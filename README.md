@@ -3,12 +3,12 @@
 # tradingRecords: Self-Hosted Personal Workspace
 
 ## Positioning
-`tradingRecords` is a self-hosted personal multi-app workspace. It combines trading records and review, notes, server monitoring, personal ledger, unified login, and a shared portal in one repository.
+`tradingRecords` is a self-hosted personal multi-app workspace. It combines trading records and review, notes, admin-side site checks, personal ledger, unified login, and a shared portal in one repository.
 
 ## Module Map
 - `Trading`: Trade records, analytics, review sessions, plans, and research or knowledge workflow.
 - `Notes`: Notebooks, diary and document notes, backlinks, todo, and recycle flow.
-- `Monitor`: Admin-side server metrics, site checks, users, and audit logs.
+- `Monitor`: Admin-side site checks, users, and audit logs.
 - `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, analytics, and an in-app asset library.
 - `Portal`: Static home page and login entry for the workspace.
 - `Backend`: Shared FastAPI API, auth, data permissions, uploads, and SQLite-backed services.
@@ -39,9 +39,8 @@
 
 ### Monitor / Admin
 - Login, logout, setup, and session check flow through the shared backend.
-- Admin-only monitor APIs for server metrics and site checks.
+- Admin-only monitor APIs for site checks.
 - Monitor frontend now includes four switchable themes (`light` / `ink` / `tech` / `dark`) through a sidebar dropdown selector, with theme choice persisted locally.
-- Realtime and historical server metrics.
 - Site target CRUD and per-target result history.
 - User management with role and password operations.
 - Per-user module visibility for `trading`, `notes`, and `ledger`.
@@ -90,7 +89,7 @@
 - Node.js
 - npm
 - Optional: `tmux`
-- For production deployment: Linux and Docker (`docker compose`)
+- For production deployment: Linux, `systemd`, and Nginx
 
 ### Install Dependencies
 ```bash
@@ -145,9 +144,9 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 - `frontend-monitor/`: Monitor and admin frontend served under `/monitor/`.
 - `frontend-ledger/`: Independent ledger frontend served under `/ledger/`.
 - `portal/`: Static portal and login entry used in local development and production.
-- `deploy/`: Deployment scripts and Docker/Nginx runtime config.
-- `docker-compose.yml`: Container orchestration entry for production deployment.
-- `Dockerfile.backend` / `Dockerfile.web`: Backend and web runtime image definitions.
+- `deploy/`: Bare-metal deployment scripts, systemd service, and Nginx runtime config.
+- `docker-compose.yml`: Legacy container deployment entry, no longer the default production path.
+- `Dockerfile.backend` / `Dockerfile.web`: Legacy container image definitions, kept only for compatibility or rollback.
 - `dev.sh`: Unified local development script for backend, portal, and auto-discovered frontends.
 
 ## Tech Stack
@@ -155,7 +154,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 - SQLite
 - React / Vite / Axios / Ant Design
 - Recharts
-- Docker / Nginx / shell scripts
+- Nginx / systemd / shell scripts
 
 ## Environment Variables
 | Variable | Purpose |
@@ -187,11 +186,26 @@ cd frontend-ledger && npm run build
 ```
 
 ## Deployment
-Production deployment now uses Docker Compose as the default path. Use `deploy/docker-up.sh` for first-time server deployment and `deploy/docker-update.sh` for routine updates. The runtime is split into two containers: `backend` (FastAPI) and `web` (Nginx + portal + built frontend apps). API traffic is proxied from the web container to `backend:8000`, and persistent data is isolated in Docker volumes (`backend_data`, `backend_uploads`).
+Production deployment now uses direct server deployment by default. Clone the repository to the server, keep the working tree under `/opt/tradingRecords`, build each frontend in place, run the FastAPI backend through `systemd`, and let host Nginx serve the portal, SPA bundles, and `/api/*` proxy.
 
 ```bash
-docker compose up -d --build
-docker compose ps
+bash deploy/setup.sh
+bash deploy/update.sh
+```
+
+- `deploy/setup.sh`: first-time server bootstrap. Installs runtime dependencies, creates `.venv`, builds all frontend apps, installs Nginx config, and enables the `trading` systemd service.
+- `deploy/cert-renew.sh`: runs `certbot renew` and reloads Nginx after a successful renewal.
+- `deploy/trading-cert-renew.service` + `deploy/trading-cert-renew.timer`: twice-daily renewal check through `systemd timer`; `deploy/setup.sh` installs and enables them automatically.
+- `deploy/update.sh`: routine server update. Pulls the latest code, refreshes backend dependencies, rebuilds all frontend apps, syncs portal files, reloads Nginx, and restarts the `trading` service.
+- `deploy/trading.service`: systemd unit that runs `uvicorn` from `/opt/tradingRecords/.venv` and keeps uploads outside the repo through `UPLOAD_DIR=/opt/tradingRecordsData/uploads`.
+- `deploy/nginx.conf`: host-level Nginx config that serves `/`, `/trading/`, `/notes/`, `/monitor/`, `/ledger/`, and proxies `/api/*` to `127.0.0.1:8000`.
+- `deploy/docker-up.sh` and `deploy/docker-update.sh`: deprecated stubs kept only to stop accidental Docker-based deployment.
+
+For existing servers that already have Let's Encrypt certificates, you can force an immediate renewal check with:
+
+```bash
+bash deploy/cert-renew.sh
+systemctl status trading-cert-renew.timer
 ```
 
 ## Docs & Validation

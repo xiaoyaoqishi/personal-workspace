@@ -26,7 +26,6 @@ EVENT_TYPE_ZH_MAP = {
 MODULE_ZH_MAP = {
     "auth": "登录认证",
     "audit": "审计日志",
-    "monitor_home": "网站监控首页",
     "monitor_site": "站点巡检",
     "user_admin": "用户管理",
     "notes": "笔记应用",
@@ -99,8 +98,6 @@ def _to_cn_detail_text(*, detail: Optional[str], event_type: str, path: str) -> 
         return "登录成功"
     if raw == "logout":
         return "退出登录"
-    if raw == "open monitor app":
-        return "打开网站监控应用"
     if raw.startswith("create user "):
         return f"创建用户：{raw.replace('create user ', '', 1)}"
     if raw.startswith("set active="):

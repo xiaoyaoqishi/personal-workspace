@@ -46,6 +46,13 @@
 - 本地默认落在 `backend/data/uploads`；生产 systemd 服务使用 `/opt/tradingRecordsData/uploads`。
 - 生产环境必须保证上传目录不在 Git 工作区内，避免用户上传文件阻塞代码更新或被误提交。
 
+### TLS Certificate Renewal
+
+- 生产 HTTPS 证书路径当前由 `deploy/nginx.conf` 指向 `/etc/letsencrypt/live/tradetrack.top/`。
+- `deploy/cert-renew.sh` 使用 `certbot renew --deploy-hook "systemctl reload nginx"` 执行续期并在成功后重载 Nginx。
+- `deploy/trading-cert-renew.timer` 默认每天两次触发续期检查。
+- 若服务器证书已过期，应先手动执行一次续期或补发，再依赖自动续期。
+
 ## 生产环境禁止项
 
 - 禁止 `DEV_MODE=1` 进入生产环境。
@@ -58,4 +65,5 @@
 - 生产部署应显式关闭 `DEV_MODE`。
 - 生产 cookie 应保持 `COOKIE_SECURE=1`，并通过 HTTPS 提供服务。
 - 生产 CORS 应收敛为明确白名单，不能继续使用 `*` + credentials 的组合。
+- 生产证书续期任务必须处于启用状态，并定期检查 `systemctl status trading-cert-renew.timer` 与 `certbot renew --dry-run`。
 - 安全相关改动若影响登录、跨域、cookie 或部署变量，必须同步检查部署脚本和相关文档。

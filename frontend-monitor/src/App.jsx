@@ -4,7 +4,6 @@ import dayjs from 'dayjs';
 import { Alert, Badge, Button, Card, ConfigProvider, DatePicker, Dropdown, Empty, Form, Input, InputNumber, message, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tabs, Tag, theme as antdTheme, Tooltip as AntTooltip, Typography } from 'antd';
 import {
   CheckOutlined,
-  DesktopOutlined,
   FileSearchOutlined,
   FormatPainterOutlined,
   GlobalOutlined,
@@ -1114,7 +1113,6 @@ function AuditPanel() {
           options={[
             { label: '登录认证', value: 'auth' },
             { label: '审计日志', value: 'audit' },
-            { label: '网站监控首页', value: 'monitor_home' },
             { label: '站点巡检', value: 'monitor_site' },
             { label: '用户管理', value: 'user_admin' },
             { label: '笔记应用', value: 'notes' },
@@ -1215,19 +1213,13 @@ function AppLayout({ theme, setTheme }) {
   const { ready, ok } = useAdminGuard();
   const moduleItems = useMemo(
     () => [
-      { key: 'server', label: '服务器监控', icon: <DesktopOutlined />, desc: '查看主机实时状态与采样', content: <ServerPanel /> },
       { key: 'site', label: '站点可用性巡检', icon: <GlobalOutlined />, desc: '管理巡检目标与健康状态', content: <SitePanel /> },
       { key: 'users', label: '用户管理', icon: <TeamOutlined />, desc: '创建账户、启停用与重置密码', content: <UserPanel /> },
       { key: 'audit', label: '浏览记录', icon: <FileSearchOutlined />, desc: '查看页面访问与关键操作审计', content: <AuditPanel /> },
     ],
     [],
   );
-  const [activeKey, setActiveKey] = useState('server');
-
-  useEffect(() => {
-    if (!ok) return;
-    auditApi.track({ path: '/monitor/', module: 'monitor_home', detail: 'open monitor app' }).catch(() => {});
-  }, [ok]);
+  const [activeKey, setActiveKey] = useState('site');
 
   if (!ready) return <div className="loading">正在验证管理员权限...</div>;
 

@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 import core.db as core_db
 from core.db import Base
+from models import BrowseLog
 from models.monitor import MonitorServerSample, MonitorServerSampleRollup, MonitorSite, MonitorSiteResult
 from services import monitor_runtime
 
@@ -22,6 +23,7 @@ def monitor_db(tmp_path, monkeypatch):
 
 
 def _clear_monitor_tables(db):
+    db.query(BrowseLog).delete(synchronize_session=False)
     db.query(MonitorServerSampleRollup).delete(synchronize_session=False)
     db.query(MonitorServerSample).delete(synchronize_session=False)
     db.query(MonitorSiteResult).delete(synchronize_session=False)
@@ -29,7 +31,7 @@ def _clear_monitor_tables(db):
     db.commit()
 
 
-def test_monitor_cleanup_retention_window(monitor_db):
+def test_monitor_cleanup_removes_obsolete_server_monitoring_data(monitor_db):
     now = datetime(2026, 5, 1, 12, 0, 0)
     db = monitor_db()
     try:
@@ -46,22 +48,16 @@ def test_monitor_cleanup_retention_window(monitor_db):
                 MonitorSiteResult(site_id=site.id, created_at=now - timedelta(days=7), ok=True),
                 MonitorServerSampleRollup(
                     granularity="day",
-                    bucket_start=now - timedelta(days=366),
+                    bucket_start=now - timedelta(days=3),
                     avg_cpu=10,
                     max_cpu=10,
                     avg_mem=20,
                     max_mem=20,
                     sample_count=1,
                 ),
-                MonitorServerSampleRollup(
-                    granularity="day",
-                    bucket_start=now - timedelta(days=3),
-                    avg_cpu=30,
-                    max_cpu=30,
-                    avg_mem=40,
-                    max_mem=40,
-                    sample_count=1,
-                ),
+                BrowseLog(username="demo", role="user", event_type="page_view", path="/monitor/", module="monitor_home", detail="open monitor app"),
+                BrowseLog(username="demo", role="user", event_type="action", path="/api/monitor/realtime", module="monitor_home", detail="legacy realtime"),
+                BrowseLog(username="demo", role="user", event_type="page_view", path="/monitor/sites", module="monitor_site", detail="site panel"),
             ]
         )
         db.commit()
@@ -72,111 +68,15 @@ def test_monitor_cleanup_retention_window(monitor_db):
     assert result["deleted_samples"] >= 1
     assert result["deleted_site_results"] >= 1
     assert result["deleted_rollups"] >= 1
+    assert result["deleted_monitor_home_logs"] >= 2
 
     db = monitor_db()
     try:
-        assert db.query(MonitorServerSample).filter(MonitorServerSample.sampled_at < now - timedelta(days=30)).count() == 0
-        assert db.query(MonitorServerSample).filter(MonitorServerSample.sampled_at >= now - timedelta(days=30)).count() >= 1
+        assert db.query(MonitorServerSample).count() == 0
         assert db.query(MonitorSiteResult).filter(MonitorSiteResult.created_at < now - timedelta(days=90)).count() == 0
         assert db.query(MonitorSiteResult).filter(MonitorSiteResult.created_at >= now - timedelta(days=90)).count() >= 1
-        assert (
-            db.query(MonitorServerSampleRollup)
-            .filter(MonitorServerSampleRollup.bucket_start < now - timedelta(days=365))
-            .count()
-            == 0
-        )
-        migrated_rollup = next(
-            (
-                row
-                for row in db.query(MonitorServerSampleRollup)
-                .filter(MonitorServerSampleRollup.granularity == "day")
-                .all()
-                if row.bucket_start and row.bucket_start.strftime("%Y-%m-%d") == "2026-03-31"
-            ),
-            None,
-        )
-        assert migrated_rollup is not None
-        assert round(migrated_rollup.avg_cpu, 1) == 10.0
+        assert db.query(MonitorServerSampleRollup).count() == 0
+        assert db.query(BrowseLog).filter(BrowseLog.module == "monitor_home").count() == 0
+        assert db.query(BrowseLog).filter(BrowseLog.module == "monitor_site").count() == 1
     finally:
         db.close()
-
-
-def test_monitor_rollup_hour_and_day_aggregation(monitor_db):
-    now = datetime(2026, 5, 2, 0, 0, 0)
-    db = monitor_db()
-    try:
-        _clear_monitor_tables(db)
-        db.add_all(
-            [
-                MonitorServerSample(sampled_at=datetime(2026, 5, 1, 10, 5, 0), cpu=10, mem=20),
-                MonitorServerSample(sampled_at=datetime(2026, 5, 1, 10, 45, 0), cpu=30, mem=40),
-                MonitorServerSample(sampled_at=datetime(2026, 5, 1, 11, 15, 0), cpu=50, mem=60),
-            ]
-        )
-        db.commit()
-        monitor_runtime._rollup_server_samples(db, now)
-        db.commit()
-
-        hour_row = (
-            db.query(MonitorServerSampleRollup)
-            .filter(MonitorServerSampleRollup.granularity == "hour")
-            .order_by(MonitorServerSampleRollup.bucket_start.asc())
-            .first()
-        )
-        day_row = (
-            db.query(MonitorServerSampleRollup)
-            .filter(
-                MonitorServerSampleRollup.granularity == "day",
-            )
-            .order_by(MonitorServerSampleRollup.bucket_start.asc())
-            .first()
-        )
-        assert hour_row is not None
-        assert round(hour_row.avg_cpu, 1) == 20.0
-        assert round(hour_row.max_cpu, 1) == 30.0
-        assert hour_row.sample_count == 2
-        assert day_row is not None
-        assert round(day_row.avg_mem, 1) == 40.0
-        assert round(day_row.max_mem, 1) == 60.0
-        assert day_row.sample_count == 3
-    finally:
-        db.close()
-
-
-def test_monitor_trend_prefers_rollup(monitor_db, monkeypatch):
-    now = datetime(2026, 5, 3, 0, 0, 0)
-    db = monitor_db()
-    try:
-        _clear_monitor_tables(db)
-        db.add(
-            MonitorServerSampleRollup(
-                granularity="day",
-                bucket_start=now - timedelta(days=1),
-                avg_cpu=12.2,
-                max_cpu=24.4,
-                avg_mem=33.3,
-                max_mem=44.4,
-                sample_count=10,
-            )
-        )
-        db.add(MonitorServerSample(sampled_at=now - timedelta(days=1), cpu=90.0, mem=90.0))
-        db.commit()
-    finally:
-        db.close()
-
-    monkeypatch.setattr(monitor_runtime, "_require_admin", lambda: None)
-    db = monitor_db()
-    try:
-        rows = monitor_runtime.monitor_server_trend(
-            granularity="day",
-            date_from="2026-05-01",
-            date_to="2026-05-03",
-            db=db,
-        )
-    finally:
-        db.close()
-
-    assert len(rows) == 1
-    assert rows[0]["ts"] == "2026-05-02"
-    assert rows[0]["avg_cpu"] == 12.2
-    assert rows[0]["max_cpu"] == 24.4

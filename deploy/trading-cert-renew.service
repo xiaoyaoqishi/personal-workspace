@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew Let's Encrypt certificates for tradingRecords
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/tradingRecords
+ExecStart=/opt/tradingRecords/deploy/cert-renew.sh

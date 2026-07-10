@@ -258,15 +258,9 @@ def _cleanup_monitor_data(now: Optional[datetime] = None) -> Dict[str, int]:
     ref_now = now or datetime.now()
     db = SessionLocal()
     try:
-        _rollup_server_samples(db, ref_now)
-        sample_cutoff = ref_now - timedelta(days=_SERVER_SAMPLE_RETENTION_DAYS)
         site_cutoff = ref_now - timedelta(days=_SITE_RESULT_RETENTION_DAYS)
-        rollup_cutoff = ref_now - timedelta(days=_ROLLUP_RETENTION_DAYS)
-
         deleted_samples = (
             db.query(MonitorServerSample)
-            .filter(MonitorServerSample.sampled_at.is_not(None))
-            .filter(MonitorServerSample.sampled_at < sample_cutoff)
             .delete(synchronize_session=False)
         )
         deleted_site_results = (
@@ -277,18 +271,36 @@ def _cleanup_monitor_data(now: Optional[datetime] = None) -> Dict[str, int]:
         )
         deleted_rollups = (
             db.query(MonitorServerSampleRollup)
-            .filter(MonitorServerSampleRollup.bucket_start < rollup_cutoff)
+            .delete(synchronize_session=False)
+        )
+        deleted_monitor_home_logs = (
+            db.query(BrowseLog)
+            .filter(
+                (BrowseLog.module == "monitor_home")
+                | (BrowseLog.path == "/monitor/")
+                | (BrowseLog.path == "/api/monitor/realtime")
+                | (BrowseLog.path == "/api/monitor/history")
+                | (BrowseLog.path == "/api/monitor/server-samples")
+                | (BrowseLog.path == "/api/monitor/server-trend")
+            )
             .delete(synchronize_session=False)
         )
         db.commit()
+        _monitor_history.clear()
         return {
             "deleted_samples": int(deleted_samples or 0),
             "deleted_site_results": int(deleted_site_results or 0),
             "deleted_rollups": int(deleted_rollups or 0),
+            "deleted_monitor_home_logs": int(deleted_monitor_home_logs or 0),
         }
     except Exception:
         db.rollback()
-        return {"deleted_samples": 0, "deleted_site_results": 0, "deleted_rollups": 0}
+        return {
+            "deleted_samples": 0,
+            "deleted_site_results": 0,
+            "deleted_rollups": 0,
+            "deleted_monitor_home_logs": 0,
+        }
     finally:
         db.close()
 
@@ -360,11 +372,14 @@ def _retention_loop():
 _retention_thread = threading.Thread(target=_retention_loop, daemon=True)
 
 
+def purge_obsolete_server_monitoring_data() -> Dict[str, int]:
+    return _cleanup_monitor_data()
+
+
 def init_monitor_runtime() -> None:
     global _MONITOR_RUNTIME_INITIALIZED
     if _MONITOR_RUNTIME_INITIALIZED:
         return
-    _monitor_thread.start()
     _site_monitor_thread.start()
     _retention_thread.start()
     _MONITOR_RUNTIME_INITIALIZED = True

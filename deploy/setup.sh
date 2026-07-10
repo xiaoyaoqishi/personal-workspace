@@ -2,7 +2,7 @@
 set -e
 
 echo "=== 1. 系统依赖 ==="
-apt update && apt install -y python3 python3-pip nginx nodejs npm
+apt update && apt install -y python3 python3-pip nginx nodejs npm certbot python3-certbot-nginx
 
 echo "=== 2. 拉取代码 ==="
 cd /opt
@@ -49,8 +49,11 @@ nginx -t && systemctl restart nginx
 
 echo "=== 6. 配置后端服务 ==="
 cp ../deploy/trading.service /etc/systemd/system/
+cp ../deploy/trading-cert-renew.service /etc/systemd/system/
+cp ../deploy/trading-cert-renew.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable trading
+systemctl enable --now trading-cert-renew.timer
 systemctl start trading
 
 echo "=== 部署完成 ==="
