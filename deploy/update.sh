@@ -51,25 +51,25 @@ migrate_upload_dir /opt/tradingRecords/backend/data/uploads
 
 echo "=== 构建交易前端 ==="
 cd ../frontend-trading
-npm install
+npm ci
 clean_frontend_dist "$(pwd)"
 npm run build
 
 echo "=== 构建笔记前端 ==="
 cd ../frontend-notes
-npm install
+npm ci
 clean_frontend_dist "$(pwd)"
 npm run build
 
 echo "=== 构建监控前端 ==="
 cd ../frontend-monitor
-npm install
+npm ci
 clean_frontend_dist "$(pwd)"
 npm run build
 
 echo "=== 构建记账前端 ==="
 cd ../frontend-ledger
-npm install
+npm ci
 clean_frontend_dist "$(pwd)"
 npm run build
 

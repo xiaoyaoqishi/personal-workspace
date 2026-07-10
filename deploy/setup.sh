@@ -26,19 +26,19 @@ fi
 
 echo "=== 4. 前端构建 ==="
 cd ../frontend-trading
-npm install
+npm ci
 npm run build
 
 cd ../frontend-notes
-npm install
+npm ci
 npm run build
 
 cd ../frontend-monitor
-npm install
+npm ci
 npm run build
 
 cd ../frontend-ledger
-npm install
+npm ci
 npm run build
 
 echo "=== 5. 配置 Nginx ==="
