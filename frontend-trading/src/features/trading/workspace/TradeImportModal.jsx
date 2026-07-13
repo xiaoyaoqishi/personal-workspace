@@ -28,7 +28,7 @@ export default function TradeImportModal({
           type="info"
           showIcon
           message="直接从 Excel 复制 10 列数据后粘贴即可"
-          description="列顺序：交易日期、合约、买/卖、投机（一般）/套保/套利、成交价、手数、成交额、开/平、手续费、平仓盈亏"
+          description="粘贴导入入口当前已下线。"
         />
         <AutoComplete
           value={broker}

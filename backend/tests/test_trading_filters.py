@@ -9,7 +9,9 @@ def _create_trade(client, symbol: str, price: float):
         "direction": "long",
         "open_time": datetime.utcnow().replace(microsecond=0).isoformat(),
         "open_price": price,
-        "quantity": 1,
+        "stop_loss_point": price - 20,
+        "target_point": price + 40,
+        "capital_percentage": 10,
     }
     resp = client.post("/api/trades", json=payload)
     assert resp.status_code == 200

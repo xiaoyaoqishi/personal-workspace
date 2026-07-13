@@ -6,7 +6,7 @@
 `tradingRecords` is a self-hosted personal multi-app workspace. It combines trading records and review, notes, admin-side site checks, personal ledger, unified login, and a shared portal in one repository.
 
 ## Module Map
-- `Trading`: Trade records, analytics, review sessions, plans, and research or knowledge workflow.
+- `Trading`: Trade records, analytics, review sessions, plans, and research workflow.
 - `Notes`: Notebooks, diary and document notes, backlinks, todo, and recycle flow.
 - `Monitor`: Admin-side site checks, users, and audit logs.
 - `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, analytics, and an in-app asset library.
@@ -15,21 +15,30 @@
 
 ## Current Capabilities
 ### Trading
-- Trade CRUD, filters, search options, and position views.
+- Trade CRUD, filters, search options, position views, and opening/closing timestamps in the trade table.
+- Trade-record favorite/rating controls and their favorite, rating, and custom-sort filters have been removed.
+- Trade behavior-discipline fields, violation markers, and related analytics have been removed without retaining historical values.
+- Trade size fields and displays have been removed from create/edit, tables, details, linked summaries, position views, and APIs without retaining historical values.
+- The trade margin field has been removed from forms, APIs, and storage without retaining historical values.
+- Supplemental trade information, futures-specific metadata, and pre/during/post trade fields have been removed from forms, analytics, APIs, and storage without retaining historical values.
+- Trade forms no longer expose source information, supplemental records, or error tags, and their historical values are removed; trade decisions are limited to entry logic, exit logic, strategy type, and core signal.
+- New-trade creation includes a dedicated `Trade Decision` tab, and trade details show the same decision content in a read-only section.
+- New trades require current stop-loss, target points, and capital allocation percentage; later edits append timestamped snapshots of all three values so pyramiding changes remain traceable.
+- Trade date is derived from the single user-facing open-time field, and risk-point history timestamps are displayed in China Standard Time.
+- The trade workspace uses single-record operations and no longer provides multi-select or filter-based bulk actions.
 - Statistics and analytics endpoints for trading records.
 - Trading frontend now includes four switchable themes (`ink` / `light` / `tech` / `dark`) through a sidebar dropdown selector, with `ink` preserved as the default paper-style theme and the selected theme persisted locally.
-- Paste-based trade import with staged parsing and matching.
+- Paste-based trade import implementation is retained, but its trading-workspace entry is temporarily offline.
 - Structured per-trade review data and review taxonomy support.
-- Review sessions with linked trades and selection-based generation.
+- Trade details display structured reviews in read-only mode; review maintenance is available only from the trade edit page.
+- Review sessions with linked trades.
 - Trade plans with linked trades and follow-up review flow.
-- Knowledge items with primary category + secondary category folders, tags, statuses, and note links.
-- Knowledge maintain workspace supports long-content bottom scroll buffer and a back-to-top button for long pages.
 - Review session and trade plan workspaces support long-content bottom scroll buffer and a back-to-top button for long pages.
 - Review session and trade plan workspaces support collapsible sidebars, grouped sections (`研究内容` / `属性与关联`), and title-free main panels.
 - Trading now includes a dedicated `Research` submodule that embeds the same document workspace capabilities as Notes docs, while keeping research data isolated from the main Notes module.
-- Trading recycle bin for trades, brokers, review sessions, plans, and knowledge items.
+- Trading recycle bin for trades, brokers, review sessions, and plans.
 
-### Notes / Knowledge
+### Notes
 - Notebook management for diary and document collections.
 - Diary and document note CRUD with shared editor flow.
 - Search, calendar, diary tree, and "history today" style browsing.
@@ -137,7 +146,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
   - `services/`: Shared service modules plus ledger-specific services.
   - `models/`: SQLAlchemy models for workspace domains.
   - `schemas/`: Pydantic schemas for API input and output.
-  - `trading/`: Trading-specific business logic such as imports, analytics, reviews, plans, and knowledge.
+  - `trading/`: Trading-specific business logic such as imports, analytics, reviews, and plans.
   - `data/`: SQLite database and local runtime data. Production uploads are configured outside the repo.
 - `frontend-trading/`: Trading frontend served under `/trading/`.
 - `frontend-notes/`: Notes frontend served under `/notes/`.

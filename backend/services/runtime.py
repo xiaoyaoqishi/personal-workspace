@@ -13,8 +13,6 @@ from core.db import Base, SessionLocal, engine
 from core.security import ensure_admin, normalize_owner_role
 from models import (
     BrowseLog,
-    KnowledgeCategory,
-    KnowledgeItem,
     Note,
     Notebook,
     Review,
@@ -32,8 +30,6 @@ ROLE_SCOPED_MODELS = (
     Trade,
     ReviewSession,
     TradePlan,
-    KnowledgeCategory,
-    KnowledgeItem,
     Notebook,
     Note,
     TodoItem,
@@ -139,6 +135,7 @@ def _rebuild_ledger_schema_if_incompatible(db: Session) -> bool:
 
 def _migrate_legacy_schema():
     db = SessionLocal()
+    removed_knowledge_contents = []
     try:
         _rebuild_ledger_schema_if_incompatible(db)
         if _table_exists(db, "users"):
@@ -210,26 +207,63 @@ def _migrate_legacy_schema():
             db.execute(text("ALTER TABLE reviews ADD COLUMN star_rating INTEGER"))
 
         trade_cols = _column_names(db, "trades")
-        if "is_favorite" not in trade_cols:
-            db.execute(text("ALTER TABLE trades ADD COLUMN is_favorite BOOLEAN DEFAULT 0"))
-        if "star_rating" not in trade_cols:
-            db.execute(text("ALTER TABLE trades ADD COLUMN star_rating INTEGER"))
         if "is_deleted" not in trade_cols:
             db.execute(text("ALTER TABLE trades ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
         if "deleted_at" not in trade_cols:
             db.execute(text("ALTER TABLE trades ADD COLUMN deleted_at DATETIME"))
         _ensure_sqlite_column(db, "trades", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
         _ensure_sqlite_column(db, "trades", "leverage", "FLOAT")
+        _ensure_sqlite_column(db, "trades", "stop_loss_point", "FLOAT")
+        _ensure_sqlite_column(db, "trades", "target_point", "FLOAT")
+        _ensure_sqlite_column(db, "trades", "capital_percentage", "FLOAT")
+        if _table_exists(db, "trade_risk_point_history"):
+            _ensure_sqlite_column(db, "trade_risk_point_history", "capital_percentage", "FLOAT")
+        for column in (
+            "quantity",
+            "margin",
+            "slippage", "pnl_points", "holding_duration", "is_overnight", "trading_session",
+            "is_main_contract", "is_near_delivery", "is_contract_switch",
+            "is_high_volatility", "is_near_data_release",
+            "pre_opportunity", "pre_win_reason", "pre_risk",
+            "during_match_expectation", "during_plan_changed",
+            "post_quality", "post_repeat", "post_root_cause", "post_replicable",
+            "market_condition", "timeframe", "stop_loss_plan", "target_plan", "followed_plan",
+            "error_tags", "review_note", "notes",
+            "is_planned",
+            "is_impulsive",
+            "is_chasing",
+            "is_holding_loss",
+            "is_early_profit",
+            "is_extended_stop",
+            "is_overweight",
+            "is_revenge",
+            "is_emotional",
+            "mental_state",
+            "physical_state",
+        ):
+            if column in trade_cols:
+                db.execute(text(f"ALTER TABLE trades DROP COLUMN {column}"))
+
+        if _table_exists(db, "trade_source_metadata"):
+            source_metadata_cols = _column_names(db, "trade_source_metadata")
+            for column in ("source_note_snapshot", "derived_from_notes"):
+                if column in source_metadata_cols:
+                    db.execute(text(f"ALTER TABLE trade_source_metadata DROP COLUMN {column}"))
 
         if _table_exists(db, "trade_brokers"):
             _ensure_sqlite_column(db, "trade_brokers", "is_deleted", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "trade_brokers", "deleted_at", "DATETIME")
             _ensure_sqlite_column(db, "trade_brokers", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
-        if _table_exists(db, "knowledge_items"):
-            _ensure_sqlite_column(db, "knowledge_items", "is_deleted", "BOOLEAN DEFAULT 0")
-            _ensure_sqlite_column(db, "knowledge_items", "deleted_at", "DATETIME")
-            _ensure_sqlite_column(db, "knowledge_items", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
-            _ensure_sqlite_column(db, "knowledge_items", "sub_category", "VARCHAR(100)")
+        # 知识库功能已下线，历史数据按产品要求不保留。
+        if _table_exists(db, "knowledge_items") and "content" in _column_names(db, "knowledge_items"):
+            removed_knowledge_contents = [row[0] for row in db.execute(text("SELECT content FROM knowledge_items")).fetchall()]
+        for table in (
+            "knowledge_item_note_links",
+            "knowledge_item_tag_links",
+            "knowledge_categories",
+            "knowledge_items",
+        ):
+            db.execute(text(f"DROP TABLE IF EXISTS {table}"))
         if _table_exists(db, "review_sessions"):
             _ensure_sqlite_column(db, "review_sessions", "review_kind", "VARCHAR(40) DEFAULT 'custom'")
             _ensure_sqlite_column(db, "review_sessions", "review_scope", "VARCHAR(40) DEFAULT 'custom'")
@@ -250,8 +284,8 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "review_sessions", "is_deleted", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "review_sessions", "deleted_at", "DATETIME")
             _ensure_sqlite_column(db, "review_sessions", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
-        if _table_exists(db, "trade_reviews"):
-            _ensure_sqlite_column(db, "trade_reviews", "discipline_violated", "BOOLEAN DEFAULT 0")
+        if _table_exists(db, "trade_reviews") and "discipline_violated" in _column_names(db, "trade_reviews"):
+            db.execute(text("ALTER TABLE trade_reviews DROP COLUMN discipline_violated"))
         if _table_exists(db, "trade_plans"):
             _ensure_sqlite_column(db, "trade_plans", "status", "VARCHAR(20) DEFAULT 'draft'")
             _ensure_sqlite_column(db, "trade_plans", "symbol", "VARCHAR(50)")
@@ -281,7 +315,6 @@ def _migrate_legacy_schema():
             "trades",
             "review_sessions",
             "trade_plans",
-            "knowledge_items",
             "trade_brokers",
             "notebooks",
             "notes",
@@ -290,6 +323,10 @@ def _migrate_legacy_schema():
             if _table_exists(db, table):
                 db.execute(text(f"UPDATE {table} SET owner_role='admin' WHERE owner_role IS NULL OR owner_role=''"))
         db.commit()
+        if removed_knowledge_contents:
+            from services.utility_runtime import cleanup_unreferenced_uploads
+
+            cleanup_unreferenced_uploads(db, *removed_knowledge_contents)
     finally:
         db.close()
 
@@ -363,7 +400,6 @@ def _index_links_for_existing_notes():
     _notes_runtime.index_links_for_existing_notes()
 
 
-from services import knowledge_runtime as _knowledge_runtime
 from services import notes_runtime as _notes_runtime
 from services import review_runtime as _review_runtime
 from services import trade_analytics_runtime as _trade_analytics_runtime
@@ -381,8 +417,6 @@ _state_key_contract = _trading_runtime._state_key_contract
 _ensure_symbol_state = _trading_runtime._ensure_symbol_state
 _build_position_state_from_db = _trading_runtime._build_position_state_from_db
 _build_position_state_from_db_with_owner_role = _trading_runtime._build_position_state_from_db_with_owner_role
-_append_note = _trading_runtime._append_note
-_extract_source_from_notes = _trading_runtime._extract_source_from_notes
 _attach_trade_view_fields = _trading_runtime._attach_trade_view_fields
 _apply_source_keyword_filter = _trading_runtime._apply_source_keyword_filter
 _upsert_trade_source_metadata_for_import = _trading_runtime._upsert_trade_source_metadata_for_import
@@ -434,14 +468,6 @@ create_todo = _notes_runtime.create_todo
 update_todo = _notes_runtime.update_todo
 delete_todo = _notes_runtime.delete_todo
 
-list_knowledge_items = _knowledge_runtime.list_knowledge_items
-list_knowledge_item_categories = _knowledge_runtime.list_knowledge_item_categories
-create_knowledge_item_category = _knowledge_runtime.create_knowledge_item_category
-delete_knowledge_item_category = _knowledge_runtime.delete_knowledge_item_category
-create_knowledge_item = _knowledge_runtime.create_knowledge_item
-get_knowledge_item = _knowledge_runtime.get_knowledge_item
-update_knowledge_item = _knowledge_runtime.update_knowledge_item
-delete_knowledge_item = _knowledge_runtime.delete_knowledge_item
 
 _attach_review_session_fields = _review_runtime._attach_review_session_fields
 list_review_sessions = _review_runtime.list_review_sessions

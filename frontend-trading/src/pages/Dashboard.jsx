@@ -20,7 +20,6 @@ import EquityCurvePanel from '../features/trading/analytics/EquityCurvePanel';
 import PnlDistributionPanel from '../features/trading/analytics/PnlDistributionPanel';
 import MonthlyReturnsGrid from '../features/trading/analytics/MonthlyReturnsGrid';
 import StreaksPanel from '../features/trading/analytics/StreaksPanel';
-import DisciplinePanel from '../features/trading/analytics/DisciplinePanel';
 import HoldingAnalysisPanel from '../features/trading/analytics/HoldingAnalysisPanel';
 import { formatSymbolDimensionKey } from '../features/trading/display';
 
@@ -163,13 +162,12 @@ export default function Dashboard() {
     {
       key: 'review',
       label: (
-        <span><AuditOutlined /> 复盘与纪律</span>
+        <span><AuditOutlined /> 复盘分析</span>
       ),
       children: (
         <div className="analytics-workspace">
           <StructuredReviewPanels byReviewField={dimensions.by_review_field || {}} />
           <BehaviorPanels behavior={behavior} />
-          <DisciplinePanel data={analytics.discipline} />
           <CoverageAndPositions coverage={coverage} positions={positions} hidePositions />
         </div>
       ),
@@ -198,7 +196,7 @@ export default function Dashboard() {
             交易分析工作台
           </Typography.Title>
           <Typography.Text type="secondary">
-            多维复盘视角：绩效、维度、复盘纪律与风控持仓。
+            多维复盘视角：绩效、维度、结构化复盘与风控持仓。
           </Typography.Text>
         </div>
       </div>
@@ -230,7 +228,7 @@ export default function Dashboard() {
               <div className="analytics-note-list">
                 <div>1. 结构化复盘分类字段的标准键保持英文，界面统一显示中文标签。</div>
                 <div>2. 来源展示优先使用来源元数据，旧备注仅作兼容回退。</div>
-                <div>3. 本页不改变粘贴导入、平仓匹配、统计/持仓业务语义。</div>
+                <div>3. 粘贴导入能力仍保留，当前仅暂停交易工作台入口。</div>
               </div>
             ),
           },

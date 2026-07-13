@@ -60,30 +60,6 @@ export const REVIEW_LINK_ROLE_ZH = {
   representative_trade: '代表样本',
 };
 
-export const KNOWLEDGE_CATEGORY_ZH = {
-  broker_reference: '券商/通道参考',
-  symbol_note: '品种/合约笔记',
-  pattern_dictionary: '形态词典',
-  regime_note: '市场环境笔记',
-  strategy_playbook: '策略作战手册',
-  execution_checklist: '执行检查清单',
-  review_heuristic: '复盘启发式',
-  risk_rule: '风控规则',
-  infrastructure_note: '交易基础设施',
-};
-
-export const KNOWLEDGE_STATUS_ZH = {
-  active: '启用',
-  archived: '归档',
-  draft: '草稿',
-};
-
-export const KNOWLEDGE_PRIORITY_ZH = {
-  high: '高',
-  medium: '中',
-  low: '低',
-};
-
 export function getTaxonomyLabel(field, canonicalValue) {
   const value = String(canonicalValue || '').trim();
   if (!value) return '-';

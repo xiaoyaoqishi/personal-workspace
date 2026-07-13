@@ -1,6 +1,7 @@
 from services import trade_analytics_runtime
 from services import trade_import_runtime
 from services import trading_runtime
+from trading import risk_point_service
 
 import_trades_from_paste = trade_import_runtime.import_trades_from_paste
 list_trade_positions = trading_runtime.list_trade_positions
@@ -11,6 +12,7 @@ get_statistics = trade_analytics_runtime.get_statistics
 get_trade_analytics = trade_analytics_runtime.get_trade_analytics
 create_trade = trading_runtime.create_trade
 get_trade = trading_runtime.get_trade
+list_trade_risk_point_history = risk_point_service.list_trade_risk_point_history
 update_trade = trading_runtime.update_trade
 delete_trade = trading_runtime.delete_trade
 list_trade_sources = trading_runtime.list_trade_sources

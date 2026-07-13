@@ -1,7 +1,7 @@
 import { Button, Space, Typography } from 'antd';
 import { ImportOutlined, PlusOutlined } from '@ant-design/icons';
 
-export default function TradeWorkspaceHeader({ onOpenImport, onCreateTrade }) {
+export default function TradeWorkspaceHeader({ pasteImportEnabled = true, onOpenImport, onCreateTrade }) {
   return (
     <div className="trade-page-header">
       <div>
@@ -13,9 +13,11 @@ export default function TradeWorkspaceHeader({ onOpenImport, onCreateTrade }) {
         </Typography.Text>
       </div>
       <Space>
-        <Button icon={<ImportOutlined />} onClick={onOpenImport}>
-          粘贴导入
-        </Button>
+        {pasteImportEnabled ? (
+          <Button icon={<ImportOutlined />} onClick={onOpenImport}>
+            粘贴导入
+          </Button>
+        ) : null}
         <Button type="primary" icon={<PlusOutlined />} onClick={onCreateTrade}>
           新建交易
         </Button>

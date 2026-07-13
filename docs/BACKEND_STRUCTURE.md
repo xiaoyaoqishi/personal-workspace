@@ -27,7 +27,7 @@
 
 ## 新逻辑落点
 
-- `trading` 新业务逻辑进入 `backend/trading/` 下对应 service。
+- `trading` 新业务逻辑进入 `backend/trading/` 下对应 service；止损点/目标点快照逻辑位于 `backend/trading/risk_point_service.py`。
 - `ledger` 新业务逻辑进入 `backend/services/ledger/` 下对应 service。
 - `notes`、`monitor`、`auth`、`admin`、`audit`、`recycle` 等后续新增逻辑，应进入各自 dedicated runtime / service，不应新增到 `runtime.py`。
 - router 仅负责参数、依赖和转发，不承载业务实现。
@@ -42,7 +42,6 @@
 - auth/admin/audit 运行期逻辑已迁出；后续拆分应单独发起，不要在业务需求顺手继续扩大该文件。
 - review / review_session 运行期逻辑已迁出到 `backend/services/review_runtime.py`，后续新的 review 展示转换、review_session CRUD、trade link 同步与 create-from-selection 逻辑不得写回 `runtime.py`。
 - trade_plan 运行期逻辑已迁出到 `backend/services/trade_plan_runtime.py`，后续新的 plan CRUD、trade link / review-session link 同步与 follow-up review session 逻辑不得写回 `runtime.py`。
-- knowledge 运行期逻辑已迁出到 `backend/services/knowledge_runtime.py`，后续新的 knowledge item CRUD、category 管理、tag/related note 聚合逻辑不得写回 `runtime.py`。
 - poem / upload 小模块运行期逻辑已迁出到 `backend/services/utility_runtime.py`；health 逻辑当前仍在 `backend/routers/health.py` 内联，本轮无需迁出。
 - trading 主域运行期逻辑已迁出到 `backend/services/trading_runtime.py`、`backend/services/trade_import_runtime.py`、`backend/services/trade_analytics_runtime.py`、`backend/services/trade_broker_runtime.py`。
 - 后续新的 trading CRUD、import、analytics、broker、source metadata 与展示 helper 不得写回 `backend/services/runtime.py`，应继续落到对应 dedicated runtime。
@@ -57,7 +56,6 @@
 - `backend/services/recycle_runtime.py`
 - `backend/services/review_runtime.py`
 - `backend/services/trade_plan_runtime.py`
-- `backend/services/knowledge_runtime.py`
 - `backend/services/utility_runtime.py`
 - `backend/services/trading_runtime.py`
 - `backend/services/trade_import_runtime.py`

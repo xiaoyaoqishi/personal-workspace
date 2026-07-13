@@ -28,9 +28,9 @@ from trade_review_taxonomy import trade_review_taxonomy
 from trading.source_service import (
     apply_source_keyword_filter as _source_apply_source_keyword_filter,
     attach_trade_view_fields as _source_attach_trade_view_fields,
-    extract_source_from_notes as _source_extract_source_from_notes,
     upsert_trade_source_metadata_for_import as _source_upsert_trade_source_metadata_for_import,
 )
+from trading.risk_point_service import add_risk_point_snapshot, tracked_trade_values_changed
 from trading.tag_service import (
     attach_trade_review_tags as _attach_trade_review_tags,
     normalize_tag_list as _normalize_tag_list,
@@ -75,7 +75,8 @@ def _ensure_symbol_state(
             "symbol": symbol,
             "side": side,
             "contract": contract,
-            "quantity": 0.0,
+            "price_total": 0.0,
+            "record_count": 0,
             "avg_open_price": 0.0,
             "open_since": None,
             "last_trade_date": trade_day,
@@ -97,18 +98,10 @@ def _build_position_state_from_db(db: Session, source_keyword: Optional[str] = N
     for row in rows:
         symbol = _normalize_contract_symbol(row.contract or row.symbol or "")
         side = row.direction
-        is_futures = (row.instrument_type or "") == "期货"
         current = _ensure_symbol_state(state, symbol, side, row.contract, row.trade_date)
-        previous_qty = float(current["quantity"])
-        added_qty = float(row.quantity or 0)
-        if is_futures and added_qty <= 0:
-            continue
-        if not is_futures and added_qty <= 0:
-            added_qty = 1.0
-        total_qty = previous_qty + added_qty
-        previous_cost = float(current["avg_open_price"]) * previous_qty
-        current["avg_open_price"] = (previous_cost + float(row.open_price or 0) * added_qty) / total_qty
-        current["quantity"] = total_qty
+        current["price_total"] += float(row.open_price or 0)
+        current["record_count"] += 1
+        current["avg_open_price"] = current["price_total"] / current["record_count"]
         current["commission"] = float(current.get("commission") or 0) + float(row.commission or 0)
         if current.get("leverage") is None and getattr(row, "leverage", None) is not None:
             current["leverage"] = row.leverage
@@ -134,18 +127,10 @@ def _build_position_state_from_db_with_owner_role(
     for row in rows:
         symbol = _normalize_contract_symbol(row.contract or row.symbol or "")
         side = row.direction
-        is_futures = (row.instrument_type or "") == "期货"
         current = _ensure_symbol_state(state, symbol, side, row.contract, row.trade_date)
-        previous_qty = float(current["quantity"])
-        added_qty = float(row.quantity or 0)
-        if is_futures and added_qty <= 0:
-            continue
-        if not is_futures and added_qty <= 0:
-            added_qty = 1.0
-        total_qty = previous_qty + added_qty
-        previous_cost = float(current["avg_open_price"]) * previous_qty
-        current["avg_open_price"] = (previous_cost + float(row.open_price or 0) * added_qty) / total_qty
-        current["quantity"] = total_qty
+        current["price_total"] += float(row.open_price or 0)
+        current["record_count"] += 1
+        current["avg_open_price"] = current["price_total"] / current["record_count"]
         current["commission"] = float(current.get("commission") or 0) + float(row.commission or 0)
         if current.get("leverage") is None and getattr(row, "leverage", None) is not None:
             current["leverage"] = row.leverage
@@ -154,17 +139,6 @@ def _build_position_state_from_db_with_owner_role(
         if row.open_time and (current["last_trade_date"] is None or row.trade_date >= current["last_trade_date"]):
             current["last_trade_date"] = row.trade_date
     return state
-
-
-def _append_note(base: Optional[str], extra: str) -> str:
-    value = (base or "").strip()
-    if not value:
-        return extra
-    return f"{value} | {extra}"
-
-
-def _extract_source_from_notes(note: Optional[str]) -> Dict[str, Optional[str]]:
-    return _source_extract_source_from_notes(note)
 
 
 def _attach_trade_view_fields(db: Session, rows: List[Trade]) -> List[Trade]:
@@ -200,9 +174,6 @@ def _apply_trade_filters(
     status: Optional[str] = None,
     strategy_type: Optional[str] = None,
     source_keyword: Optional[str] = None,
-    is_favorite: Optional[bool] = None,
-    min_star_rating: Optional[int] = None,
-    max_star_rating: Optional[int] = None,
     owner_role: Optional[str] = None,
 ):
     role_filter = legacy_runtime._owner_role_filter_for_admin(Trade, owner_role)
@@ -222,12 +193,6 @@ def _apply_trade_filters(
         query = query.filter(Trade.status == status)
     if strategy_type:
         query = query.filter(Trade.strategy_type == strategy_type)
-    if is_favorite is not None:
-        query = query.filter(Trade.is_favorite == is_favorite)
-    if min_star_rating is not None:
-        query = query.filter(Trade.star_rating >= min_star_rating)
-    if max_star_rating is not None:
-        query = query.filter(Trade.star_rating <= max_star_rating)
     return _apply_source_keyword_filter(query, source_keyword)
 
 
@@ -257,16 +222,12 @@ def list_trade_positions(
     state = _build_position_state_from_db_with_owner_role(db, source_keyword=source_keyword, owner_role=owner_role)
     items = []
     for current in state.values():
-        quantity = float(current.get("quantity") or 0)
-        if quantity < 1e-9:
-            continue
         if symbol and current["symbol"] != symbol:
             continue
         items.append(
             TradePositionResponse(
                 symbol=current["symbol"],
                 contract=current.get("contract"),
-                net_quantity=round(quantity, 6),
                 side=current.get("side") or "做多",
                 avg_open_price=round(float(current.get("avg_open_price") or 0), 4),
                 open_since=current.get("open_since"),
@@ -289,11 +250,6 @@ def list_trades(
     status: Optional[str] = None,
     strategy_type: Optional[str] = None,
     source_keyword: Optional[str] = None,
-    is_favorite: Optional[bool] = None,
-    min_star_rating: Optional[int] = Query(None, ge=1, le=5),
-    max_star_rating: Optional[int] = Query(None, ge=1, le=5),
-    sort_by: Optional[str] = None,
-    sort_order: Optional[str] = "desc",
     owner_role: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
@@ -308,24 +264,9 @@ def list_trades(
         status=status,
         strategy_type=strategy_type,
         source_keyword=source_keyword,
-        is_favorite=is_favorite,
-        min_star_rating=min_star_rating,
-        max_star_rating=max_star_rating,
         owner_role=owner_role,
     )
-    if sort_by not in {None, "updated_at", "star_rating"}:
-        raise HTTPException(400, "sort_by must be one of: updated_at, star_rating")
-    if sort_order not in {"asc", "desc"}:
-        raise HTTPException(400, "sort_order must be one of: asc, desc")
-    order_desc = sort_order != "asc"
-    if sort_by == "updated_at":
-        order_expr = Trade.updated_at.desc() if order_desc else Trade.updated_at.asc()
-        query = query.order_by(order_expr, Trade.id.desc())
-    elif sort_by == "star_rating":
-        order_expr = Trade.star_rating.desc() if order_desc else Trade.star_rating.asc()
-        query = query.order_by(order_expr, Trade.updated_at.desc(), Trade.id.desc())
-    else:
-        query = query.order_by(Trade.open_time.desc())
+    query = query.order_by(Trade.open_time.desc())
     rows = query.offset((page - 1) * size).limit(size).all()
     return _attach_trade_view_fields(db, rows)
 
@@ -364,7 +305,6 @@ def list_trade_search_options(
         conditions = [
             Trade.symbol.contains(keyword.upper()),
             Trade.contract.contains(keyword),
-            Trade.notes.contains(keyword),
             TradeSourceMetadata.broker_name.contains(keyword),
             TradeSourceMetadata.source_label.contains(keyword),
         ]
@@ -406,7 +346,6 @@ def list_trade_search_options(
             symbol=row.symbol,
             contract=row.contract,
             direction=row.direction,
-            quantity=row.quantity,
             open_price=row.open_price,
             close_price=row.close_price,
             status=row.status,
@@ -423,6 +362,8 @@ def list_trade_search_options(
 def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
     obj = Trade(**trade.model_dump(), owner_role=legacy_runtime._owner_role_value_for_create())
     db.add(obj)
+    db.flush()
+    add_risk_point_snapshot(db, obj)
     db.commit()
     db.refresh(obj)
     return _attach_trade_view_fields(db, [obj])[0]
@@ -439,8 +380,31 @@ def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)
     row = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade not found")
-    for key, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    if updates.get("open_time") is not None:
+        updates["trade_date"] = updates["open_time"].date()
+    tracked_fields = ("stop_loss_point", "target_point", "capital_percentage")
+    for field in tracked_fields:
+        if field in updates and updates[field] is None:
+            raise HTTPException(400, f"{field} cannot be null")
+    next_stop_loss_point = updates.get("stop_loss_point", row.stop_loss_point)
+    next_target_point = updates.get("target_point", row.target_point)
+    next_capital_percentage = updates.get("capital_percentage", row.capital_percentage)
+    tracked_values_touched = any(field in updates for field in tracked_fields)
+    if tracked_values_touched and any(
+        value is None for value in (next_stop_loss_point, next_target_point, next_capital_percentage)
+    ):
+        raise HTTPException(400, "stop_loss_point, target_point and capital_percentage are all required")
+    should_record_risk_points = tracked_trade_values_changed(
+        row,
+        stop_loss_point=next_stop_loss_point,
+        target_point=next_target_point,
+        capital_percentage=next_capital_percentage,
+    )
+    for key, value in updates.items():
         setattr(row, key, value)
+    if should_record_risk_points:
+        add_risk_point_snapshot(db, row)
     db.commit()
     db.refresh(row)
     return _attach_trade_view_fields(db, [row])[0]
@@ -546,23 +510,18 @@ def get_trade_source_metadata(trade_id: int, db: Session = Depends(get_db)):
             broker_name=row.broker_name,
             source_label=row.source_label,
             import_channel=row.import_channel,
-            source_note_snapshot=row.source_note_snapshot,
             parser_version=row.parser_version,
-            derived_from_notes=bool(row.derived_from_notes),
             created_at=row.created_at,
             updated_at=row.updated_at,
             exists_in_db=True,
         )
 
-    parsed = _extract_source_from_notes(trade.notes)
     return TradeSourceMetadataResponse(
         trade_id=trade_id,
-        broker_name=parsed["broker_name"],
-        source_label=parsed["source_label"],
+        broker_name=None,
+        source_label=None,
         import_channel=None,
-        source_note_snapshot=trade.notes,
         parser_version=None,
-        derived_from_notes=True,
         exists_in_db=False,
     )
 
@@ -587,9 +546,7 @@ def upsert_trade_source_metadata(trade_id: int, data: TradeSourceMetadataUpsert,
         broker_name=row.broker_name,
         source_label=row.source_label,
         import_channel=row.import_channel,
-        source_note_snapshot=row.source_note_snapshot,
         parser_version=row.parser_version,
-        derived_from_notes=bool(row.derived_from_notes),
         created_at=row.created_at,
         updated_at=row.updated_at,
         exists_in_db=True,

@@ -102,6 +102,3 @@ class TodoResponse(BaseModel):
     reminder_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-
-# 鈹€鈹€ News 鈹€鈹€

@@ -10,7 +10,6 @@ export const EMPTY_REVIEW = {
   edge_source: '',
   failure_type: '',
   review_conclusion: '',
-  discipline_violated: false,
   entry_thesis: '',
   invalidation_valid_evidence: '',
   invalidation_trigger_evidence: '',
@@ -21,22 +20,11 @@ export const EMPTY_REVIEW = {
   research_notes: '',
 };
 
-export const EMPTY_SOURCE = {
-  broker_name: '',
-  source_label: '',
-  import_channel: '',
-  parser_version: '',
-  source_note_snapshot: '',
-  exists_in_db: false,
-  derived_from_notes: true,
-};
-
 export const REVIEW_FIELD_KEYS = [
   'opportunity_structure',
   'edge_source',
   'failure_type',
   'review_conclusion',
-  'discipline_violated',
   'entry_thesis',
   'invalidation_valid_evidence',
   'invalidation_trigger_evidence',

@@ -154,7 +154,6 @@ function summaryToOption(summary) {
     symbol: summary.symbol,
     contract: summary.contract,
     direction: summary.direction,
-    quantity: summary.quantity,
     open_price: summary.open_price,
     close_price: summary.close_price,
     status: summary.status,
@@ -177,7 +176,7 @@ function LinkedTradeCard({ item }) {
           {s.review_conclusion ? <Tag color="purple">{formatReviewConclusionLabel(s.review_conclusion)}</Tag> : null}
         </Space>
         <Typography.Text strong>{s.trade_date || '-'} / {formatInstrumentDisplay(s.symbol, s.contract)}</Typography.Text>
-        <Typography.Text type="secondary">合约 {s.contract || '-'} / 手数 {s.quantity ?? '-'} / 价格 {s.open_price ?? '-'} {'->'} {s.close_price ?? '-'}</Typography.Text>
+        <Typography.Text type="secondary">合约 {s.contract || '-'} / 价格 {s.open_price ?? '-'} {'->'} {s.close_price ?? '-'}</Typography.Text>
         <Typography.Text type="secondary">PnL {s.pnl ?? '-'} / 来源 {s.source_display || '-'}</Typography.Text>
         {(item.note || item.notes) ? <Typography.Text type="secondary">备注: {item.note || item.notes}</Typography.Text> : null}
       </Space>

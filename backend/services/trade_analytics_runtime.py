@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Optional
 
 from fastapi import Depends, Query
@@ -21,9 +20,6 @@ def count_trades(
     status: Optional[str] = None,
     strategy_type: Optional[str] = None,
     source_keyword: Optional[str] = None,
-    is_favorite: Optional[bool] = None,
-    min_star_rating: Optional[int] = Query(None, ge=1, le=5),
-    max_star_rating: Optional[int] = Query(None, ge=1, le=5),
     owner_role: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
@@ -38,9 +34,6 @@ def count_trades(
         status=status,
         strategy_type=strategy_type,
         source_keyword=source_keyword,
-        is_favorite=is_favorite,
-        min_star_rating=min_star_rating,
-        max_star_rating=max_star_rating,
         owner_role=owner_role,
     )
     return {"total": query.count()}
@@ -85,7 +78,6 @@ def get_statistics(
         "pnl_by_symbol": [],
         "pnl_by_strategy": [],
         "pnl_over_time": [],
-        "error_tag_counts": [],
     }
     if not trades:
         return empty
@@ -139,16 +131,6 @@ def get_statistics(
             }
         )
 
-    error_counts = {}
-    for trade in trades:
-        if not trade.error_tags:
-            continue
-        try:
-            for tag in json.loads(trade.error_tags):
-                error_counts[tag] = error_counts.get(tag, 0) + 1
-        except Exception:
-            pass
-
     avg_win = round(sum(wins) / len(wins), 2) if wins else 0
     avg_loss = round(sum(losses) / len(losses), 2) if losses else 0
     return {
@@ -179,10 +161,6 @@ def get_statistics(
             for key, value in strategy_stats.items()
         ],
         "pnl_over_time": pnl_over_time,
-        "error_tag_counts": [
-            {"tag": key, "count": value}
-            for key, value in sorted(error_counts.items(), key=lambda item: item[1], reverse=True)
-        ],
     }
 
 
@@ -204,5 +182,4 @@ def get_trade_analytics(
         apply_source_keyword_filter=trading_runtime._apply_source_keyword_filter,
         attach_trade_view_fields=trading_runtime._attach_trade_view_fields,
         build_position_state_from_db=trading_runtime._build_position_state_from_db,
-        extract_source_from_notes=trading_runtime._extract_source_from_notes,
     )

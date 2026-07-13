@@ -10,6 +10,7 @@
 - 这是正式兼容例外，不是待修复 bug。
 - 当前 trading 对外 API 继续使用：
   - `/api/trades`
+  - `/api/trades/{trade_id}/risk-point-history`
   - `/api/trade-brokers`
   - `/api/trade-review-taxonomy`
 - 禁止在普通重构中新增独立的 trading 模块级 API 前缀。
@@ -26,7 +27,6 @@
 - `backend/routers/review.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/reviews"`。
 - `backend/routers/review_sessions.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/review-sessions"`。
 - `backend/routers/trade_plans.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/trade-plans"`。
-- `backend/routers/knowledge.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/knowledge-items"`。
 - `backend/routers/auth.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/auth"`。
 - `backend/routers/admin.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/admin"`。
 - `backend/routers/audit.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/audit"`。

@@ -4,8 +4,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 from sqlalchemy.orm import Session
 
 from models import (
-    KnowledgeItem,
-    KnowledgeItemTagLink,
     Review,
     ReviewTagLink,
     TagTerm,
@@ -101,7 +99,6 @@ def sync_trade_review_tags(db: Session, trade_review_id: int, names: List[str]) 
         fk_value=trade_review_id,
     )
 
-
 def sync_review_tags(db: Session, review_id: int, names: List[str]) -> None:
     _sync_entity_links(
         db,
@@ -110,17 +107,6 @@ def sync_review_tags(db: Session, review_id: int, names: List[str]) -> None:
         link_cls=ReviewTagLink,
         fk_field="review_id",
         fk_value=review_id,
-    )
-
-
-def sync_knowledge_item_tags(db: Session, knowledge_item_id: int, names: List[str]) -> None:
-    _sync_entity_links(
-        db,
-        names=names,
-        delete_query=db.query(KnowledgeItemTagLink).filter(KnowledgeItemTagLink.knowledge_item_id == knowledge_item_id),
-        link_cls=KnowledgeItemTagLink,
-        fk_field="knowledge_item_id",
-        fk_value=knowledge_item_id,
     )
 
 
@@ -177,16 +163,5 @@ def attach_review_tags(db: Session, rows: List[Review]) -> List[Review]:
         row_id_attr="id",
         link_cls=ReviewTagLink,
         link_fk_field="review_id",
-        fallback_text_attr="tags_text",
-    )
-
-
-def attach_knowledge_item_tags(db: Session, rows: List[KnowledgeItem]) -> List[KnowledgeItem]:
-    return _attach_tags_generic(
-        db,
-        rows=rows,
-        row_id_attr="id",
-        link_cls=KnowledgeItemTagLink,
-        link_fk_field="knowledge_item_id",
         fallback_text_attr="tags_text",
     )

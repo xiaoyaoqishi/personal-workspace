@@ -23,71 +23,45 @@ class Trade(Base):
     close_time = Column(DateTime)
     open_price = Column(Float, nullable=False)
     close_price = Column(Float)
-    quantity = Column(Float, nullable=False)
-    margin = Column(Float)
+    stop_loss_point = Column(Float)
+    target_point = Column(Float)
+    capital_percentage = Column(Float)
     commission = Column(Float, default=0)
     leverage = Column(Float)
-    slippage = Column(Float, default=0)
     pnl = Column(Float)
-    pnl_points = Column(Float)
-    holding_duration = Column(String(50))
-    is_overnight = Column(Boolean, default=False)
-    trading_session = Column(String(20))
     status = Column(String(10), default="open")
-
-    # 期货特有
-    is_main_contract = Column(String(20))
-    is_near_delivery = Column(Boolean, default=False)
-    is_contract_switch = Column(Boolean, default=False)
-    is_high_volatility = Column(Boolean, default=False)
-    is_near_data_release = Column(Boolean, default=False)
 
     # --- 交易决策层 ---
     entry_logic = Column(Text)
     exit_logic = Column(Text)
     strategy_type = Column(String(50))
-    market_condition = Column(String(50))
-    timeframe = Column(String(20))
     core_signal = Column(Text)
-    stop_loss_plan = Column(Float)
-    target_plan = Column(Float)
-    followed_plan = Column(Boolean)
 
-    # --- 行为纪律层 ---
-    is_planned = Column(Boolean)
-    is_impulsive = Column(Boolean, default=False)
-    is_chasing = Column(Boolean, default=False)
-    is_holding_loss = Column(Boolean, default=False)
-    is_early_profit = Column(Boolean, default=False)
-    is_extended_stop = Column(Boolean, default=False)
-    is_overweight = Column(Boolean, default=False)
-    is_revenge = Column(Boolean, default=False)
-    is_emotional = Column(Boolean, default=False)
-    mental_state = Column(String(20))
-    physical_state = Column(String(20))
-
-    # --- 交易前中后 ---
-    pre_opportunity = Column(Text)
-    pre_win_reason = Column(Text)
-    pre_risk = Column(Text)
-    during_match_expectation = Column(Text)
-    during_plan_changed = Column(Text)
-    post_quality = Column(String(50))
-    post_repeat = Column(Boolean)
-    post_root_cause = Column(Text)
-    post_replicable = Column(Boolean)
-
-    # --- 标签与复盘 ---
-    error_tags = Column(Text)
-    review_note = Column(Text)
-    notes = Column(Text)
-    is_favorite = Column(Boolean, default=False)
-    star_rating = Column(Integer, nullable=True)
+    # --- 归属与生命周期 ---
     owner_role = Column(String(20), default="admin", index=True)
     is_deleted = Column(Boolean, default=False, index=True)
     deleted_at = Column(DateTime, nullable=True)
     trade_review = relationship("TradeReview", back_populates="trade", uselist=False, cascade="all, delete-orphan")
     source_metadata = relationship("TradeSourceMetadata", back_populates="trade", uselist=False, cascade="all, delete-orphan")
+    risk_point_history = relationship(
+        "TradeRiskPointHistory",
+        back_populates="trade",
+        cascade="all, delete-orphan",
+        order_by="TradeRiskPointHistory.recorded_at.desc()",
+    )
+
+
+class TradeRiskPointHistory(Base):
+    __tablename__ = "trade_risk_point_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trade_id = Column(Integer, ForeignKey("trades.id"), nullable=False, index=True)
+    stop_loss_point = Column(Float)
+    target_point = Column(Float)
+    capital_percentage = Column(Float)
+    recorded_at = Column(DateTime, server_default=func.now(), nullable=False, index=True)
+
+    trade = relationship("Trade", back_populates="risk_point_history")
 
 
 class TradeReview(Base):
@@ -110,7 +84,6 @@ class TradeReview(Base):
     invalidation_boundary = Column(Text)
     management_actions = Column(Text)
     exit_reason = Column(Text)
-    discipline_violated = Column(Boolean, default=False)
     review_tags = Column(Text)
     research_notes = Column(Text)
 
@@ -129,9 +102,7 @@ class TradeSourceMetadata(Base):
     broker_name = Column(String(100))
     source_label = Column(String(100))
     import_channel = Column(String(50))
-    source_note_snapshot = Column(Text)
     parser_version = Column(String(30))
-    derived_from_notes = Column(Boolean, default=True)
 
     trade = relationship("Trade", back_populates="source_metadata")
 

@@ -32,10 +32,10 @@ import './styles/tokens.css';
 const tabs = [
   { key: '/trades', icon: <OrderedListOutlined />, label: '记录' },
   { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
-  { key: '/maintain', icon: <BankOutlined />, label: '信息维护' },
   { key: '/reviews', icon: <FileTextOutlined />, label: '复盘会话' },
   { key: '/plans', icon: <ProjectOutlined />, label: '计划' },
   { key: '/research', icon: <SearchOutlined />, label: '研究' },
+  { key: '/maintain', icon: <BankOutlined />, label: '信息维护' },
   { key: '/recycle', icon: <DeleteOutlined />, label: '回收站' },
 ];
 

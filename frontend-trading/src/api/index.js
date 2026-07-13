@@ -18,6 +18,7 @@ export const tradeApi = {
   count: (params) => api.get('/trades/count', { params }),
   searchOptions: (params) => api.get('/trades/search-options', { params }),
   get: (id) => api.get(`/trades/${id}`),
+  riskPointHistory: (id) => api.get(`/trades/${id}/risk-point-history`),
   create: (data) => api.post('/trades', data),
   update: (id, data) => api.put(`/trades/${id}`, data),
   delete: (id) => api.delete(`/trades/${id}`),
@@ -82,29 +83,12 @@ export const tradeLinkedPlanApi = {
   get: (tradeId) => api.get(`/trades/${tradeId}/linked-plans`),
 };
 
-export const knowledgeApi = {
-  list: (params) => api.get('/knowledge-items', { params }),
-  categories: () => api.get('/knowledge-items/categories'),
-  createCategory: (name) => api.post('/knowledge-items/categories', { name }),
-  deleteCategory: (name) => api.delete(`/knowledge-items/categories/${encodeURIComponent(name)}`),
-  get: (id) => api.get(`/knowledge-items/${id}`),
-  create: (data) => api.post('/knowledge-items', data),
-  update: (id, data) => api.put(`/knowledge-items/${id}`, data),
-  delete: (id) => api.delete(`/knowledge-items/${id}`),
-};
-
 export const recycleApi = {
   trades: {
     list: (params) => api.get('/recycle/trades', { params }),
     restore: (id) => api.post(`/recycle/trades/${id}/restore`),
     purge: (id) => api.delete(`/recycle/trades/${id}/purge`),
     clear: () => api.delete('/recycle/trades/clear'),
-  },
-  knowledgeItems: {
-    list: (params) => api.get('/recycle/knowledge-items', { params }),
-    restore: (id) => api.post(`/recycle/knowledge-items/${id}/restore`),
-    purge: (id) => api.delete(`/recycle/knowledge-items/${id}/purge`),
-    clear: () => api.delete('/recycle/knowledge-items/clear'),
   },
   tradeBrokers: {
     list: (params) => api.get('/recycle/trade-brokers', { params }),

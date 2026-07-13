@@ -55,11 +55,10 @@ def extract_upload_filenames(text: Optional[str]) -> Set[str]:
 
 
 def _referenced_upload_filenames(db) -> Set[str]:
-    from models import KnowledgeItem, Review, ReviewSession, TradePlan, TradeReview
+    from models import Review, ReviewSession, TradePlan, TradeReview
 
     referenced: Set[str] = set()
     query_specs = [
-        (KnowledgeItem, (KnowledgeItem.content,)),
         (TradeReview, (TradeReview.research_notes,)),
         (Review, (Review.content, Review.research_notes)),
         (ReviewSession, (ReviewSession.content, ReviewSession.research_notes)),

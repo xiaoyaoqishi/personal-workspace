@@ -138,7 +138,6 @@ def attach_review_session_link_fields(db: Session, rows: List[ReviewSession]) ->
                     "symbol": trade.symbol,
                     "contract": trade.contract,
                     "direction": trade.direction,
-                    "quantity": trade.quantity,
                     "open_price": trade.open_price,
                     "close_price": trade.close_price,
                     "status": trade.status,

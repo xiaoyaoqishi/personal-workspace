@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.db import get_db
-from models import Trade
+from models import Trade, TradeSourceMetadata
 from schemas import TradePasteImportError, TradePasteImportRequest, TradePasteImportResponse
 from services import runtime as legacy_runtime
 from services import trading_runtime
@@ -21,7 +21,6 @@ PASTE_TRADE_HEADERS = [
     "买/卖",
     "投机（一般）/套保/套利",
     "成交价",
-    "手数",
     "成交额",
     "开/平",
     "手续费",
@@ -88,9 +87,6 @@ def _parse_paste_row(cells: List[str], broker: Optional[str]) -> Trade:
     direction = _map_direction(normalized_cells[2])
     category = str(normalized_cells[3] or "").strip() or None
     open_price = _parse_float(normalized_cells[4], "成交价")
-    quantity = _parse_float(normalized_cells[5], "手数")
-    if quantity <= 0:
-        raise ValueError("手数必须大于0")
     _parse_float(normalized_cells[6], "成交额")
     status = _map_open_close(normalized_cells[7])
     commission = _parse_float(normalized_cells[8], "手续费")
@@ -103,10 +99,6 @@ def _parse_paste_row(cells: List[str], broker: Optional[str]) -> Trade:
         close_time = datetime.combine(trade_day, datetime.min.time()).replace(hour=15, minute=0, second=0)
         close_price = open_price
 
-    notes = []
-    if broker:
-        notes.append(f"来源券商: {broker}")
-    notes.append("来源: 日结单粘贴导入")
     return Trade(
         trade_date=trade_day,
         instrument_type="期货",
@@ -118,83 +110,10 @@ def _parse_paste_row(cells: List[str], broker: Optional[str]) -> Trade:
         close_time=close_time,
         open_price=open_price,
         close_price=close_price,
-        quantity=quantity,
         commission=commission,
         pnl=pnl,
         status=status,
-        notes=" | ".join(notes),
         owner_role=legacy_runtime._owner_role_value_for_create(),
-    )
-
-
-def _copy_trade_for_closed_part(
-    source: Trade,
-    close_qty: float,
-    close_price: float,
-    close_time: datetime,
-    close_commission: float,
-    close_pnl: float,
-) -> Trade:
-    open_commission_part = float(source.commission or 0) * close_qty / float(source.quantity or 1)
-    return Trade(
-        trade_date=source.trade_date,
-        instrument_type=source.instrument_type,
-        symbol=source.symbol,
-        contract=source.contract,
-        category=source.category,
-        direction=source.direction,
-        open_time=source.open_time,
-        close_time=close_time,
-        open_price=source.open_price,
-        close_price=close_price,
-        quantity=close_qty,
-        margin=source.margin,
-        commission=round(open_commission_part + close_commission, 6),
-        slippage=source.slippage,
-        pnl=round(close_pnl, 6),
-        pnl_points=source.pnl_points,
-        holding_duration=source.holding_duration,
-        is_overnight=source.is_overnight,
-        trading_session=source.trading_session,
-        status="closed",
-        is_main_contract=source.is_main_contract,
-        is_near_delivery=source.is_near_delivery,
-        is_contract_switch=source.is_contract_switch,
-        is_high_volatility=source.is_high_volatility,
-        is_near_data_release=source.is_near_data_release,
-        entry_logic=source.entry_logic,
-        exit_logic=source.exit_logic,
-        strategy_type=source.strategy_type,
-        market_condition=source.market_condition,
-        timeframe=source.timeframe,
-        core_signal=source.core_signal,
-        stop_loss_plan=source.stop_loss_plan,
-        target_plan=source.target_plan,
-        followed_plan=source.followed_plan,
-        is_planned=source.is_planned,
-        is_impulsive=source.is_impulsive,
-        is_chasing=source.is_chasing,
-        is_holding_loss=source.is_holding_loss,
-        is_early_profit=source.is_early_profit,
-        is_extended_stop=source.is_extended_stop,
-        is_overweight=source.is_overweight,
-        is_revenge=source.is_revenge,
-        is_emotional=source.is_emotional,
-        mental_state=source.mental_state,
-        physical_state=source.physical_state,
-        pre_opportunity=source.pre_opportunity,
-        pre_win_reason=source.pre_win_reason,
-        pre_risk=source.pre_risk,
-        during_match_expectation=source.during_match_expectation,
-        during_plan_changed=source.during_plan_changed,
-        post_quality=source.post_quality,
-        post_repeat=source.post_repeat,
-        post_root_cause=source.post_root_cause,
-        post_replicable=source.post_replicable,
-        error_tags=source.error_tags,
-        review_note=source.review_note,
-        notes=trading_runtime._append_note(source.notes, "来源: 自动平仓拆分"),
-        owner_role=source.owner_role or legacy_runtime._owner_role_value_for_create(),
     )
 
 
@@ -218,61 +137,20 @@ def _apply_close_fill_to_db(db: Session, fill: Trade, broker: Optional[str] = No
     if contract_norm:
         query = query.filter(func.upper(func.replace(func.trim(Trade.contract), " ", "")) == contract_norm)
     if broker:
-        query = query.filter(Trade.notes.contains(f"来源券商: {broker}"))
+        query = query.join(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id).filter(
+            TradeSourceMetadata.broker_name == broker
+        )
 
-    open_rows = query.order_by(Trade.open_time.asc(), Trade.id.asc()).all()
-    remaining = float(fill.quantity or 0)
-    if remaining <= 0:
-        raise ValueError("平仓手数必须大于0")
+    row = query.order_by(Trade.open_time.asc(), Trade.id.asc()).first()
+    if not row:
+        raise ValueError(f"{symbol} {close_side} 平仓失败：未找到对应开仓")
 
-    total_open = sum(float(row.quantity or 0) for row in open_rows)
-    if total_open + 1e-9 < remaining:
-        raise ValueError(f"{symbol} {close_side} 平仓失败：可匹配持仓不足（平仓时间早于对应开仓时间）")
-
-    close_price = float(fill.open_price or 0)
-    close_commission_total = float(fill.commission or 0)
-    close_pnl_total = float(fill.pnl or 0)
-    close_qty_total = float(fill.quantity or 1)
-    affected_rows: List[Trade] = []
-
-    for row in open_rows:
-        if remaining <= 1e-9:
-            break
-        row_qty = float(row.quantity or 0)
-        if row_qty <= 0:
-            continue
-        take = min(row_qty, remaining)
-        ratio = take / close_qty_total
-        close_commission_part = close_commission_total * ratio
-        close_pnl_part = close_pnl_total * ratio
-
-        if abs(take - row_qty) <= 1e-9:
-            row.status = "closed"
-            row.close_price = close_price
-            row.close_time = close_time
-            row.pnl = round(close_pnl_part, 6)
-            row.commission = round(float(row.commission or 0) + close_commission_part, 6)
-            row.notes = trading_runtime._append_note(row.notes, "来源: 自动平仓匹配")
-            affected_rows.append(row)
-        else:
-            remaining_qty = row_qty - take
-            closed_row = _copy_trade_for_closed_part(
-                row,
-                close_qty=take,
-                close_price=close_price,
-                close_time=close_time,
-                close_commission=close_commission_part,
-                close_pnl=close_pnl_part,
-            )
-            db.add(closed_row)
-            affected_rows.append(closed_row)
-            open_commission_total = float(row.commission or 0)
-            row.quantity = round(remaining_qty, 6)
-            row.commission = round(open_commission_total * (remaining_qty / row_qty), 6)
-            row.notes = trading_runtime._append_note(row.notes, "部分平仓后自动拆分")
-            affected_rows.append(row)
-        remaining -= take
-    return affected_rows
+    row.status = "closed"
+    row.close_price = float(fill.open_price or 0)
+    row.close_time = close_time
+    row.pnl = round(float(fill.pnl or 0), 6)
+    row.commission = round(float(row.commission or 0) + float(fill.commission or 0), 6)
+    return [row]
 
 
 def import_trades_from_paste(payload: TradePasteImportRequest, db: Session = Depends(get_db)):

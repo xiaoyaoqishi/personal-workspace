@@ -61,7 +61,6 @@ def _review_session_to_legacy_response(row: ReviewSession) -> Dict[str, Any]:
         "tags_text": row.tags_text,
         "best_trade": None,
         "worst_trade": None,
-        "discipline_violated": None,
         "loss_acceptable": None,
         "execution_score": None,
         "tomorrow_avoid": None,
@@ -111,9 +110,6 @@ def _apply_trade_filters(
     status: Optional[str] = None,
     strategy_type: Optional[str] = None,
     source_keyword: Optional[str] = None,
-    is_favorite: Optional[bool] = None,
-    min_star_rating: Optional[int] = None,
-    max_star_rating: Optional[int] = None,
     owner_role: Optional[str] = None,
 ):
     q = q.filter(Trade.is_deleted == False)  # noqa: E712
@@ -134,12 +130,6 @@ def _apply_trade_filters(
         q = q.filter(Trade.status == status)
     if strategy_type:
         q = q.filter(Trade.strategy_type == strategy_type)
-    if is_favorite is not None:
-        q = q.filter(Trade.is_favorite == is_favorite)
-    if min_star_rating is not None:
-        q = q.filter(Trade.star_rating >= min_star_rating)
-    if max_star_rating is not None:
-        q = q.filter(Trade.star_rating <= max_star_rating)
     return _source_apply_source_keyword_filter(q, source_keyword)
 
 
@@ -155,9 +145,6 @@ def _build_trade_ids_from_filter(db: Session, filter_params: Dict[str, Any]) -> 
         status=filter_params.get("status"),
         strategy_type=filter_params.get("strategy_type"),
         source_keyword=filter_params.get("source_keyword"),
-        is_favorite=filter_params.get("is_favorite"),
-        min_star_rating=filter_params.get("min_star_rating"),
-        max_star_rating=filter_params.get("max_star_rating"),
         owner_role=filter_params.get("owner_role"),
     )
     rows = q.order_by(Trade.open_time.desc(), Trade.id.desc()).all()

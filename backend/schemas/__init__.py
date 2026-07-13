@@ -1,6 +1,5 @@
 from schemas.admin import UserCreateBody, UserResetPasswordBody, UserUpdateBody
 from schemas.auth import LoginBody
-from schemas.knowledge import KnowledgeItemCreate, KnowledgeItemResponse, KnowledgeItemUpdate
 from schemas.ledger import (
     LedgerCommitResponse,
     LedgerGeneratedRulesResponse,
@@ -75,6 +74,7 @@ from schemas.trading import (
     TradeReviewResponse,
     TradeReviewTaxonomyResponse,
     TradeReviewUpsert,
+    TradeRiskPointHistoryResponse,
     TradeSearchOptionItemResponse,
     TradeSearchOptionsResponse,
     TradeSourceMetadataResponse,

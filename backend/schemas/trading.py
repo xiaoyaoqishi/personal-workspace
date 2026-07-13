@@ -1,13 +1,13 @@
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from trade_review_taxonomy import EdgeSource, FailureType, OpportunityStructure, ReviewConclusion
 
 
 class TradeCreate(BaseModel):
-    trade_date: date
+    trade_date: Optional[date] = None
     instrument_type: str
     symbol: str
     contract: Optional[str] = None
@@ -17,61 +17,23 @@ class TradeCreate(BaseModel):
     close_time: Optional[datetime] = None
     open_price: float
     close_price: Optional[float] = None
-    quantity: float
-    margin: Optional[float] = None
+    stop_loss_point: float
+    target_point: float
+    capital_percentage: float = Field(ge=0, le=100)
     commission: Optional[float] = 0
     leverage: Optional[float] = None
-    slippage: Optional[float] = 0
     pnl: Optional[float] = None
-    pnl_points: Optional[float] = None
-    holding_duration: Optional[str] = None
-    is_overnight: Optional[bool] = False
-    trading_session: Optional[str] = None
     status: Optional[str] = "open"
-
-    is_main_contract: Optional[str] = None
-    is_near_delivery: Optional[bool] = False
-    is_contract_switch: Optional[bool] = False
-    is_high_volatility: Optional[bool] = False
-    is_near_data_release: Optional[bool] = False
 
     entry_logic: Optional[str] = None
     exit_logic: Optional[str] = None
     strategy_type: Optional[str] = None
-    market_condition: Optional[str] = None
-    timeframe: Optional[str] = None
     core_signal: Optional[str] = None
-    stop_loss_plan: Optional[float] = None
-    target_plan: Optional[float] = None
-    followed_plan: Optional[bool] = None
 
-    is_planned: Optional[bool] = None
-    is_impulsive: Optional[bool] = False
-    is_chasing: Optional[bool] = False
-    is_holding_loss: Optional[bool] = False
-    is_early_profit: Optional[bool] = False
-    is_extended_stop: Optional[bool] = False
-    is_overweight: Optional[bool] = False
-    is_revenge: Optional[bool] = False
-    is_emotional: Optional[bool] = False
-    mental_state: Optional[str] = None
-    physical_state: Optional[str] = None
-
-    pre_opportunity: Optional[str] = None
-    pre_win_reason: Optional[str] = None
-    pre_risk: Optional[str] = None
-    during_match_expectation: Optional[str] = None
-    during_plan_changed: Optional[str] = None
-    post_quality: Optional[str] = None
-    post_repeat: Optional[bool] = None
-    post_root_cause: Optional[str] = None
-    post_replicable: Optional[bool] = None
-
-    error_tags: Optional[str] = None
-    review_note: Optional[str] = None
-    notes: Optional[str] = None
-    is_favorite: Optional[bool] = False
-    star_rating: Optional[int] = Field(default=None, ge=1, le=5)
+    @model_validator(mode="after")
+    def derive_trade_date_from_open_time(self):
+        self.trade_date = self.open_time.date()
+        return self
 
 
 class TradeUpdate(BaseModel):
@@ -85,61 +47,18 @@ class TradeUpdate(BaseModel):
     close_time: Optional[datetime] = None
     open_price: Optional[float] = None
     close_price: Optional[float] = None
-    quantity: Optional[float] = None
-    margin: Optional[float] = None
+    stop_loss_point: Optional[float] = None
+    target_point: Optional[float] = None
+    capital_percentage: Optional[float] = Field(default=None, ge=0, le=100)
     commission: Optional[float] = None
     leverage: Optional[float] = None
-    slippage: Optional[float] = None
     pnl: Optional[float] = None
-    pnl_points: Optional[float] = None
-    holding_duration: Optional[str] = None
-    is_overnight: Optional[bool] = None
-    trading_session: Optional[str] = None
     status: Optional[str] = None
-
-    is_main_contract: Optional[str] = None
-    is_near_delivery: Optional[bool] = None
-    is_contract_switch: Optional[bool] = None
-    is_high_volatility: Optional[bool] = None
-    is_near_data_release: Optional[bool] = None
 
     entry_logic: Optional[str] = None
     exit_logic: Optional[str] = None
     strategy_type: Optional[str] = None
-    market_condition: Optional[str] = None
-    timeframe: Optional[str] = None
     core_signal: Optional[str] = None
-    stop_loss_plan: Optional[float] = None
-    target_plan: Optional[float] = None
-    followed_plan: Optional[bool] = None
-
-    is_planned: Optional[bool] = None
-    is_impulsive: Optional[bool] = None
-    is_chasing: Optional[bool] = None
-    is_holding_loss: Optional[bool] = None
-    is_early_profit: Optional[bool] = None
-    is_extended_stop: Optional[bool] = None
-    is_overweight: Optional[bool] = None
-    is_revenge: Optional[bool] = None
-    is_emotional: Optional[bool] = None
-    mental_state: Optional[str] = None
-    physical_state: Optional[str] = None
-
-    pre_opportunity: Optional[str] = None
-    pre_win_reason: Optional[str] = None
-    pre_risk: Optional[str] = None
-    during_match_expectation: Optional[str] = None
-    during_plan_changed: Optional[str] = None
-    post_quality: Optional[str] = None
-    post_repeat: Optional[bool] = None
-    post_root_cause: Optional[str] = None
-    post_replicable: Optional[bool] = None
-
-    error_tags: Optional[str] = None
-    review_note: Optional[str] = None
-    notes: Optional[str] = None
-    is_favorite: Optional[bool] = None
-    star_rating: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class TradeResponse(TradeCreate):
@@ -154,12 +73,30 @@ class TradeResponse(TradeCreate):
     source_display: Optional[str] = None
     source_is_metadata: Optional[bool] = None
     has_trade_review: Optional[bool] = None
-    discipline_violated: Optional[bool] = None
 
 
 class TradePasteImportRequest(BaseModel):
     raw_text: str
     broker: Optional[str] = None
+
+
+class TradeRiskPointHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    trade_id: int
+    stop_loss_point: Optional[float] = None
+    target_point: Optional[float] = None
+    capital_percentage: Optional[float] = None
+    recorded_at: datetime
+
+    @field_serializer("recorded_at")
+    def serialize_recorded_at_as_china_time(self, value: datetime) -> str:
+        from datetime import timezone
+        from zoneinfo import ZoneInfo
+
+        source = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+        return source.astimezone(ZoneInfo("Asia/Shanghai")).isoformat()
 
 
 class TradePasteImportError(BaseModel):
@@ -177,7 +114,6 @@ class TradePasteImportResponse(BaseModel):
 class TradePositionResponse(BaseModel):
     symbol: str
     contract: Optional[str] = None
-    net_quantity: float
     side: str
     avg_open_price: float
     open_since: Optional[date] = None
@@ -191,7 +127,6 @@ class TradeSearchOptionItemResponse(BaseModel):
     symbol: Optional[str] = None
     contract: Optional[str] = None
     direction: Optional[str] = None
-    quantity: Optional[float] = None
     open_price: Optional[float] = None
     close_price: Optional[float] = None
     status: Optional[str] = None
@@ -217,7 +152,6 @@ class TradeReviewUpsert(BaseModel):
     invalidation_boundary: Optional[str] = None
     management_actions: Optional[str] = None
     exit_reason: Optional[str] = None
-    discipline_violated: Optional[bool] = None
     tags: Optional[Union[List[str], str]] = None
     review_tags: Optional[str] = None
     research_notes: Optional[str] = None
@@ -245,9 +179,7 @@ class TradeSourceMetadataUpsert(BaseModel):
     broker_name: Optional[str] = None
     source_label: Optional[str] = None
     import_channel: Optional[str] = None
-    source_note_snapshot: Optional[str] = None
     parser_version: Optional[str] = None
-    derived_from_notes: Optional[bool] = None
 
 
 class TradeSourceMetadataResponse(TradeSourceMetadataUpsert):
@@ -292,7 +224,6 @@ class TradeSummaryResponse(BaseModel):
     symbol: Optional[str] = None
     contract: Optional[str] = None
     direction: Optional[str] = None
-    quantity: Optional[float] = None
     open_price: Optional[float] = None
     close_price: Optional[float] = None
     status: Optional[str] = None

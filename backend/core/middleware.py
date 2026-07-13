@@ -61,7 +61,6 @@ def _api_module_from_path(path: str):
         "/api/reviews",
         "/api/review-sessions",
         "/api/trade-plans",
-        "/api/knowledge-items",
         "/api/trade-brokers",
         "/api/trade-review-taxonomy",
         "/api/recycle",

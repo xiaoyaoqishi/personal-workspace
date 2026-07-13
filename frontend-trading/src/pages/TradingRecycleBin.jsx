@@ -9,15 +9,8 @@ const RECYCLE_TABS = [
     key: 'trades',
     label: '成交记录',
     title: (row) => `${row.trade_date || '-'} / ${row.contract || row.symbol || `交易 #${row.id}`}`,
-    extra: (row) => `方向 ${row.direction || '-'} / 手数 ${row.quantity ?? '-'} / 状态 ${row.status || '-'}`,
+    extra: (row) => `方向 ${row.direction || '-'} / 状态 ${row.status || '-'}`,
     api: recycleApi.trades,
-  },
-  {
-    key: 'knowledgeItems',
-    label: '知识',
-    title: (row) => row.title || `知识 #${row.id}`,
-    extra: (row) => `分类 ${row.category || '-'} / 状态 ${row.status || '-'}`,
-    api: recycleApi.knowledgeItems,
   },
   {
     key: 'tradeBrokers',

@@ -1,53 +1,35 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Button,
-  Col,
   Collapse,
   Descriptions,
   Drawer,
   Empty,
-  Input,
-  Rate,
-  Row,
   Space,
   Spin,
-  Switch,
   Tag,
   Typography,
-  Select,
+  Timeline,
 } from 'antd';
 import InkSection from '../../../components/InkSection';
-import { ReloadOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
-import { formatInstrumentDisplay, normalizeTagList } from '../display';
-import { getTaxonomyLabel, taxonomyOptionsWithZh } from '../localization';
-import ReadEditActions from '../components/ReadEditActions';
+import { ReloadOutlined } from '@ant-design/icons';
+import { formatChinaDateTime, formatInstrumentDisplay, normalizeTagList } from '../display';
+import { getTaxonomyLabel } from '../localization';
 import ResearchContentPanel from '../components/ResearchContentPanel';
-
-const { TextArea } = Input;
 
 export default function TradeDetailDrawer({
   open,
   tradeId,
   loading,
   trade,
+  riskPointHistory,
   review,
   reviewExists,
   linkedPlans,
-  reviewTaxonomy,
-  savingReview,
   onClose,
   onReload,
   onOpenEdit,
-  onChangeReview,
-  onSaveReview,
-  onUpdateTradeSignal,
 }) {
-  const [reviewEditing, setReviewEditing] = useState(false);
-
-  useEffect(() => {
-    setReviewEditing(false);
-  }, [tradeId, open]);
-
   const reviewTags = useMemo(
     () => normalizeTagList(review?.tags),
     [review?.tags]
@@ -59,7 +41,6 @@ export default function TradeDetailDrawer({
       review?.edge_source,
       review?.failure_type,
       review?.review_conclusion,
-      review?.discipline_violated,
       review?.research_notes,
     ].some((x) => {
       if (typeof x === 'boolean') return x;
@@ -67,22 +48,18 @@ export default function TradeDetailDrawer({
     });
   }, [review, reviewTags]);
 
-  const saveReview = async () => {
-    await onSaveReview();
-    setReviewEditing(false);
-  };
-
-  const cancelSectionEdit = async (setter) => {
-    await onReload();
-    setter(false);
-  };
-
   const plans = linkedPlans || [];
+  const hasDecisionContent = [
+    trade?.entry_logic,
+    trade?.exit_logic,
+    trade?.strategy_type,
+    trade?.core_signal,
+  ].some((value) => String(value || '').trim());
 
   return (
     <Drawer
       title={tradeId ? `交易详情 #${tradeId}` : '交易详情'}
-      width={720}
+      width="min(880px, 96vw)"
       open={open}
       onClose={onClose}
       destroyOnClose={false}
@@ -122,29 +99,45 @@ export default function TradeDetailDrawer({
               </Descriptions.Item>
               <Descriptions.Item label="开仓价">{trade.open_price ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="平仓价">{trade.close_price ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="手数">{trade.quantity ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="当前止损点">{trade.stop_loss_point ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="当前目标点">{trade.target_point ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="占本金百分比">{trade.capital_percentage != null ? `${trade.capital_percentage}%` : '-'}</Descriptions.Item>
               <Descriptions.Item label="盈亏">{trade.pnl ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="来源">{trade.source_display || '-'}</Descriptions.Item>
               <Descriptions.Item label="复盘">
                 {reviewExists ? <Tag color="green">已建立</Tag> : <Tag>未建立</Tag>}
               </Descriptions.Item>
             </Descriptions>
-            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Button
-                type="text"
-                size="small"
-                icon={trade.is_favorite ? <StarFilled style={{ color: '#f5a623' }} /> : <StarOutlined />}
-                onClick={() => onUpdateTradeSignal?.({ is_favorite: !trade.is_favorite })}
-              >
-                {trade.is_favorite ? '已收藏' : '收藏'}
-              </Button>
-              <Rate
-                value={trade.star_rating || 0}
-                allowClear
-                style={{ fontSize: 14 }}
-                onChange={(v) => onUpdateTradeSignal?.({ star_rating: v || null })}
+          </InkSection>
+
+          <InkSection size="small" title="交易决策">
+            {hasDecisionContent ? (
+              <Descriptions size="small" column={2}>
+                <Descriptions.Item label="策略类型">{trade.strategy_type || '-'}</Descriptions.Item>
+                <Descriptions.Item label="核心信号">{trade.core_signal || '-'}</Descriptions.Item>
+                <Descriptions.Item label="入场逻辑" span={2}>{trade.entry_logic || '-'}</Descriptions.Item>
+                <Descriptions.Item label="出场逻辑" span={2}>{trade.exit_logic || '-'}</Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无交易决策内容" />
+            )}
+          </InkSection>
+
+          <InkSection size="small" title="止损/目标/本金占比调整历史">
+            {(riskPointHistory || []).length > 0 ? (
+              <Timeline
+                items={riskPointHistory.map((item) => ({
+                  children: (
+                    <div>
+                      <div>止损点 {item.stop_loss_point ?? '-'} / 目标点 {item.target_point ?? '-'} / 本金占比 {item.capital_percentage != null ? `${item.capital_percentage}%` : '-'}</div>
+                      <Typography.Text type="secondary">
+                        {formatChinaDateTime(item.recorded_at)}
+                      </Typography.Text>
+                    </div>
+                  ),
+                }))}
               />
-            </div>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无调整历史" />}
           </InkSection>
 
           {/* 关联计划 */}
@@ -174,102 +167,8 @@ export default function TradeDetailDrawer({
           ) : null}
 
           {/* 结构化复盘 */}
-          <InkSection
-            size="small"
-            title="结构化复盘"
-            extra={
-              <ReadEditActions
-                editing={reviewEditing}
-                saving={savingReview}
-                onEdit={() => setReviewEditing(true)}
-                onSave={saveReview}
-                onCancel={() => cancelSectionEdit(setReviewEditing)}
-              />
-            }
-          >
-            {reviewEditing ? (
-              <Row gutter={[12, 8]}>
-                <Col span={12}>
-                  <Typography.Text type="secondary">机会结构</Typography.Text>
-                  <Select
-                    size="small"
-                    value={review.opportunity_structure || undefined}
-                    allowClear
-                    options={taxonomyOptionsWithZh('opportunity_structure', reviewTaxonomy.opportunity_structure)}
-                    onChange={(v) => onChangeReview('opportunity_structure', v || '')}
-                    placeholder="选择机会结构"
-                    style={{ width: '100%' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Typography.Text type="secondary">优势来源</Typography.Text>
-                  <Select
-                    size="small"
-                    value={review.edge_source || undefined}
-                    allowClear
-                    options={taxonomyOptionsWithZh('edge_source', reviewTaxonomy.edge_source)}
-                    onChange={(v) => onChangeReview('edge_source', v || '')}
-                    placeholder="选择优势来源"
-                    style={{ width: '100%' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Typography.Text type="secondary">失败类型</Typography.Text>
-                  <Select
-                    size="small"
-                    value={review.failure_type || undefined}
-                    allowClear
-                    options={taxonomyOptionsWithZh('failure_type', reviewTaxonomy.failure_type)}
-                    onChange={(v) => onChangeReview('failure_type', v || '')}
-                    placeholder="选择失败类型"
-                    style={{ width: '100%' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Typography.Text type="secondary">复盘结论</Typography.Text>
-                  <Select
-                    size="small"
-                    value={review.review_conclusion || undefined}
-                    allowClear
-                    options={taxonomyOptionsWithZh('review_conclusion', reviewTaxonomy.review_conclusion)}
-                    onChange={(v) => onChangeReview('review_conclusion', v || '')}
-                    placeholder="选择复盘结论"
-                    style={{ width: '100%' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                    <Typography.Text type="secondary">违反纪律</Typography.Text>
-                    <Switch
-                      size="small"
-                      checked={!!review.discipline_violated}
-                      onChange={(v) => onChangeReview('discipline_violated', v)}
-                    />
-                  </div>
-                </Col>
-                <Col span={24}>
-                  <Typography.Text type="secondary">标签</Typography.Text>
-                  <Select
-                    size="small"
-                    mode="tags"
-                    tokenSeparators={[',', '，']}
-                    value={review.tags || []}
-                    onChange={(v) => onChangeReview('tags', v || [])}
-                    style={{ width: '100%' }}
-                    placeholder="输入并回车添加标签"
-                  />
-                </Col>
-                <Col span={24}>
-                  <ResearchContentPanel
-                    editing
-                    showStandardFields={false}
-                    title="图文研究"
-                    value={review.research_notes}
-                    onChange={(next) => onChangeReview('research_notes', next)}
-                  />
-                </Col>
-              </Row>
-            ) : !hasReviewContent ? (
+          <InkSection size="small" title="结构化复盘">
+            {!hasReviewContent ? (
               <Empty description="暂无结构化复盘内容" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               <div>
@@ -278,7 +177,6 @@ export default function TradeDetailDrawer({
                   {review.edge_source ? <Tag color="cyan">优势来源：{getTaxonomyLabel('edge_source', review.edge_source)}</Tag> : null}
                   {review.failure_type ? <Tag color="red">失败类型：{getTaxonomyLabel('failure_type', review.failure_type)}</Tag> : null}
                   {review.review_conclusion ? <Tag color="green">结论：{getTaxonomyLabel('review_conclusion', review.review_conclusion)}</Tag> : null}
-                  {review.discipline_violated ? <Tag color="red">违反纪律</Tag> : null}
                 </Space>
                 {reviewTags.length > 0 ? (
                   <div style={{ marginBottom: 8 }}>

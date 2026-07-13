@@ -1,32 +1,24 @@
 ﻿import { useState, useEffect } from 'react';
 import {
-  Form, Input, InputNumber, Select, DatePicker, Switch, Button,
-  Tabs, message, Space, Row, Col, Divider, Collapse, Checkbox,
+  Form, Input, InputNumber, Select, DatePicker, Button,
+  Tabs, message, Space, Row, Col, Divider, Collapse, Timeline, Typography,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { brokerApi, tradeApi, tradeReviewApi, tradeSourceApi } from '../api';
+import { tradeApi, tradeReviewApi } from '../api';
 import { taxonomyCanonicalValues, taxonomyOptionsWithZh } from '../features/trading/localization';
-import { normalizeTagList } from '../features/trading/display';
-import { normalizeSourceLabelForDisplay } from '../features/trading/sourceDisplay';
+import { formatChinaDateTime, normalizeTagList } from '../features/trading/display';
 import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Panel } = Collapse;
 
-const ERROR_TAGS = [
-  '无计划开仓', '追涨杀跌', '止损不坚决', '提前止盈', '盈利单拿不住',
-  '亏损单死扛', '仓位过大', '频繁交易', '情绪化交易', '与策略不符',
-  '逆势操作', '低流动性误判', '夜盘执行变形',
-];
-
 const TRADE_REVIEW_FIELDS = [
   'opportunity_structure',
   'edge_source',
   'failure_type',
   'review_conclusion',
-  'discipline_violated',
   'entry_thesis',
   'invalidation_valid_evidence',
   'invalidation_trigger_evidence',
@@ -35,14 +27,6 @@ const TRADE_REVIEW_FIELDS = [
   'exit_reason',
   'tags',
   'research_notes',
-];
-
-const TRADE_SOURCE_FIELDS = [
-  'broker_name',
-  'source_label',
-  'import_channel',
-  'parser_version',
-  'source_note_snapshot',
 ];
 
 const EMPTY_REVIEW_TAXONOMY = {
@@ -58,10 +42,8 @@ export default function TradeForm() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [reviewExists, setReviewExists] = useState(false);
-  const [sourceExists, setSourceExists] = useState(false);
-  const [sourceDerivedFromNotes, setSourceDerivedFromNotes] = useState(true);
   const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
-  const [brokerOptions, setBrokerOptions] = useState([]);
+  const [riskPointHistory, setRiskPointHistory] = useState([]);
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -96,47 +78,31 @@ export default function TradeForm() {
 
   useEffect(() => {
     let alive = true;
-    brokerApi.list()
-      .then((res) => {
-        if (!alive) return;
-        const rows = Array.isArray(res.data) ? res.data : [];
-        setBrokerOptions(rows
-          .map((x) => String(x?.name || '').trim())
-          .filter(Boolean)
-          .map((name) => ({ label: name, value: name })));
-      })
-      .catch(() => {
-        if (alive) setBrokerOptions([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
     const reviewInitFields = Object.fromEntries(TRADE_REVIEW_FIELDS.map((f) => [f, undefined]));
-    const sourceInitFields = Object.fromEntries(TRADE_SOURCE_FIELDS.map((f) => [f, undefined]));
 
     const loadData = async () => {
       if (!isEdit) {
         setReviewExists(false);
-        setSourceExists(false);
-        setSourceDerivedFromNotes(true);
-        form.setFieldsValue({ ...reviewInitFields, ...sourceInitFields });
+        setRiskPointHistory([]);
+        form.setFieldsValue(reviewInitFields);
         return;
       }
       try {
         const tradeRes = await tradeApi.get(id);
         if (!alive) return;
         const d = { ...tradeRes.data };
-        if (d.trade_date) d.trade_date = dayjs(d.trade_date);
         if (d.open_time) d.open_time = dayjs(d.open_time);
         if (d.close_time) d.close_time = dayjs(d.close_time);
-        if (d.error_tags) {
-          try { d.error_tags = JSON.parse(d.error_tags); } catch { /* keep as-is */ }
-        }
         form.setFieldsValue(d);
+
+        try {
+          const historyRes = await tradeApi.riskPointHistory(id);
+          if (!alive) return;
+          setRiskPointHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+        } catch {
+          if (!alive) return;
+          setRiskPointHistory([]);
+        }
 
         try {
           const reviewRes = await tradeReviewApi.get(id);
@@ -151,21 +117,6 @@ export default function TradeForm() {
           } else {
             message.error('结构化复盘加载失败');
           }
-        }
-        try {
-          const sourceRes = await tradeSourceApi.get(id);
-          if (!alive) return;
-          const sourceData = sourceRes.data || {};
-          form.setFieldsValue({
-            ...sourceData,
-            source_label: normalizeSourceLabelForDisplay(sourceData.source_label),
-          });
-          setSourceExists(!!sourceRes.data?.exists_in_db);
-          setSourceDerivedFromNotes(!!sourceRes.data?.derived_from_notes);
-        } catch {
-          if (!alive) return;
-          setSourceExists(false);
-          setSourceDerivedFromNotes(true);
         }
       } catch {
         if (alive) message.error('加载失败');
@@ -186,20 +137,8 @@ export default function TradeForm() {
         reviewData[field] = data[field];
         delete data[field];
       });
-      const sourceData = {};
-      TRADE_SOURCE_FIELDS.forEach((field) => {
-        sourceData[field] = data[field];
-        delete data[field];
-      });
-
-      if (data.trade_date) data.trade_date = data.trade_date.format('YYYY-MM-DD');
       if (data.open_time) data.open_time = data.open_time.format('YYYY-MM-DDTHH:mm:ss');
       if (data.close_time) data.close_time = data.close_time.format('YYYY-MM-DDTHH:mm:ss');
-      if (Array.isArray(data.error_tags)) data.error_tags = JSON.stringify(data.error_tags);
-      if (!isEdit && (data.quantity === undefined || data.quantity === null || data.quantity === '')) {
-        data.quantity = 0;
-      }
-
       let tradeId = id;
       if (isEdit) {
         await tradeApi.update(id, data);
@@ -231,26 +170,6 @@ export default function TradeForm() {
         }
       }
 
-      const normalizedSource = {};
-      Object.entries(sourceData).forEach(([k, v]) => {
-        if (typeof v === 'string') {
-          const trimmed = v.trim();
-          normalizedSource[k] = trimmed || null;
-        } else {
-          normalizedSource[k] = v ?? null;
-        }
-      });
-      const hasSourceData = Object.values(normalizedSource).some((v) => v !== null && v !== undefined && v !== '');
-      if (tradeId && (hasSourceData || (isEdit && sourceExists))) {
-        await tradeSourceApi.upsert(tradeId, {
-          ...normalizedSource,
-          source_note_snapshot: normalizedSource.source_note_snapshot || (typeof data.notes === 'string' ? data.notes.trim() || null : null),
-          derived_from_notes: false,
-        });
-        setSourceExists(true);
-        setSourceDerivedFromNotes(false);
-      }
-
       message.success(isEdit ? '更新成功' : '创建成功');
       navigate('/trades');
     } catch (e) {
@@ -266,7 +185,6 @@ export default function TradeForm() {
         /* 编辑模式 Tab 1 */
         <Row gutter={16}>
           {/* 核心字段 */}
-          <Col span={8}><Form.Item label="交易日期" name="trade_date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}>
             <Form.Item label="交易类型" name="instrument_type" rules={[{ required: true }]}>
               <Select options={opt(['期货', '加密货币', '股票', '外汇'])} />
@@ -285,6 +203,9 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="开仓时间" name="open_time" rules={[{ required: true }]}><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="当前止损点" name="stop_loss_point" rules={[{ required: true, message: '请填写止损点' }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="当前目标点" name="target_point" rules={[{ required: true, message: '请填写目标点' }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="占本金百分比" name="capital_percentage" rules={[{ required: true, message: '请填写占本金百分比' }]}><InputNumber style={{ width: '100%' }} min={0} max={100} addonAfter="%" /></Form.Item></Col>
           <Col span={8}><Form.Item label="合约" name="contract"><Input /></Form.Item></Col>
           <Col span={8}>
             <Form.Item label="状态" name="status" initialValue="open">
@@ -296,61 +217,39 @@ export default function TradeForm() {
           <Form.Item shouldUpdate={(prev, curr) => prev.instrument_type !== curr.instrument_type} noStyle>
             {({ getFieldValue }) => {
               const t = getFieldValue('instrument_type');
-              if (t === '期货') return (
-                <Col span={8}><Form.Item label="手数" name="quantity"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-              );
               if (t === '加密货币') return (
                 <Col span={8}><Form.Item label="杠杆倍数" name="leverage"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
               );
               return null;
             }}
           </Form.Item>
-          <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
 
-          {/* 补充交易信息（折叠） */}
           <Col span={24} style={{ marginTop: 8 }}>
             <Collapse ghost>
-              <Panel header="补充交易信息" key="extra">
-                <Row gutter={16}>
-                  <Col span={8}><Form.Item label="滑点" name="slippage"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="盈亏点数" name="pnl_points"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-                  <Col span={8}><Form.Item label="持仓时长" name="holding_duration"><Input /></Form.Item></Col>
-                  <Col span={8}>
-                    <Form.Item label="交易时段" name="trading_session">
-                      <Select allowClear options={opt(['上午', '下午', '夜盘前段', '夜盘后段'])} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}><Form.Item label="是否隔夜" name="is_overnight" valuePropName="checked"><Switch /></Form.Item></Col>
-                </Row>
+              <Panel header={`止损/目标/本金占比调整历史（${riskPointHistory.length}）`} key="risk-point-history">
+                {riskPointHistory.length > 0 ? (
+                  <Timeline
+                    items={riskPointHistory.map((item) => ({
+                      children: (
+                        <Space direction="vertical" size={0}>
+                          <Typography.Text>止损点 {item.stop_loss_point ?? '-'} / 目标点 {item.target_point ?? '-'} / 本金占比 {item.capital_percentage != null ? `${item.capital_percentage}%` : '-'}</Typography.Text>
+                          <Typography.Text type="secondary">中国时间 {formatChinaDateTime(item.recorded_at)}</Typography.Text>
+                        </Space>
+                      ),
+                    }))}
+                  />
+                ) : <Typography.Text type="secondary">暂无调整历史</Typography.Text>}
               </Panel>
             </Collapse>
           </Col>
 
-          {/* 期货特有（折叠） */}
-          <Col span={24} style={{ marginTop: 4 }}>
-            <Collapse ghost>
-              <Panel header="期货特有" key="futures">
-                <Row gutter={16}>
-                  <Col span={6}>
-                    <Form.Item label="主力/次主力" name="is_main_contract">
-                      <Select allowClear options={opt(['主力', '次主力', '远月'])} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={6}><Form.Item label="临近交割月" name="is_near_delivery" valuePropName="checked"><Switch /></Form.Item></Col>
-                  <Col span={6}><Form.Item label="换月阶段" name="is_contract_switch" valuePropName="checked"><Switch /></Form.Item></Col>
-                  <Col span={6}><Form.Item label="高波动时段" name="is_high_volatility" valuePropName="checked"><Switch /></Form.Item></Col>
-                </Row>
-              </Panel>
-            </Collapse>
-          </Col>
         </Row>
       ) : (
         /* 新建模式 Tab 1 */
         <Row gutter={16}>
           {/* 核心必填字段 */}
-          <Col span={8}><Form.Item label="交易日期" name="trade_date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}>
             <Form.Item label="交易类型" name="instrument_type" rules={[{ required: true }]}>
               <Select options={opt(['期货', '加密货币', '股票', '外汇'])} />
@@ -364,12 +263,12 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="开仓时间" name="open_time" rules={[{ required: true }]}><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}><Form.Item label="开仓价" name="open_price" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="止损点" name="stop_loss_point" rules={[{ required: true, message: '请填写止损点' }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="目标点" name="target_point" rules={[{ required: true, message: '请填写目标点' }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="占本金百分比" name="capital_percentage" rules={[{ required: true, message: '请填写占本金百分比' }]}><InputNumber style={{ width: '100%' }} min={0} max={100} addonAfter="%" /></Form.Item></Col>
           <Form.Item shouldUpdate={(prev, curr) => prev.instrument_type !== curr.instrument_type} noStyle>
             {({ getFieldValue }) => {
               const t = getFieldValue('instrument_type');
-              if (t === '期货') return (
-                <Col span={8}><Form.Item label="手数" name="quantity" rules={[{ required: true, message: '请填写手数' }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-              );
               if (t === '加密货币') return (
                 <Col span={8}><Form.Item label="杠杆倍数" name="leverage" rules={[{ required: true, message: '请填写杠杆倍数' }]}><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
               );
@@ -385,7 +284,6 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="保证金" name="margin"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
         </Row>
@@ -402,106 +300,12 @@ export default function TradeForm() {
               <Select allowClear options={opt(['趋势突破', '回调接力', '震荡反转', '消息驱动', '价差逻辑', '日内短线', '其他'])} />
             </Form.Item>
           </Col>
-          <Col span={8}>
-            <Form.Item label="市场状态" name="market_condition">
-              <Select allowClear options={opt(['趋势', '震荡', '加速', '衰竭', '假突破', '低波动', '高波动'])} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="所属周期" name="timeframe">
-              <Select allowClear options={opt(['1分钟', '5分钟', '15分钟', '30分钟', '1小时', '4小时', '日线', '日内波段', '隔夜趋势'])} />
-            </Form.Item>
-          </Col>
           <Col span={24}><Form.Item label="核心信号" name="core_signal"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="止损设定" name="stop_loss_plan"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="目标位设定" name="target_plan"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="按计划执行" name="followed_plan" valuePropName="checked"><Switch /></Form.Item></Col>
         </Row>
       ),
     },
     {
-      key: '3', label: '行为纪律',
-      children: (
-        <Row gutter={16}>
-          {/* 8个行为字段用隐藏 Form.Item 保持值同步，用 shouldUpdate + Checkbox.Group 展示 */}
-          {['is_planned','is_impulsive','is_chasing','is_holding_loss','is_early_profit','is_extended_stop','is_overweight','is_revenge'].map(name => (
-            <Form.Item key={name} name={name} valuePropName="checked" noStyle hidden><Switch /></Form.Item>
-          ))}
-          <Col span={24}>
-            <Form.Item label="交易行为">
-              <Form.Item noStyle shouldUpdate>
-                {({ getFieldValue }) => {
-                  const behaviorFields = [
-                    { name: 'is_planned', label: '计划内交易' },
-                    { name: 'is_impulsive', label: '临时起意' },
-                    { name: 'is_chasing', label: '追单' },
-                    { name: 'is_holding_loss', label: '扛单' },
-                    { name: 'is_early_profit', label: '提前止盈' },
-                    { name: 'is_extended_stop', label: '扩大止损' },
-                    { name: 'is_overweight', label: '重仓' },
-                    { name: 'is_revenge', label: '报复性交易' },
-                  ];
-                  const checkedValues = behaviorFields
-                    .filter(f => getFieldValue(f.name))
-                    .map(f => f.name);
-                  return (
-                    <Checkbox.Group
-                      value={checkedValues}
-                      onChange={(vals) => {
-                        behaviorFields.forEach(f => {
-                          form.setFieldValue(f.name, vals.includes(f.name));
-                        });
-                      }}
-                      style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}
-                    >
-                      {behaviorFields.map(f => (
-                        <Checkbox key={f.name} value={f.name}>{f.label}</Checkbox>
-                      ))}
-                    </Checkbox.Group>
-                  );
-                }}
-              </Form.Item>
-            </Form.Item>
-          </Col>
-          <Col span={8}><Form.Item label="情绪影响" name="is_emotional" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={8}>
-            <Form.Item label="心理状态" name="mental_state">
-              <Select allowClear options={opt(['平静', '焦虑', '急躁', '犹豫', '兴奋', '恐惧'])} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="身体状态" name="physical_state">
-              <Select allowClear options={opt(['精力集中', '正常', '疲劳', '睡眠不足'])} />
-            </Form.Item>
-          </Col>
-        </Row>
-      ),
-    },
-    {
-      key: '4', label: '交易前中后',
-      children: (
-        <Row gutter={16}>
-          <Col span={24}><Divider>交易前</Divider></Col>
-          <Col span={8}><Form.Item label="看到的机会" name="pre_opportunity"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="为什么胜率高" name="pre_win_reason"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="如果错了，错在哪" name="pre_risk"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={24}><Divider>交易中</Divider></Col>
-          <Col span={12}><Form.Item label="走势是否符合预期" name="during_match_expectation"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={12}><Form.Item label="是否改变计划及原因" name="during_plan_changed"><TextArea rows={2} /></Form.Item></Col>
-          <Col span={24}><Divider>交易后</Divider></Col>
-          <Col span={8}>
-            <Form.Item label="交易质量" name="post_quality">
-              <Select allowClear options={opt(['好交易赚钱', '好交易亏钱', '坏交易赚钱', '坏交易亏钱'])} />
-            </Form.Item>
-          </Col>
-          <Col span={8}><Form.Item label="重来还做吗" name="post_repeat" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={8}><Form.Item label="盈利可复制吗" name="post_replicable" valuePropName="checked"><Switch /></Form.Item></Col>
-          <Col span={24}><Form.Item label="根因分析" name="post_root_cause"><TextArea rows={2} /></Form.Item></Col>
-        </Row>
-      ),
-    },
-    {
-      key: '5', label: '标签与复盘',
+      key: '5', label: '结构化复盘',
       children: (
         <Row gutter={16}>
           <Col span={24}><Divider>结构化复盘</Divider></Col>
@@ -546,9 +350,6 @@ export default function TradeForm() {
               <Select mode="tags" tokenSeparators={[',', '，']} placeholder="输入并回车添加标签" />
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item label="违反纪律" name="discipline_violated" valuePropName="checked"><Switch /></Form.Item>
-          </Col>
           <Col span={24}>
             <Form.Item name="entry_thesis" hidden><Input /></Form.Item>
             <Form.Item name="invalidation_valid_evidence" hidden><Input /></Form.Item>
@@ -571,29 +372,11 @@ export default function TradeForm() {
               )}
             </Form.Item>
           </Col>
-          <Col span={24}><Divider>来源信息</Divider></Col>
-          <Col span={12}>
-            <Form.Item label="券商" name="broker_name">
-              <Select allowClear options={brokerOptions} placeholder="请选择券商" />
-            </Form.Item>
-          </Col>
-          <Col span={12}><Form.Item label="来源标签" name="source_label"><Input placeholder="例如：手工补录" /></Form.Item></Col>
-          <Col span={12}><Form.Item label="导入通道" name="import_channel"><Input placeholder="例如：paste_import" /></Form.Item></Col>
-          <Col span={12}><Form.Item label="解析版本" name="parser_version"><Input placeholder="例如：paste_v1" /></Form.Item></Col>
-          <Col span={24}><Form.Item label="来源快照" name="source_note_snapshot"><TextArea rows={2} placeholder="可选：记录来源解析快照" /></Form.Item></Col>
-          <Col span={24}><Divider>补充记录</Divider></Col>
-          <Col span={24}>
-            <Form.Item label="错误标签" name="error_tags">
-              <Select mode="multiple" allowClear options={opt(ERROR_TAGS)} />
-            </Form.Item>
-          </Col>
-          <Col span={24}><Form.Item label="复盘一句话" name="review_note"><TextArea rows={3} /></Form.Item></Col>
-          <Col span={24}><Form.Item label="备注" name="notes"><TextArea rows={3} /></Form.Item></Col>
         </Row>
       ),
     },
   ];
-  const displayedTabItems = isEdit ? tabItems : [tabItems[0]];
+  const displayedTabItems = isEdit ? tabItems : tabItems.filter((item) => ['1', '2'].includes(item.key));
 
   return (
     <div>

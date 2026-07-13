@@ -4,7 +4,6 @@ from routers.admin import router as admin_router
 from routers.audit import router as audit_router
 from routers.auth import router as auth_router
 from routers.health import router as health_router
-from routers.knowledge import router as knowledge_router
 from routers.ledger import router as ledger_router
 from routers.ledger_assets import router as ledger_assets_router
 from routers.monitor import router as monitor_router
@@ -29,7 +28,6 @@ api_router.include_router(trading_router)
 api_router.include_router(review_router)
 api_router.include_router(review_sessions_router)
 api_router.include_router(trade_plans_router)
-api_router.include_router(knowledge_router)
 api_router.include_router(ledger_router)
 api_router.include_router(ledger_assets_router)
 api_router.include_router(notebook_router)

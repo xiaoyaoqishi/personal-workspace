@@ -14,7 +14,9 @@ def test_user_guard_and_owner_role_isolation(admin_login):
             "direction": "long",
             "open_time": datetime.utcnow().replace(microsecond=0).isoformat(),
             "open_price": 3800,
-            "quantity": 1,
+            "stop_loss_point": 3780,
+            "target_point": 3840,
+            "capital_percentage": 20,
         },
     )
     assert admin_trade.status_code == 200

@@ -1,6 +1,5 @@
 from models.auth import User
 from models.audit import BrowseLog
-from models.knowledge import KnowledgeCategory, KnowledgeItem, KnowledgeItemNoteLink, KnowledgeItemTagLink
 from models.ledger import (
     LedgerAsset,
     LedgerAssetEvent,
@@ -23,14 +22,18 @@ from models.review import (
     TradePlanReviewSessionLink,
     TradePlanTradeLink,
 )
-from models.trading import Trade, TradeBroker, TradeReview, TradeReviewTagLink, TradeSourceMetadata, TagTerm
+from models.trading import (
+    TagTerm,
+    Trade,
+    TradeBroker,
+    TradeReview,
+    TradeReviewTagLink,
+    TradeRiskPointHistory,
+    TradeSourceMetadata,
+)
 
 __all__ = [
     "BrowseLog",
-    "KnowledgeCategory",
-    "KnowledgeItem",
-    "KnowledgeItemNoteLink",
-    "KnowledgeItemTagLink",
     "LedgerAsset",
     "LedgerAssetEvent",
     "LedgerCategory",
@@ -60,6 +63,7 @@ __all__ = [
     "TradePlanTradeLink",
     "TradeReview",
     "TradeReviewTagLink",
+    "TradeRiskPointHistory",
     "TradeSourceMetadata",
     "User",
 ]

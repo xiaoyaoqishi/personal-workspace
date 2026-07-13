@@ -10,7 +10,9 @@ def test_recycle_trade_restore_chain(admin_login):
         "direction": "long",
         "open_time": datetime.utcnow().replace(microsecond=0).isoformat(),
         "open_price": 3700,
-        "quantity": 1,
+        "stop_loss_point": 3680,
+        "target_point": 3740,
+        "capital_percentage": 15,
     }
     created = client.post("/api/trades", json=payload)
     assert created.status_code == 200

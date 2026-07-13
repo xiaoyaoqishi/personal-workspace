@@ -54,6 +54,22 @@ export function formatReviewConclusionLabel(value) {
   return getTaxonomyLabel('review_conclusion', value);
 }
 
+export function formatChinaDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 export function formatSymbolDimensionKey(value) {
   const key = String(value || '').trim();
   if (!key || key === '未分类') return key || '未分类';
@@ -64,7 +80,6 @@ export function buildTradeSearchOption(item) {
   const tradeDate = item.trade_date || '-';
   const instrument = formatInstrumentDisplay(item.symbol, item.contract);
   const direction = item.direction || '-';
-  const quantity = item.quantity ?? '-';
   const openPrice = item.open_price ?? '-';
   const closePrice = item.close_price ?? '-';
   const pnl = item.pnl == null ? '-' : Number(item.pnl).toFixed(2);
@@ -75,14 +90,13 @@ export function buildTradeSearchOption(item) {
 
   return {
     value: item.trade_id,
-    label: `${tradeDate} · ${instrument} · ${direction} · 手数 ${quantity} · 开/平 ${openPrice}/${closePrice} · PnL ${pnl} · 来源 ${source}${reviewConclusion} · #${item.trade_id}`,
+    label: `${tradeDate} · ${instrument} · ${direction} · 开/平 ${openPrice}/${closePrice} · PnL ${pnl} · 来源 ${source}${reviewConclusion} · #${item.trade_id}`,
     summary: {
       trade_id: item.trade_id,
       trade_date: item.trade_date,
       symbol: item.symbol,
       contract: item.contract,
       direction: item.direction,
-      quantity: item.quantity,
       open_price: item.open_price,
       close_price: item.close_price,
       status: item.status,

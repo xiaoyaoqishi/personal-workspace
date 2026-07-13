@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from core.db import get_db
 from models import (
-    KnowledgeItem,
     ReviewSession,
     ReviewSessionTradeLink,
     ReviewTradeLink,
@@ -18,12 +17,7 @@ from models import (
     TradePlanTradeLink,
 )
 from services import notes_runtime
-from services import review_runtime
-from services import trade_plan_runtime
-from services.utility_runtime import cleanup_unreferenced_uploads
-from trading.knowledge_service import attach_knowledge_item_related_notes as _knowledge_attach_related_notes
 from trading.source_service import attach_trade_view_fields as _attach_trade_view_fields
-from trading.tag_service import attach_knowledge_item_tags as _attach_knowledge_item_tags
 
 
 def list_recycle_trades(
@@ -65,47 +59,6 @@ def purge_recycle_trade(trade_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-def list_recycle_knowledge_items(
-    page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
-):
-    rows = (
-        db.query(KnowledgeItem)
-        .filter(KnowledgeItem.is_deleted == True)  # noqa: E712
-        .order_by(KnowledgeItem.deleted_at.desc(), KnowledgeItem.id.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
-    rows = _attach_knowledge_item_tags(db, rows)
-    return _knowledge_attach_related_notes(db, rows)
-
-
-def restore_recycle_knowledge_item(item_id: int, db: Session = Depends(get_db)):
-    row = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == True).first()  # noqa: E712
-    if not row:
-        raise HTTPException(404, "Knowledge item not found in recycle bin")
-    row.is_deleted = False
-    row.deleted_at = None
-    db.commit()
-    db.refresh(row)
-    rows = _attach_knowledge_item_tags(db, [row])
-    rows = _knowledge_attach_related_notes(db, rows)
-    return rows[0]
-
-
-def purge_recycle_knowledge_item(item_id: int, db: Session = Depends(get_db)):
-    row = db.query(KnowledgeItem).filter(KnowledgeItem.id == item_id, KnowledgeItem.is_deleted == True).first()  # noqa: E712
-    if not row:
-        raise HTTPException(404, "Knowledge item not found in recycle bin")
-    previous_content = row.content
-    db.delete(row)
-    db.commit()
-    cleanup_unreferenced_uploads(db, previous_content)
-    return {"ok": True}
-
-
 def list_recycle_trade_brokers(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
@@ -142,6 +95,8 @@ def purge_recycle_trade_broker(broker_id: int, db: Session = Depends(get_db)):
 
 
 def _attach_review_session_fields(db: Session, rows: List[ReviewSession]) -> List[ReviewSession]:
+    from services import review_runtime
+
     return review_runtime._attach_review_session_fields(db, rows)
 
 
@@ -193,6 +148,8 @@ def purge_recycle_review_session(review_session_id: int, db: Session = Depends(g
 
 
 def _attach_trade_plan_fields(db: Session, rows: List[TradePlan]) -> List[TradePlan]:
+    from services import trade_plan_runtime
+
     return trade_plan_runtime._attach_trade_plan_fields(db, rows)
 
 
@@ -243,19 +200,6 @@ def clear_recycle_trades(db: Session = Depends(get_db)):
     for row in rows:
         db.delete(row)
     db.commit()
-    return {"ok": True, "cleared": len(rows)}
-
-
-def clear_recycle_knowledge_items(db: Session = Depends(get_db)):
-    rows = db.query(KnowledgeItem).filter(KnowledgeItem.is_deleted == True).all()
-    if not rows:
-        return {"ok": True, "cleared": 0}
-    contents = [row.content for row in rows]
-    for row in rows:
-        db.delete(row)
-    db.commit()
-    for content in contents:
-        cleanup_unreferenced_uploads(db, content)
     return {"ok": True, "cleared": len(rows)}
 
 

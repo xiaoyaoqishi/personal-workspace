@@ -9,11 +9,6 @@ router.delete("/trades/clear")(recycle_service.clear_recycle_trades)
 router.post("/trades/{trade_id}/restore")(recycle_service.restore_recycle_trade)
 router.delete("/trades/{trade_id}/purge")(recycle_service.purge_recycle_trade)
 
-router.get("/knowledge-items")(recycle_service.list_recycle_knowledge_items)
-router.delete("/knowledge-items/clear")(recycle_service.clear_recycle_knowledge_items)
-router.post("/knowledge-items/{item_id}/restore")(recycle_service.restore_recycle_knowledge_item)
-router.delete("/knowledge-items/{item_id}/purge")(recycle_service.purge_recycle_knowledge_item)
-
 router.get("/trade-brokers")(recycle_service.list_recycle_trade_brokers)
 router.delete("/trade-brokers/clear")(recycle_service.clear_recycle_trade_brokers)
 router.post("/trade-brokers/{broker_id}/restore")(recycle_service.restore_recycle_trade_broker)

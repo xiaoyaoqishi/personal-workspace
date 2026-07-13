@@ -1,14 +1,10 @@
 ﻿import { useEffect, useState } from 'react';
 import { message } from 'antd';
-import dayjs from 'dayjs';
-import { reviewSessionApi, tradeApi, tradeLinkedPlanApi, tradePlanApi, tradeReviewApi } from '../../../api';
+import { tradeApi, tradeLinkedPlanApi, tradeReviewApi } from '../../../api';
 import {
   EMPTY_REVIEW,
-  EMPTY_REVIEW_TAXONOMY,
   REVIEW_FIELD_KEYS,
-  normalizeText,
 } from './constants';
-import { taxonomyCanonicalValues } from '../localization';
 import { normalizeTagList } from '../display';
 import { futuresNameBySymbol } from '../../../utils/futures';
 
@@ -23,24 +19,17 @@ export function useTradeWorkspace() {
   const [sourceOptions, setSourceOptions] = useState([]);
   const [symbolOptions, setSymbolOptions] = useState([]);
 
-  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [batchEditOpen, setBatchEditOpen] = useState(false);
-  const [batchPatch, setBatchPatch] = useState({ status: '', strategy_type: '', is_planned: '', notes: '' });
-  const [batchReviewOpen, setBatchReviewOpen] = useState(false);
-  const [batchReviewSaving, setBatchReviewSaving] = useState(false);
-  const [batchReviewPatch, setBatchReviewPatch] = useState({ ...EMPTY_REVIEW, tags: [] });
 
   const [importOpen, setImportOpen] = useState(false);
   const [importBroker, setImportBroker] = useState('宏源期货');
   const [importText, setImportText] = useState('');
   const [importResult, setImportResult] = useState(null);
 
-  const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeTradeId, setActiveTradeId] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [detailSavingReview, setDetailSavingReview] = useState(false);
   const [detailTrade, setDetailTrade] = useState(null);
+  const [detailRiskPointHistory, setDetailRiskPointHistory] = useState([]);
   const [detailReview, setDetailReview] = useState(EMPTY_REVIEW);
   const [detailReviewExists, setDetailReviewExists] = useState(false);
   const [detailLinkedPlans, setDetailLinkedPlans] = useState([]);
@@ -53,7 +42,6 @@ export function useTradeWorkspace() {
   useEffect(() => {
     loadSources();
     loadSymbols();
-    loadReviewTaxonomy();
   }, []);
 
   const loadSources = async () => {
@@ -88,26 +76,6 @@ export function useTradeWorkspace() {
     }
   };
 
-  const loadReviewTaxonomy = async () => {
-    try {
-      const res = await tradeReviewApi.taxonomy();
-      setReviewTaxonomy({
-        opportunity_structure: res.data?.opportunity_structure || [],
-        edge_source: res.data?.edge_source || [],
-        failure_type: res.data?.failure_type || [],
-        review_conclusion: res.data?.review_conclusion || [],
-      });
-    } catch {
-      setReviewTaxonomy({
-        ...EMPTY_REVIEW_TAXONOMY,
-        opportunity_structure: taxonomyCanonicalValues('opportunity_structure'),
-        edge_source: taxonomyCanonicalValues('edge_source'),
-        failure_type: taxonomyCanonicalValues('failure_type'),
-        review_conclusion: taxonomyCanonicalValues('review_conclusion'),
-      });
-    }
-  };
-
   const loadTrades = async () => {
     setLoading(true);
     try {
@@ -119,7 +87,6 @@ export function useTradeWorkspace() {
       const list = listRes.data || [];
       setTrades(list);
       setPagination((p) => ({ ...p, current, total }));
-      setSelectedRowKeys((prev) => prev.filter((id) => list.some((x) => x.id === id)));
     } catch {
       message.error('加载失败');
     }
@@ -167,12 +134,14 @@ export function useTradeWorkspace() {
   const loadTradeDetail = async (tradeId) => {
     setDetailLoading(true);
     try {
-      const [tradeRes, reviewRes, linkedPlansRes] = await Promise.all([
+      const [tradeRes, reviewRes, linkedPlansRes, riskPointHistoryRes] = await Promise.all([
         tradeApi.get(tradeId),
         tradeReviewApi.get(tradeId).catch((e) => (e.response?.status === 404 ? { data: null } : Promise.reject(e))),
         tradeLinkedPlanApi.get(tradeId).catch(() => ({ data: [] })),
+        tradeApi.riskPointHistory(tradeId).catch(() => ({ data: [] })),
       ]);
       setDetailLinkedPlans(Array.isArray(linkedPlansRes.data) ? linkedPlansRes.data : []);
+      setDetailRiskPointHistory(Array.isArray(riskPointHistoryRes.data) ? riskPointHistoryRes.data : []);
       const tradeData = tradeRes.data || null;
       setDetailTrade(tradeData);
       const reviewData = reviewRes.data || {};
@@ -207,47 +176,6 @@ export function useTradeWorkspace() {
     await Promise.all([loadTrades(), loadSymbols()]);
   };
 
-  const handleSaveDetailReview = async () => {
-    if (!activeTradeId) return;
-    setDetailSavingReview(true);
-    try {
-      const payload = {};
-      REVIEW_FIELD_KEYS.forEach((k) => {
-        payload[k] = normalizeText(detailReview[k]);
-      });
-      payload.tags = Array.isArray(detailReview.tags)
-        ? normalizeTagList(detailReview.tags)
-        : [];
-      const hasReviewData = Object.entries(payload).some(([k, v]) => (k === 'tags' ? (v || []).length > 0 : v !== null));
-      if (hasReviewData) {
-        await tradeReviewApi.upsert(activeTradeId, payload);
-        setDetailReviewExists(true);
-        message.success('结构化复盘已保存');
-      } else if (detailReviewExists) {
-        await tradeReviewApi.delete(activeTradeId);
-        setDetailReviewExists(false);
-        message.success('结构化复盘已清空');
-      } else {
-        message.info('未检测到可保存的结构化复盘内容');
-      }
-      await loadTradeDetail(activeTradeId);
-      await loadTrades();
-    } catch (e) {
-      message.error(e.response?.data?.detail || '结构化复盘保存失败');
-    }
-    setDetailSavingReview(false);
-  };
-
-  const handleUpdateTradeSignal = async (patch) => {
-    if (!activeTradeId) return;
-    try {
-      await tradeApi.update(activeTradeId, patch);
-      await Promise.all([loadTradeDetail(activeTradeId), loadTrades()]);
-    } catch (e) {
-      message.error(e.response?.data?.detail || '交易信号更新失败');
-    }
-  };
-
   const handleImportTrades = async () => {
     if (!importText.trim()) {
       message.warning('请先粘贴数据');
@@ -274,184 +202,6 @@ export function useTradeWorkspace() {
     setImportOpen(true);
   };
 
-  const handleBatchDelete = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易记录');
-      return;
-    }
-    try {
-      await Promise.all(selectedRowKeys.map((id) => tradeApi.delete(id)));
-      message.success(`已移入回收站 ${selectedRowKeys.length} 条`);
-      setSelectedRowKeys([]);
-      loadTrades();
-      loadSymbols();
-    } catch {
-      message.error('批量移入回收站失败');
-    }
-  };
-
-  const handleBatchEditSubmit = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易记录');
-      return;
-    }
-    const patch = {};
-    if (batchPatch.status) patch.status = batchPatch.status;
-    if (batchPatch.strategy_type.trim()) patch.strategy_type = batchPatch.strategy_type.trim();
-    if (batchPatch.is_planned === 'true') patch.is_planned = true;
-    if (batchPatch.is_planned === 'false') patch.is_planned = false;
-    if (batchPatch.notes.trim()) patch.notes = batchPatch.notes.trim();
-    if (Object.keys(patch).length === 0) {
-      message.warning('请至少填写一个要批量修改的字段');
-      return;
-    }
-    try {
-      await Promise.all(selectedRowKeys.map((id) => tradeApi.update(id, patch)));
-      message.success(`已批量更新 ${selectedRowKeys.length} 条`);
-      setBatchEditOpen(false);
-      loadTrades();
-    } catch (e) {
-      message.error(e.response?.data?.detail || '批量更新失败');
-    }
-  };
-
-  const openBatchEdit = () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易记录');
-      return false;
-    }
-    setBatchPatch({ status: '', strategy_type: '', is_planned: '', notes: '' });
-    setBatchEditOpen(true);
-    return true;
-  };
-
-  const openBatchStructuredReview = () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易记录');
-      return false;
-    }
-    setBatchReviewPatch({ ...EMPTY_REVIEW, tags: [] });
-    setBatchReviewOpen(true);
-    return true;
-  };
-
-  const handleBatchStructuredReviewSubmit = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易记录');
-      return;
-    }
-    const payload = {};
-    REVIEW_FIELD_KEYS.forEach((k) => {
-      payload[k] = normalizeText(batchReviewPatch[k]);
-    });
-    payload.tags = Array.isArray(batchReviewPatch.tags)
-      ? normalizeTagList(batchReviewPatch.tags)
-      : [];
-    const hasReviewData = Object.entries(payload).some(([k, v]) => (k === 'tags' ? (v || []).length > 0 : v !== null));
-    if (!hasReviewData) {
-      message.warning('请至少填写一个结构化复盘字段');
-      return;
-    }
-    setBatchReviewSaving(true);
-    try {
-      await Promise.all(
-        selectedRowKeys.map((tradeId) => tradeReviewApi.upsert(Number(tradeId), payload))
-      );
-      message.success(`已批量保存 ${selectedRowKeys.length} 条结构化复盘`);
-      setBatchReviewOpen(false);
-      await loadTrades();
-    } catch (e) {
-      message.error(e.response?.data?.detail || '批量保存结构化复盘失败');
-    } finally {
-      setBatchReviewSaving(false);
-    }
-  };
-
-  const createReviewSessionFromSelected = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易');
-      return null;
-    }
-    try {
-      const payload = {
-        title: `手动多选复盘会话 ${dayjs().format('YYYY-MM-DD HH:mm')}`,
-        review_kind: 'custom',
-        review_scope: 'custom',
-        selection_mode: 'manual',
-        selection_basis: `交易工作台手动多选 ${selectedRowKeys.length} 笔交易`,
-        review_goal: '识别该样本中的重复执行模式与质量偏差',
-        trade_ids: selectedRowKeys.map((x) => Number(x)),
-      };
-      const res = await reviewSessionApi.createFromSelection(payload);
-      message.success('已从多选交易创建复盘会话');
-      return res.data;
-    } catch (e) {
-      message.error(e.response?.data?.detail || '创建复盘会话失败');
-      return null;
-    }
-  };
-
-  const createReviewSessionFromCurrentFilter = async () => {
-    try {
-      const payload = {
-        title: `筛选结果复盘会话 ${dayjs().format('YYYY-MM-DD HH:mm')}`,
-        review_kind: 'theme',
-        review_scope: 'themed',
-        selection_mode: 'filter_snapshot',
-        selection_target: 'full_filtered',
-        selection_basis: '基于当前交易工作台筛选条件生成',
-        review_goal: '评估同一筛选切片下的一致性与边际质量',
-        filter_params: { ...filters },
-      };
-      const res = await reviewSessionApi.createFromSelection(payload);
-      message.success('已从当前筛选结果创建复盘会话');
-      return res.data;
-    } catch (e) {
-      message.error(e.response?.data?.detail || '创建复盘会话失败');
-      return null;
-    }
-  };
-
-  const createTradePlanFromSelected = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先勾选交易');
-      return null;
-    }
-    try {
-      const selectedTrades = trades.filter((x) => selectedRowKeys.includes(x.id));
-      const first = selectedTrades[0] || {};
-      const plan = (
-        await tradePlanApi.create({
-          title: `多选交易计划 ${dayjs().format('MM-DD HH:mm')}`,
-          plan_date: dayjs().format('YYYY-MM-DD'),
-          status: 'draft',
-          symbol: first.symbol || null,
-          contract: first.contract || null,
-          direction_bias: first.direction || null,
-          setup_type: first.strategy_type || null,
-          thesis: '基于交易工作台当前多选样本草拟',
-          trade_links: [],
-        })
-      ).data;
-      await tradePlanApi.upsertTradeLinks(plan.id, {
-        trade_links: selectedRowKeys.map((tradeId, idx) => ({
-          trade_id: Number(tradeId),
-          sort_order: idx,
-          note: null,
-        })),
-      });
-      await Promise.all(
-        selectedRowKeys.map((tradeId) => tradeApi.update(Number(tradeId), { is_planned: true }))
-      );
-      await loadTrades();
-      message.success('已创建并关联交易计划');
-      return plan;
-    } catch (e) {
-      message.error(e.response?.data?.detail || '创建交易计划失败');
-      return null;
-    }
-  };
-
   return {
     // core data
     trades,
@@ -462,13 +212,6 @@ export function useTradeWorkspace() {
     viewMode,
     sourceOptions,
     symbolOptions,
-    // batch
-    selectedRowKeys,
-    batchEditOpen,
-    batchPatch,
-    batchReviewOpen,
-    batchReviewSaving,
-    batchReviewPatch,
     // import
     importOpen,
     importLoading,
@@ -476,45 +219,28 @@ export function useTradeWorkspace() {
     importText,
     importResult,
     // detail
-    reviewTaxonomy,
     detailOpen,
     activeTradeId,
     detailLoading,
-    detailSavingReview,
     detailTrade,
+    detailRiskPointHistory,
     detailReview,
     detailReviewExists,
     detailLinkedPlans,
     // setters for UI wiring
     setViewMode,
-    setSelectedRowKeys,
     setPagination,
     setDetailOpen,
-    setDetailReview,
     setImportBroker,
     setImportText,
     setImportOpen,
-    setBatchEditOpen,
-    setBatchPatch,
-    setBatchReviewOpen,
-    setBatchReviewPatch,
     // actions
     updateFilter,
     setDateRange,
     openTradeDetail,
     loadTradeDetail,
     handleDeleteTrade,
-    handleSaveDetailReview,
-    handleUpdateTradeSignal,
     handleImportTrades,
     openImportModal,
-    handleBatchDelete,
-    handleBatchEditSubmit,
-    openBatchEdit,
-    openBatchStructuredReview,
-    handleBatchStructuredReviewSubmit,
-    createReviewSessionFromSelected,
-    createReviewSessionFromCurrentFilter,
-    createTradePlanFromSelected,
   };
 }

@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from sqlalchemy.orm import Session
 
-from models import Trade
+from models import Trade, TradeSourceMetadata
 
 
 def _parse_rows_and_dedup(
@@ -30,13 +30,14 @@ def _parse_rows_and_dedup(
                     Trade.contract == trade_obj.contract,
                     Trade.direction == trade_obj.direction,
                     Trade.open_price == trade_obj.open_price,
-                    Trade.quantity == trade_obj.quantity,
                     Trade.status == trade_obj.status,
                     Trade.commission == trade_obj.commission,
                     Trade.pnl == trade_obj.pnl,
                 )
                 if broker:
-                    q_exist = q_exist.filter(Trade.notes.contains(f"来源券商: {broker}"))
+                    q_exist = q_exist.join(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id).filter(
+                        TradeSourceMetadata.broker_name == broker
+                    )
                 existed = q_exist.first()
                 if existed:
                     skipped += 1
@@ -58,25 +59,27 @@ def _precheck_close_rows(
     error_cls: Type[Any],
 ) -> Tuple[List[Dict[str, Any]], List[Any]]:
     errors: List[Any] = []
-    hist_pool: Dict[str, float] = {}
+    hist_pool: Dict[str, int] = {}
     q_hist = db.query(Trade).filter(
         Trade.is_deleted == False,  # noqa: E712
         Trade.instrument_type == "期货",
         Trade.status == "open",
     )
     if broker:
-        q_hist = q_hist.filter(Trade.notes.contains(f"来源券商: {broker}"))
+        q_hist = q_hist.join(TradeSourceMetadata, TradeSourceMetadata.trade_id == Trade.id).filter(
+            TradeSourceMetadata.broker_name == broker
+        )
     for t in q_hist.all():
         k = state_key_contract(t.symbol, t.contract, t.direction)
-        hist_pool[k] = hist_pool.get(k, 0.0) + float(t.quantity or 0)
+        hist_pool[k] = hist_pool.get(k, 0) + 1
 
-    batch_open_pool: Dict[str, float] = {}
+    batch_open_pool: Dict[str, int] = {}
     for item in parsed_rows:
         t: Trade = item["trade"]
         if t.status != "open":
             continue
         k = state_key_contract(t.symbol, t.contract, t.direction)
-        batch_open_pool[k] = batch_open_pool.get(k, 0.0) + float(t.quantity or 0)
+        batch_open_pool[k] = batch_open_pool.get(k, 0) + 1
 
     valid_rows: List[Dict[str, Any]] = []
     for item in parsed_rows:
@@ -87,28 +90,22 @@ def _precheck_close_rows(
         symbol = normalize_contract_symbol(t.contract or t.symbol or "")
         side = position_side(t.direction, "closed")
         k = state_key_contract(symbol, t.contract, side)
-        need = float(t.quantity or 0)
-        if need <= 0:
-            errors.append(error_cls(row=item["row"], reason="平仓手数必须大于0", raw=item["raw"][:300]))
-            continue
-        hist_avail = hist_pool.get(k, 0.0)
-        use_hist = min(hist_avail, need)
-        hist_pool[k] = hist_avail - use_hist
-        remain = need - use_hist
-        if remain > 1e-9:
-            batch_avail = batch_open_pool.get(k, 0.0)
-            use_batch = min(batch_avail, remain)
-            batch_open_pool[k] = batch_avail - use_batch
-            remain -= use_batch
-        if remain > 1e-9:
-            errors.append(
-                error_cls(
-                    row=item["row"],
-                    reason=f"{symbol} {side} 平仓失败：历史与本次粘贴均无足够对应开仓",
-                    raw=item["raw"][:300],
+        hist_avail = hist_pool.get(k, 0)
+        if hist_avail > 0:
+            hist_pool[k] = hist_avail - 1
+        else:
+            batch_avail = batch_open_pool.get(k, 0)
+            if batch_avail > 0:
+                batch_open_pool[k] = batch_avail - 1
+            else:
+                errors.append(
+                    error_cls(
+                        row=item["row"],
+                        reason=f"{symbol} {side} 平仓失败：历史与本次粘贴均无对应开仓",
+                        raw=item["raw"][:300],
+                    )
                 )
-            )
-            continue
+                continue
         valid_rows.append(item)
     return valid_rows, errors
 

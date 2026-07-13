@@ -6,9 +6,10 @@ import TradeFillsTable from '../features/trading/workspace/TradeFillsTable';
 import TradePositionsTable from '../features/trading/workspace/TradePositionsTable';
 import TradeDetailDrawer from '../features/trading/workspace/TradeDetailDrawer';
 import TradeImportModal from '../features/trading/workspace/TradeImportModal';
-import TradeBatchEditModal from '../features/trading/workspace/TradeBatchEditModal';
-import TradeBatchStructuredReviewModal from '../features/trading/workspace/TradeBatchStructuredReviewModal';
 import { useTradeWorkspace } from '../features/trading/workspace/useTradeWorkspace';
+
+// 功能保留，当前仅暂停工作台入口，后续可直接重新开启。
+const PASTE_IMPORT_ENABLED = false;
 
 export default function TradeList() {
   const navigate = useNavigate();
@@ -16,27 +17,15 @@ export default function TradeList() {
 
   return (
     <div className="trade-workspace">
-      <TradeWorkspaceHeader onOpenImport={ws.openImportModal} onCreateTrade={() => navigate('/trades/new')} />
+      <TradeWorkspaceHeader
+        pasteImportEnabled={PASTE_IMPORT_ENABLED}
+        onOpenImport={ws.openImportModal}
+        onCreateTrade={() => navigate('/trades/new')}
+      />
 
       <TradeWorkspaceFilterBar
         viewMode={ws.viewMode}
         setViewMode={ws.setViewMode}
-        selectedRowKeys={ws.selectedRowKeys}
-        onOpenBatchEdit={ws.openBatchEdit}
-        onOpenBatchStructuredReview={ws.openBatchStructuredReview}
-        onBatchDelete={ws.handleBatchDelete}
-        onCreateReviewSessionFromSelected={async () => {
-          const row = await ws.createReviewSessionFromSelected();
-          if (row?.id) navigate(`/reviews?sessionId=${row.id}&kind=${encodeURIComponent(row.review_kind || 'custom')}`);
-        }}
-        onCreateReviewSessionFromFilter={async () => {
-          const row = await ws.createReviewSessionFromCurrentFilter();
-          if (row?.id) navigate(`/reviews?sessionId=${row.id}&kind=${encodeURIComponent(row.review_kind || 'custom')}`);
-        }}
-        onCreateTradePlanFromSelected={async () => {
-          const row = await ws.createTradePlanFromSelected();
-          if (row?.id) navigate('/plans');
-        }}
         symbolOptions={ws.symbolOptions}
         onSetDateRange={ws.setDateRange}
         onUpdateFilter={ws.updateFilter}
@@ -48,8 +37,6 @@ export default function TradeList() {
             rows={ws.trades}
             loading={ws.loading}
             pagination={ws.pagination}
-            selectedRowKeys={ws.selectedRowKeys}
-            onSelectionChange={ws.setSelectedRowKeys}
             onPageChange={(page, pageSize) => ws.setPagination((p) => ({ ...p, current: page, pageSize }))}
             onOpenDetail={ws.openTradeDetail}
             onOpenEdit={(id) => navigate(`/trades/${id}/edit`)}
@@ -65,51 +52,30 @@ export default function TradeList() {
         tradeId={ws.activeTradeId}
         loading={ws.detailLoading}
         trade={ws.detailTrade}
+        riskPointHistory={ws.detailRiskPointHistory}
         review={ws.detailReview}
         reviewExists={ws.detailReviewExists}
         linkedPlans={ws.detailLinkedPlans}
-        reviewTaxonomy={ws.reviewTaxonomy}
-        savingReview={ws.detailSavingReview}
         onClose={() => ws.setDetailOpen(false)}
         onReload={() => ws.activeTradeId && ws.loadTradeDetail(ws.activeTradeId)}
         onOpenEdit={() => ws.activeTradeId && navigate(`/trades/${ws.activeTradeId}/edit`)}
-        onChangeReview={(k, v) => ws.setDetailReview((p) => ({ ...p, [k]: v }))}
-        onSaveReview={ws.handleSaveDetailReview}
-        onUpdateTradeSignal={ws.handleUpdateTradeSignal}
       />
 
-      <TradeImportModal
-        open={ws.importOpen}
-        loading={ws.importLoading}
-        sourceOptions={ws.sourceOptions}
-        broker={ws.importBroker}
-        text={ws.importText}
-        result={ws.importResult}
-        onCancel={() => ws.setImportOpen(false)}
-        onConfirm={ws.handleImportTrades}
-        onBrokerChange={ws.setImportBroker}
-        onTextChange={ws.setImportText}
-      />
+      {PASTE_IMPORT_ENABLED ? (
+        <TradeImportModal
+          open={ws.importOpen}
+          loading={ws.importLoading}
+          sourceOptions={ws.sourceOptions}
+          broker={ws.importBroker}
+          text={ws.importText}
+          result={ws.importResult}
+          onCancel={() => ws.setImportOpen(false)}
+          onConfirm={ws.handleImportTrades}
+          onBrokerChange={ws.setImportBroker}
+          onTextChange={ws.setImportText}
+        />
+      ) : null}
 
-      <TradeBatchEditModal
-        open={ws.batchEditOpen}
-        selectedCount={ws.selectedRowKeys.length}
-        patch={ws.batchPatch}
-        onCancel={() => ws.setBatchEditOpen(false)}
-        onConfirm={ws.handleBatchEditSubmit}
-        onChangePatch={(k, v) => ws.setBatchPatch((p) => ({ ...p, [k]: v }))}
-      />
-
-      <TradeBatchStructuredReviewModal
-        open={ws.batchReviewOpen}
-        selectedCount={ws.selectedRowKeys.length}
-        review={ws.batchReviewPatch}
-        reviewTaxonomy={ws.reviewTaxonomy}
-        saving={ws.batchReviewSaving}
-        onCancel={() => ws.setBatchReviewOpen(false)}
-        onConfirm={ws.handleBatchStructuredReviewSubmit}
-        onChange={(k, v) => ws.setBatchReviewPatch((p) => ({ ...p, [k]: v }))}
-      />
     </div>
   );
 }

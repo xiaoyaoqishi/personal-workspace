@@ -16,7 +16,6 @@ export default function CoverageAndPositions({ coverage, positions, hideCoverage
       key: 'side',
       render: (v) => <Tag color={v === '做多' ? 'red' : 'green'}>{v}</Tag>,
     },
-    { title: '净手数', dataIndex: 'net_quantity', key: 'net_quantity', width: 100 },
     { title: '均价', dataIndex: 'avg_open_price', key: 'avg_open_price', width: 100 },
     { title: '开仓起始日', dataIndex: 'open_since', key: 'open_since', width: 120 },
   ];
@@ -33,7 +32,6 @@ export default function CoverageAndPositions({ coverage, positions, hideCoverage
         <div style={{ marginTop: 12, color: '#666' }}>
           <div>结构化复盘记录: {coverage?.trade_review_count || 0}</div>
           <div>显式来源记录: {coverage?.source_metadata_count || 0}</div>
-          <div>仅旧备注回退来源: {coverage?.legacy_source_only_count || 0}</div>
           <div>来源缺失: {coverage?.source_missing_count || 0}</div>
         </div>
       </InkSection>

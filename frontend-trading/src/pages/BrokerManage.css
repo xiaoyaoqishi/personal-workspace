@@ -383,13 +383,6 @@
   align-items: center;
 }
 
-.maintain-detail-hero-meta-knowledge {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 14px;
-  align-items: center;
-}
-
 .maintain-detail-meta-primary {
   grid-column: 1 / span 2;
 }

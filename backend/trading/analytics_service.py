@@ -1,4 +1,3 @@
-import json
 import math
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional
@@ -210,35 +209,6 @@ def _build_holding_analysis(closed_trades: List[Trade]) -> List[Dict[str, Any]]:
     return results
 
 
-_DISCIPLINE_FIELDS = [
-    ("is_impulsive", "冲动交易"),
-    ("is_chasing", "追涨杀跌"),
-    ("is_holding_loss", "死扛亏损"),
-    ("is_early_profit", "过早止盈"),
-    ("is_extended_stop", "扩大止损"),
-    ("is_overweight", "过度加仓"),
-    ("is_revenge", "报复交易"),
-    ("is_emotional", "情绪交易"),
-]
-
-
-def _build_discipline_stats(trades: List[Trade]) -> List[Dict[str, Any]]:
-    rows = []
-    total = len(trades)
-    for field, label in _DISCIPLINE_FIELDS:
-        flagged = [t for t in trades if getattr(t, field, False) is True]
-        count = len(flagged)
-        pnl = sum(float(t.pnl or 0.0) for t in flagged if t.status == "closed")
-        rows.append({
-            "key": field,
-            "label": label,
-            "count": count,
-            "rate": round(count / total * 100.0, 2) if total else 0.0,
-            "total_pnl": round(pnl, 2),
-        })
-    return rows
-
-
 def _build_monthly_grid(closed_trades: List[Trade]) -> List[Dict[str, Any]]:
     grid: Dict[tuple, Dict[str, Any]] = {}
     for t in closed_trades:
@@ -276,7 +246,6 @@ def build_trade_analytics(
     apply_source_keyword_filter: Callable[[Any, Optional[str]], Any],
     attach_trade_view_fields: Callable[[Session, List[Trade]], List[Trade]],
     build_position_state_from_db: Callable[[Session, Optional[str]], Dict[str, Dict[str, Any]]],
-    extract_source_from_notes: Callable[[Optional[str]], Dict[str, Optional[str]]],
 ) -> Dict[str, Any]:
     symbols = _split_csv_values(symbol)
 
@@ -385,46 +354,15 @@ def build_trade_analytics(
         rows.sort(key=lambda x: (x["trade_count"], x["total_pnl"]), reverse=True)
         review_dimensions[field] = rows
 
-    error_tags_counter: Counter = Counter()
     strategy_counter: Counter = Counter()
-    market_condition_counter: Counter = Counter()
-    timeframe_counter: Counter = Counter()
-    planned_counter: Counter = Counter()
-    overnight_counter: Counter = Counter()
 
     for t in trades:
-        if t.error_tags:
-            try:
-                tags = json.loads(t.error_tags)
-                if isinstance(tags, list):
-                    for tag in tags:
-                        if str(tag or "").strip():
-                            error_tags_counter[str(tag).strip()] += 1
-            except Exception:
-                pass
         if t.strategy_type and str(t.strategy_type).strip():
             strategy_counter[str(t.strategy_type).strip()] += 1
-        if t.market_condition and str(t.market_condition).strip():
-            market_condition_counter[str(t.market_condition).strip()] += 1
-        if t.timeframe and str(t.timeframe).strip():
-            timeframe_counter[str(t.timeframe).strip()] += 1
-        if t.is_planned is True:
-            planned_counter["planned"] += 1
-        elif t.is_planned is False:
-            planned_counter["unplanned"] += 1
-        else:
-            planned_counter["unknown"] += 1
-        if t.is_overnight is True:
-            overnight_counter["overnight"] += 1
-        else:
-            overnight_counter["intraday_or_unknown"] += 1
 
     position_state = build_position_state_from_db(db, source_keyword=source_keyword)
     open_position_rows = []
     for _, st in position_state.items():
-        qty = float(st.get("quantity") or 0.0)
-        if qty < 1e-9:
-            continue
         if symbols and st["symbol"] not in symbols:
             continue
         open_position_rows.append(
@@ -432,7 +370,6 @@ def build_trade_analytics(
                 "symbol": st["symbol"],
                 "contract": st.get("contract"),
                 "side": st.get("side") or "做多",
-                "net_quantity": round(qty, 6),
                 "avg_open_price": round(float(st.get("avg_open_price") or 0.0), 4),
                 "open_since": st.get("open_since"),
                 "last_trade_date": st.get("last_trade_date"),
@@ -441,23 +378,13 @@ def build_trade_analytics(
     open_position_rows.sort(key=lambda x: (x["symbol"], x["side"]))
 
     source_metadata_count = sum(1 for t in trades if bool(getattr(t, "source_is_metadata", False)))
-    legacy_source_only_count = 0
-    source_missing_count = 0
-    for t in trades:
-        if bool(getattr(t, "source_is_metadata", False)):
-            continue
-        parsed = extract_source_from_notes(t.notes)
-        if parsed["broker_name"] or parsed["source_label"]:
-            legacy_source_only_count += 1
-        else:
-            source_missing_count += 1
+    source_missing_count = total - source_metadata_count
     trade_review_count = len(review_by_trade_id)
 
     equity_curve = _build_equity_curve(daily_pnl_map)
     pnl_distribution = _build_pnl_distribution(closed_pnls)
     streaks = _build_streaks(closed_pnls)
     holding_analysis = _build_holding_analysis(closed_trades)
-    discipline = _build_discipline_stats(trades)
     monthly_grid = _build_monthly_grid(closed_trades)
 
     return {
@@ -498,12 +425,7 @@ def build_trade_analytics(
             "by_review_field": review_dimensions,
         },
         "behavior": {
-            "error_tags": _counter_to_rows(error_tags_counter, "tag"),
-            "planned_vs_unplanned": _counter_to_rows(planned_counter, "key"),
             "strategy_type": _counter_to_rows(strategy_counter, "key"),
-            "market_condition": _counter_to_rows(market_condition_counter, "key"),
-            "timeframe": _counter_to_rows(timeframe_counter, "key"),
-            "overnight_split": _counter_to_rows(overnight_counter, "key"),
         },
         "positions": {
             "open_positions": open_position_rows,
@@ -514,13 +436,11 @@ def build_trade_analytics(
             "trade_review_rate": round((trade_review_count / total * 100.0), 2) if total else 0.0,
             "source_metadata_count": source_metadata_count,
             "source_metadata_rate": round((source_metadata_count / total * 100.0), 2) if total else 0.0,
-            "legacy_source_only_count": legacy_source_only_count,
             "source_missing_count": source_missing_count,
         },
         "equity_curve": equity_curve,
         "pnl_distribution": pnl_distribution,
         "streaks": streaks,
         "holding_analysis": holding_analysis,
-        "discipline": discipline,
         "monthly_grid": monthly_grid,
     }

@@ -133,7 +133,6 @@ def attach_trade_plan_link_fields(db: Session, rows: List[TradePlan]) -> List[Tr
                     "symbol": trade.symbol,
                     "contract": trade.contract,
                     "direction": trade.direction,
-                    "quantity": trade.quantity,
                     "open_price": trade.open_price,
                     "close_price": trade.close_price,
                     "status": trade.status,

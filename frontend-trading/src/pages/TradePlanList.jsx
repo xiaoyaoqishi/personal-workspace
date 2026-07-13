@@ -453,7 +453,7 @@ export default function TradePlanList() {
                           <div key={`${item.id}-${item.trade_id}`} className="review-linked-card">
                             <Typography.Text strong>{item.trade_summary?.trade_date || '-'} / {formatInstrumentDisplay(item.trade_summary?.symbol, item.trade_summary?.contract)}</Typography.Text>
                             <br />
-                            <Typography.Text type="secondary">{item.trade_summary?.direction || '-'} / 手数 {item.trade_summary?.quantity ?? '-'} / 价格 {item.trade_summary?.open_price ?? '-'} {'->'} {item.trade_summary?.close_price ?? '-'} / PnL {item.trade_summary?.pnl ?? '-'} / 来源 {item.trade_summary?.source_display || '-'}</Typography.Text>
+                            <Typography.Text type="secondary">{item.trade_summary?.direction || '-'} / 价格 {item.trade_summary?.open_price ?? '-'} {'->'} {item.trade_summary?.close_price ?? '-'} / PnL {item.trade_summary?.pnl ?? '-'} / 来源 {item.trade_summary?.source_display || '-'}</Typography.Text>
                           </div>
                         ))}
                       </div>

@@ -10,7 +10,6 @@ export default function TradePositionsTable({ rows, loading }) {
       width: 90,
       render: (v) => <Tag color={v === '做多' ? 'red' : 'green'}>{v}</Tag>,
     },
-    { title: '净手数', dataIndex: 'net_quantity', width: 100 },
     { title: '持仓均价', dataIndex: 'avg_open_price', width: 120 },
     { title: '开仓起始日', dataIndex: 'open_since', width: 120 },
     { title: '杠杆倍', dataIndex: 'leverage', width: 90, render: (v) => v != null ? `${v}x` : '-' },
