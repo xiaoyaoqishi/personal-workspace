@@ -19,7 +19,6 @@ from schemas.notes import NoteCreate, NoteUpdate, NotebookCreate, NotebookUpdate
 
 TODO_PRIORITIES = {"low", "medium", "high"}
 DEFAULT_NOTE_SCOPE = "notes"
-TRADING_NOTE_SCOPE = "trading"
 
 
 def _current_is_admin() -> bool:
@@ -40,8 +39,7 @@ def _owner_role_filter_for_admin(model, owner_role: Optional[str]):
 
 
 def _normalize_module_scope(module_scope: Optional[str]) -> str:
-    value = (module_scope or DEFAULT_NOTE_SCOPE).strip().lower()
-    return value or DEFAULT_NOTE_SCOPE
+    return DEFAULT_NOTE_SCOPE
 
 
 def init_default_notebooks():
@@ -64,8 +62,6 @@ def init_default_notebooks():
                     Notebook(name="文档", icon="📄", sort_order=1, owner_role="admin", module_scope=DEFAULT_NOTE_SCOPE),
                 ]
             )
-        if db.query(Notebook).filter(Notebook.module_scope == TRADING_NOTE_SCOPE).count() == 0:
-            db.add(Notebook(name="研究", icon="🔎", sort_order=0, owner_role="admin", module_scope=TRADING_NOTE_SCOPE))
         db.commit()
     finally:
         db.close()

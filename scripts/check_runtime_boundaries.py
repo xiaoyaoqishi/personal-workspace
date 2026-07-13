@@ -21,7 +21,6 @@ ALLOWED_RUNTIME_FUNCTIONS = {
     "_init_default_notebooks",
     "_maintenance_loop",
     "_migrate_legacy_schema",
-    "_migrate_reviews_to_review_sessions",
     "_owner_role_filter_for_admin",
     "_owner_role_value_for_create",
     "_rebuild_ledger_schema_if_incompatible",

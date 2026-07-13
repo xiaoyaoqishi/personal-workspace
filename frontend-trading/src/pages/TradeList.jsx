@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import './TradeList.css';
-import TradeWorkspaceHeader from '../features/trading/workspace/TradeWorkspaceHeader';
 import TradeWorkspaceFilterBar from '../features/trading/workspace/TradeWorkspaceFilterBar';
 import TradeFillsTable from '../features/trading/workspace/TradeFillsTable';
 import TradePositionsTable from '../features/trading/workspace/TradePositionsTable';
@@ -17,18 +16,13 @@ export default function TradeList() {
 
   return (
     <div className="trade-workspace">
-      <TradeWorkspaceHeader
-        pasteImportEnabled={PASTE_IMPORT_ENABLED}
-        onOpenImport={ws.openImportModal}
-        onCreateTrade={() => navigate('/trades/new')}
-      />
-
       <TradeWorkspaceFilterBar
         viewMode={ws.viewMode}
         setViewMode={ws.setViewMode}
         symbolOptions={ws.symbolOptions}
         onSetDateRange={ws.setDateRange}
         onUpdateFilter={ws.updateFilter}
+        onCreateTrade={() => navigate('/trades/new')}
       />
 
       <div className="trade-table-card">

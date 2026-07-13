@@ -78,8 +78,6 @@ def api_module_from_path(path: str):
         return "notes"
     trading_prefixes = (
         "/api/trades",
-        "/api/reviews",
-        "/api/review-sessions",
         "/api/trade-plans",
         "/api/trade-brokers",
         "/api/trade-review-taxonomy",

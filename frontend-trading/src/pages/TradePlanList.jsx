@@ -2,7 +2,7 @@
 import { Button, Col, DatePicker, Descriptions, Drawer, Empty, FloatButton, Form, Input, List, Popconfirm, Popover, Row, Select, Slider, Space, Tag, Typography, message } from 'antd';
 import InkSection from '../components/InkSection';
 import dayjs from 'dayjs';
-import { reviewSessionApi, tradeApi, tradePlanApi } from '../api';
+import { tradeApi, tradePlanApi } from '../api';
 import ReadEditActions from '../features/trading/components/ReadEditActions';
 import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
 import { buildTradeSearchOption, formatInstrumentDisplay, normalizeTagList } from '../features/trading/display';
@@ -218,48 +218,24 @@ export default function TradePlanList() {
     setQuickTradeId(undefined);
   };
 
-  const createFollowupSession = async () => {
-    if (!selectedId) return;
-    try {
-      const session = (await tradePlanApi.createFollowupReviewSession(selectedId)).data;
-      await tradePlanApi.upsertReviewSessionLinks(selectedId, { review_session_links: [{ review_session_id: session.id, note: '手动创建跟进复盘' }] });
-      message.success(`已创建跟进复盘会话 #${session.id}`);
-      await loadRows(selectedId);
-    } catch (e) {
-      message.error(e.response?.data?.detail || '创建跟进复盘失败');
-    }
-  };
   const resolveScrollTarget = () => document.querySelector('.app-content') || window;
 
   return (
     <div className="review-workspace">
-      <div className="review-header-card review-toolbar">
-        <div className="review-header-main">
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>交易计划工作台</Typography.Title>
-            <Typography.Text type="secondary">计划是第一类对象，可关联交易并生成跟进复盘会话</Typography.Text>
-          </div>
-          <Space wrap>
-            <Button
-              icon={planSidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setPlanSidebarCollapsed((prev) => !prev)}
-            >
-              {planSidebarCollapsed ? '展开侧栏' : '收起侧栏'}
-            </Button>
-          </Space>
+      <div className="module-action-bar">
+        <div className="module-action-bar__leading">
+          <Button
+            icon={planSidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setPlanSidebarCollapsed((prev) => !prev)}
+          >
+            {planSidebarCollapsed ? '展开列表' : '收起列表'}
+          </Button>
         </div>
-      </div>
-
-      <div className="review-toolbar-strip">
-        <div className="review-tool-group review-tool-group-actions">
-          <div className="review-tool-label">计划操作</div>
-          <Space wrap>
-            <Button type="primary" onClick={() => { setSelectedId(null); resetForm(null); setEditing(true); setPlanDetailDrawerOpen(false); setPlanFontPopoverOpen(false); }}>新建交易计划</Button>
-            <ReadEditActions editing={editing} saving={saving} onEdit={() => { if (selected) { resetForm(selected); setEditing(true); setPlanDetailDrawerOpen(false); setPlanFontPopoverOpen(false); } }} onSave={handleSave} onCancel={() => { resetForm(selected); setEditing(false); setPlanDetailDrawerOpen(false); setPlanFontPopoverOpen(false); }} editDisabled={!selectedId} />
-            <Button onClick={createFollowupSession} disabled={!selectedId}>创建跟进复盘会话</Button>
-            <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger disabled={!selectedId}>删除</Button></Popconfirm>
-          </Space>
-        </div>
+        <Space wrap className="module-action-bar__actions">
+          <Button type="primary" onClick={() => { setSelectedId(null); resetForm(null); setEditing(true); setPlanDetailDrawerOpen(false); setPlanFontPopoverOpen(false); }}>新建交易计划</Button>
+          <ReadEditActions editing={editing} saving={saving} onEdit={() => { if (selected) { resetForm(selected); setEditing(true); setPlanDetailDrawerOpen(false); setPlanFontPopoverOpen(false); } }} onSave={handleSave} onCancel={() => { resetForm(selected); setEditing(false); setPlanDetailDrawerOpen(false); setPlanFontPopoverOpen(false); }} editDisabled={!selectedId} />
+          <Popconfirm title="确认移入回收站？" onConfirm={handleDelete} disabled={!selectedId}><Button danger disabled={!selectedId}>删除</Button></Popconfirm>
+        </Space>
       </div>
 
       <Row gutter={12}>

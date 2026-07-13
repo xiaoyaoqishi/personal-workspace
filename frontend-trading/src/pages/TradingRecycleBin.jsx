@@ -20,13 +20,6 @@ const RECYCLE_TABS = [
     api: recycleApi.tradeBrokers,
   },
   {
-    key: 'reviewSessions',
-    label: '复盘',
-    title: (row) => row.title || `复盘会话 #${row.id}`,
-    extra: (row) => `类型 ${row.review_kind || '-'} / 范围 ${row.review_scope || '-'}`,
-    api: recycleApi.reviewSessions,
-  },
-  {
     key: 'tradePlans',
     label: '计划',
     title: (row) => row.title || `交易计划 #${row.id}`,
@@ -100,26 +93,23 @@ export default function TradingRecycleBin() {
 
   return (
     <div className="review-workspace">
-      <div className="review-toolbar">
-        <div className="review-toolbar-inner">
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>交易回收站</Typography.Title>
-            <Typography.Text type="secondary">删除后会先进入回收站，可恢复或彻底删除。</Typography.Text>
-          </div>
-          <Popconfirm
-            title={`将彻底删除「${activeTab.label}」分类下所有 ${rows.length} 条记录，此操作不可恢复，确认继续？`}
-            onConfirm={handleClear}
-            disabled={rows.length === 0}
-          >
-            <Button danger disabled={rows.length === 0}>
-              清空当前分类
-            </Button>
-          </Popconfirm>
-        </div>
-      </div>
-
-      <div className="ink-content-wrap">
-        <Tabs activeKey={tabKey} onChange={setTabKey} items={RECYCLE_TABS.map((item) => ({ key: item.key, label: item.label }))} />
+      <div className="ink-content-wrap recycle-content-wrap">
+        <Tabs
+          activeKey={tabKey}
+          onChange={setTabKey}
+          items={RECYCLE_TABS.map((item) => ({ key: item.key, label: item.label }))}
+          tabBarExtraContent={(
+            <Popconfirm
+              title={`将彻底删除「${activeTab.label}」分类下所有 ${rows.length} 条记录，此操作不可恢复，确认继续？`}
+              onConfirm={handleClear}
+              disabled={rows.length === 0}
+            >
+              <Button danger disabled={rows.length === 0}>
+                清空当前分类
+              </Button>
+            </Popconfirm>
+          )}
+        />
         <List
           loading={loading}
           dataSource={rows}

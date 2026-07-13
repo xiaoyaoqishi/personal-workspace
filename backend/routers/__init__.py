@@ -11,8 +11,6 @@ from routers.notes import router as notes_router
 from routers.notebook import router as notebook_router
 from routers.poem import router as poem_router
 from routers.recycle import router as recycle_router
-from routers.review import router as review_router
-from routers.review_sessions import router as review_sessions_router
 from routers.todo import router as todo_router
 from routers.trade_plans import router as trade_plans_router
 from routers.trading import router as trading_router
@@ -25,8 +23,6 @@ api_router.include_router(admin_router)
 api_router.include_router(audit_router)
 api_router.include_router(upload_router)
 api_router.include_router(trading_router)
-api_router.include_router(review_router)
-api_router.include_router(review_sessions_router)
 api_router.include_router(trade_plans_router)
 api_router.include_router(ledger_router)
 api_router.include_router(ledger_assets_router)

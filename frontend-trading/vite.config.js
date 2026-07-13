@@ -8,6 +8,7 @@ function manualChunks(id) {
   if (path.includes('/react-router-dom/')) return 'router-vendor'
   if (path.includes('/react-dom/') || path.includes('/react/') || path.includes('/scheduler/')) return 'react-vendor'
   if (path.includes('/recharts/') || path.includes('/d3-') || path.includes('/internmap/')) return 'chart-vendor'
+  if (path.includes('/@tiptap/') || path.includes('/prosemirror-') || path.includes('/lowlight/') || path.includes('/highlight.js/')) return 'editor-vendor'
   if (path.includes('/@ant-design/icons/')) return 'antd-icons'
   if (path.includes('/node_modules/antd/es/')) {
     const seg = path.split('/node_modules/antd/es/')[1]?.split('/')[0]

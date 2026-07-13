@@ -275,6 +275,54 @@ body {
   border-radius: 6px;
 }
 
+.module-action-bar {
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 1px solid var(--td-color-border-light);
+  border-radius: 9px;
+  background: var(--td-color-surface-muted);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.module-action-bar--end {
+  justify-content: flex-end;
+}
+
+.module-action-bar__leading,
+.module-action-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.module-action-bar__actions {
+  justify-content: flex-end;
+}
+
+.recycle-content-wrap .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.recycle-content-wrap .ant-tabs-extra-content {
+  padding-left: 12px;
+}
+
+@media (max-width: 720px) {
+  .module-action-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .module-action-bar__actions {
+    justify-content: flex-start;
+  }
+}
+
 .ink-table-wrap {
   border-radius: 8px;
   overflow: hidden;
@@ -409,7 +457,6 @@ body {
 .review-toolbar .ant-typography,
 .maintain-toolbar .ant-typography,
 .analytics-header .ant-typography,
-.trade-page-header .ant-typography,
 .ink-toolbar .ant-typography {
   color: var(--td-color-text) !important;
 }
@@ -417,7 +464,6 @@ body {
 .review-toolbar .ant-typography.ant-typography-secondary,
 .maintain-toolbar .ant-typography.ant-typography-secondary,
 .analytics-header .ant-typography.ant-typography-secondary,
-.trade-page-header .ant-typography.ant-typography-secondary,
 .ink-toolbar .ant-typography.ant-typography-secondary {
   color: var(--td-color-text-secondary) !important;
   font-weight: 600;
@@ -438,11 +484,6 @@ body {
 .analytics-header h3.ant-typography,
 .analytics-header h4.ant-typography,
 .analytics-header h5.ant-typography,
-.trade-page-header h1.ant-typography,
-.trade-page-header h2.ant-typography,
-.trade-page-header h3.ant-typography,
-.trade-page-header h4.ant-typography,
-.trade-page-header h5.ant-typography,
 .ink-toolbar h1.ant-typography,
 .ink-toolbar h2.ant-typography,
 .ink-toolbar h3.ant-typography,
@@ -586,7 +627,6 @@ body {
 [data-theme="light"] .review-toolbar .ant-typography,
 [data-theme="light"] .maintain-toolbar .ant-typography,
 [data-theme="light"] .analytics-header .ant-typography,
-[data-theme="light"] .trade-page-header .ant-typography,
 [data-theme="light"] .ink-toolbar .ant-typography,
 [data-theme="light"] .ant-drawer .ant-drawer-title,
 [data-theme="light"] .ant-drawer .ink-section-title,
@@ -597,7 +637,6 @@ body {
 [data-theme="light"] .review-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="light"] .maintain-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="light"] .analytics-header .ant-typography.ant-typography-secondary,
-[data-theme="light"] .trade-page-header .ant-typography.ant-typography-secondary,
 [data-theme="light"] .ink-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="light"] .ant-drawer .ant-typography.ant-typography-secondary {
   color: #64748b !important;
@@ -749,7 +788,6 @@ body {
 [data-theme="tech"] .review-toolbar .ant-typography,
 [data-theme="tech"] .maintain-toolbar .ant-typography,
 [data-theme="tech"] .analytics-header .ant-typography,
-[data-theme="tech"] .trade-page-header .ant-typography,
 [data-theme="tech"] .ink-toolbar .ant-typography,
 [data-theme="tech"] .ant-drawer .ant-drawer-title,
 [data-theme="tech"] .ant-drawer .ink-section-title,
@@ -760,7 +798,6 @@ body {
 [data-theme="tech"] .review-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="tech"] .maintain-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="tech"] .analytics-header .ant-typography.ant-typography-secondary,
-[data-theme="tech"] .trade-page-header .ant-typography.ant-typography-secondary,
 [data-theme="tech"] .ink-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="tech"] .ant-drawer .ant-typography.ant-typography-secondary {
   color: #7a8fa5 !important;
@@ -900,7 +937,6 @@ body {
 [data-theme="dark"] .review-toolbar .ant-typography,
 [data-theme="dark"] .maintain-toolbar .ant-typography,
 [data-theme="dark"] .analytics-header .ant-typography,
-[data-theme="dark"] .trade-page-header .ant-typography,
 [data-theme="dark"] .ink-toolbar .ant-typography,
 [data-theme="dark"] .ant-drawer .ant-drawer-title,
 [data-theme="dark"] .ant-drawer .ink-section-title,
@@ -911,7 +947,6 @@ body {
 [data-theme="dark"] .review-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="dark"] .maintain-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="dark"] .analytics-header .ant-typography.ant-typography-secondary,
-[data-theme="dark"] .trade-page-header .ant-typography.ant-typography-secondary,
 [data-theme="dark"] .ink-toolbar .ant-typography.ant-typography-secondary,
 [data-theme="dark"] .ant-drawer .ant-typography.ant-typography-secondary {
   color: #94a3b8 !important;

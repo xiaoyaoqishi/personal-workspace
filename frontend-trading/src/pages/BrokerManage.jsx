@@ -110,12 +110,10 @@ export default function InfoMaintain() {
 
   return (
     <div className="maintain-workspace">
-      <div className="maintain-header-card maintain-header-main">
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>信息维护</Typography.Title>
-          <Typography.Text type="secondary">统一维护交易导入与来源标记使用的券商信息。</Typography.Text>
+      <div className="module-action-bar module-action-bar--end">
+        <div className="module-action-bar__actions">
+          <Button type="primary" icon={<PlusOutlined />} onClick={startCreate}>新建券商</Button>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={startCreate}>新建券商</Button>
       </div>
 
       <div className="maintain-module-body">

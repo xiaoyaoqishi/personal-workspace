@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from trading import broker_service, trade_service
+from trading import broker_service, research_service, trade_service
 
 router = APIRouter(prefix="/api", tags=["trading"])
 
@@ -25,6 +25,21 @@ router.delete("/trades/{trade_id:int}/review")(trade_service.delete_trade_review
 router.get("/trades/{trade_id:int}/source-metadata")(trade_service.get_trade_source_metadata)
 router.put("/trades/{trade_id:int}/source-metadata")(trade_service.upsert_trade_source_metadata)
 router.get("/trades/{trade_id:int}/linked-plans")(trade_service.get_trade_linked_plans)
+router.get("/trades/research/folders")(research_service.list_research_folders)
+router.post("/trades/research/folders")(research_service.create_research_folder)
+router.put("/trades/research/folders/{folder_id:int}")(research_service.update_research_folder)
+router.delete("/trades/research/folders/{folder_id:int}")(research_service.delete_research_folder)
+router.get("/trades/research/documents")(research_service.list_research_documents)
+router.post("/trades/research/documents")(research_service.create_research_document)
+router.get("/trades/research/documents/{document_id:int}")(research_service.get_research_document)
+router.put("/trades/research/documents/{document_id:int}")(research_service.update_research_document)
+router.delete("/trades/research/documents/{document_id:int}")(research_service.delete_research_document)
+router.get("/trades/research/recycle")(research_service.list_research_recycle)
+router.post("/trades/research/recycle/{document_id:int}/restore")(research_service.restore_research_document)
+router.delete("/trades/research/recycle/{document_id:int}/purge")(research_service.purge_research_document)
+router.delete("/trades/research/recycle")(research_service.clear_research_recycle)
+router.get("/trades/research/resolve-link")(research_service.resolve_research_link)
+router.get("/trades/research/documents/{document_id:int}/backlinks")(research_service.list_research_backlinks)
 router.get("/trade-brokers")(broker_service.list_trade_brokers)
 router.post("/trade-brokers")(broker_service.create_trade_broker)
 router.put("/trade-brokers/{broker_id}")(broker_service.update_trade_broker)

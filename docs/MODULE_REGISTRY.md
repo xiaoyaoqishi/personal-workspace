@@ -6,7 +6,7 @@
 
 | module_id | 中文名 | frontend_dir | frontend_base | dev_port | backend_router | api_prefix | permission_scope | production_path |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `trading` | 交易记录 | `frontend-trading` | `/trading/` | `5173` | `backend/routers/trading.py`；关联 `review.py`、`review_sessions.py`、`trade_plans.py`、`recycle.py` | `/api/trades`、`/api/reviews`、`/api/review-sessions`、`/api/trade-plans`、`/api/trade-brokers`、`/api/trade-review-taxonomy`、`/api/recycle` | 普通用户数据模块；受 `module_permissions.trading` 与 `data_permissions.trading` 控制 | `/trading/` |
+| `trading` | 交易记录 | `frontend-trading` | `/trading/` | `5173` | `backend/routers/trading.py`；关联 `trade_plans.py`、`recycle.py` | `/api/trades`（含 `/api/trades/research/*`）、`/api/trade-plans`、`/api/trade-brokers`、`/api/trade-review-taxonomy`、`/api/recycle` | 普通用户数据模块；受 `module_permissions.trading` 与 `data_permissions.trading` 控制 | `/trading/` |
 | `notes` | 笔记 | `frontend-notes` | `/notes/` | `5174` | `backend/routers/notes.py`、`notebook.py`、`todo.py` | `/api/notes`、`/api/notebooks`、`/api/todos` | 普通用户数据模块；受 `module_permissions.notes` 与 `data_permissions.notes` 控制 | `/notes/` |
 | `ledger` | 记账 | `frontend-ledger` | `/ledger/` | `5176` | `backend/routers/ledger.py` | `/api/ledger/*` | 普通用户数据模块；受 `module_permissions.ledger` 与 `data_permissions.ledger` 控制 | `/ledger/` |
 | `monitor` | 监控与管理 | `frontend-monitor` | `/monitor/` | `5175` | `backend/routers/monitor.py`；管理相关接口还包括 `admin.py`、`audit.py` | `/api/monitor/*`、`/api/admin/*`、`/api/audit/*` | `admin-only` 模块；不属于普通用户 `module_permissions` / `data_permissions` 范围 | `/monitor/` |
@@ -19,3 +19,4 @@
 - `monitor` 归属管理员工作台，不能被登记为普通用户数据模块，也不应复用普通用户模块权限语义。
 - `portal` 负责入口与跳转，不承载普通用户数据域。
 - `backend` 是共享服务层，不应被当成独立的普通用户业务模块处理。
+- Trading 研究归属 trading 域，前端位于 `/trading/research`，后端使用 `/api/trades/research/*` 与独立数据表；不得通过 Notes 的 `/api/notes`、`/api/notebooks` 或页面嵌入实现。

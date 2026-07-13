@@ -9,22 +9,8 @@
   pointer-events: none;
 }
 
-.maintain-header-card {
-  border-radius: 10px;
-  border: 1px solid var(--td-color-border);
-  background: var(--td-surface-alt-gradient);
-  padding: 12px 14px;
-}
-
 .maintain-toolbar {
   border-bottom: none;
-}
-
-.maintain-header-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
 }
 
 .maintain-header-actions {
@@ -675,11 +661,6 @@
 }
 
 @media (max-width: 1280px) {
-  .maintain-header-main {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .maintain-tool-fields {
     grid-template-columns: 1fr 1fr;
   }

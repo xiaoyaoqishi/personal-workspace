@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 RUNTIME_FILE = ROOT_DIR / "backend" / "services" / "runtime.py"
-CURRENT_BASELINE_LINES = 510
+CURRENT_BASELINE_LINES = 446
 MAX_RUNTIME_LINES = 550
 
 

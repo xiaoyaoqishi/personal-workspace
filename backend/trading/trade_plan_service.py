@@ -5,10 +5,8 @@ from sqlalchemy.orm import Session
 
 from core.errors import AppError
 from models import (
-    ReviewSession,
     Trade,
     TradePlan,
-    TradePlanReviewSessionLink,
     TradePlanTradeLink,
     TradeReview,
     TradeSourceMetadata,
@@ -70,23 +68,9 @@ def attach_trade_plan_link_fields(db: Session, rows: List[TradePlan]) -> List[Tr
         )
     except OperationalError:
         trade_link_rows = []
-    try:
-        review_session_link_rows = (
-            db.query(TradePlanReviewSessionLink)
-            .filter(TradePlanReviewSessionLink.trade_plan_id.in_(plan_ids))
-            .order_by(TradePlanReviewSessionLink.trade_plan_id.asc(), TradePlanReviewSessionLink.id.asc())
-            .all()
-        )
-    except OperationalError:
-        review_session_link_rows = []
-
     trade_grouped: Dict[int, List[TradePlanTradeLink]] = {}
     for link in trade_link_rows:
         trade_grouped.setdefault(link.trade_plan_id, []).append(link)
-
-    review_grouped: Dict[int, List[TradePlanReviewSessionLink]] = {}
-    for link in review_session_link_rows:
-        review_grouped.setdefault(link.trade_plan_id, []).append(link)
 
     trade_ids = list({x.trade_id for x in trade_link_rows if x.trade_id})
     trade_by_id: Dict[int, Trade] = {}
@@ -103,16 +87,6 @@ def attach_trade_plan_link_fields(db: Session, rows: List[TradePlan]) -> List[Tr
         metadata_by_trade_id = {m.trade_id: m for m in metadata_rows}
         review_rows = db.query(TradeReview).filter(TradeReview.trade_id.in_(trade_ids)).all()
         review_by_trade_id = {x.trade_id: x for x in review_rows}
-
-    review_session_ids = list({x.review_session_id for x in review_session_link_rows if x.review_session_id})
-    review_session_by_id: Dict[int, ReviewSession] = {}
-    if review_session_ids:
-        review_session_rows = (
-            db.query(ReviewSession)
-            .filter(ReviewSession.id.in_(review_session_ids), ReviewSession.is_deleted == False)  # noqa: E712
-            .all()
-        )
-        review_session_by_id = {r.id: r for r in review_session_rows}
 
     for row in rows:
         trade_links = trade_grouped.get(row.id, [])
@@ -143,13 +117,8 @@ def attach_trade_plan_link_fields(db: Session, rows: List[TradePlan]) -> List[Tr
                 },
             )
 
-        review_session_links = review_grouped.get(row.id, [])
-        for link in review_session_links:
-            setattr(link, "review_session", review_session_by_id.get(link.review_session_id))
-
         setattr(row, "trade_links", trade_links)
         setattr(row, "linked_trade_ids", [x.trade_id for x in trade_links])
-        setattr(row, "review_session_links", review_session_links)
 
     return rows
 
@@ -195,47 +164,5 @@ def sync_trade_plan_trade_links(db: Session, trade_plan: TradePlan, links: List[
                 trade_id=item["trade_id"],
                 note=item.get("note"),
                 sort_order=item.get("sort_order") or 0,
-            )
-        )
-
-
-def sync_trade_plan_review_session_links(db: Session, trade_plan: TradePlan, links: List[Dict[str, Any]]) -> None:
-    db.query(TradePlanReviewSessionLink).filter(TradePlanReviewSessionLink.trade_plan_id == trade_plan.id).delete()
-    if not links:
-        return
-
-    deduped_by_review_session_id: Dict[int, Dict[str, Any]] = {}
-    for item in links:
-        review_session_id = int(item.get("review_session_id") or 0)
-        if review_session_id <= 0:
-            continue
-        deduped_by_review_session_id[review_session_id] = {
-            "review_session_id": review_session_id,
-            "note": item.get("note"),
-        }
-
-    final_links = list(deduped_by_review_session_id.values())
-    if not final_links:
-        return
-
-    requested_ids = [x["review_session_id"] for x in final_links]
-    existing_ids = {
-        review_session_id
-        for (review_session_id,) in (
-            db.query(ReviewSession.id)
-            .filter(ReviewSession.id.in_(requested_ids), ReviewSession.is_deleted == False)  # noqa: E712
-            .all()
-        )
-    }
-    missing = [str(tid) for tid in requested_ids if tid not in existing_ids]
-    if missing:
-        raise AppError("invalid_review_session_id", f"review_session_id not found: {', '.join(missing)}", status_code=400)
-
-    for item in final_links:
-        db.add(
-            TradePlanReviewSessionLink(
-                trade_plan_id=trade_plan.id,
-                review_session_id=item["review_session_id"],
-                note=item.get("note"),
             )
         )

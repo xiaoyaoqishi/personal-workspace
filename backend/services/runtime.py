@@ -15,25 +15,22 @@ from models import (
     BrowseLog,
     Note,
     Notebook,
-    Review,
-    ReviewSession,
-    ReviewSessionTradeLink,
-    ReviewTradeLink,
     TodoItem,
     Trade,
     TradeBroker,
     TradePlan,
+    TradingResearchDocument,
+    TradingResearchFolder,
 )
-from trading.review_session_service import normalize_review_session_scope as _review_session_normalize_scope
-
 ROLE_SCOPED_MODELS = (
     Trade,
-    ReviewSession,
     TradePlan,
     Notebook,
     Note,
     TodoItem,
     TradeBroker,
+    TradingResearchDocument,
+    TradingResearchFolder,
 )
 
 
@@ -264,26 +261,6 @@ def _migrate_legacy_schema():
             "knowledge_items",
         ):
             db.execute(text(f"DROP TABLE IF EXISTS {table}"))
-        if _table_exists(db, "review_sessions"):
-            _ensure_sqlite_column(db, "review_sessions", "review_kind", "VARCHAR(40) DEFAULT 'custom'")
-            _ensure_sqlite_column(db, "review_sessions", "review_scope", "VARCHAR(40) DEFAULT 'custom'")
-            _ensure_sqlite_column(db, "review_sessions", "selection_mode", "VARCHAR(40) DEFAULT 'manual'")
-            _ensure_sqlite_column(db, "review_sessions", "selection_basis", "TEXT DEFAULT ''")
-            _ensure_sqlite_column(db, "review_sessions", "review_goal", "TEXT DEFAULT ''")
-            _ensure_sqlite_column(db, "review_sessions", "market_regime", "VARCHAR(100)")
-            _ensure_sqlite_column(db, "review_sessions", "summary", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "repeated_errors", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "next_focus", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "action_items", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "content", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "research_notes", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "tags", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "filter_snapshot_json", "TEXT")
-            _ensure_sqlite_column(db, "review_sessions", "is_favorite", "BOOLEAN DEFAULT 0")
-            _ensure_sqlite_column(db, "review_sessions", "star_rating", "INTEGER")
-            _ensure_sqlite_column(db, "review_sessions", "is_deleted", "BOOLEAN DEFAULT 0")
-            _ensure_sqlite_column(db, "review_sessions", "deleted_at", "DATETIME")
-            _ensure_sqlite_column(db, "review_sessions", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
         if _table_exists(db, "trade_reviews") and "discipline_violated" in _column_names(db, "trade_reviews"):
             db.execute(text("ALTER TABLE trade_reviews DROP COLUMN discipline_violated"))
         if _table_exists(db, "trade_plans"):
@@ -313,7 +290,6 @@ def _migrate_legacy_schema():
 
         for table in (
             "trades",
-            "review_sessions",
             "trade_plans",
             "trade_brokers",
             "notebooks",
@@ -331,63 +307,6 @@ def _migrate_legacy_schema():
         db.close()
 
 
-def _migrate_reviews_to_review_sessions():
-    db = SessionLocal()
-    try:
-        if not _table_exists(db, "review_sessions"):
-            return
-        has_review_rows = db.query(Review).first() is not None
-        has_review_session_rows = db.query(ReviewSession).first() is not None
-        if not has_review_rows or has_review_session_rows:
-            return
-
-        review_rows = db.query(Review).order_by(Review.id.asc()).all()
-        for row in review_rows:
-            obj = ReviewSession(
-                title=row.title or f"{row.review_date} {row.review_type}",
-                review_kind="period" if (row.review_scope or "periodic") == "periodic" else "custom",
-                review_scope=_review_session_normalize_scope(row.review_scope),
-                selection_mode="manual",
-                selection_basis=row.focus_topic or f"legacy review #{row.id}",
-                review_goal=row.summary or "legacy migration",
-                market_regime=row.market_regime,
-                summary=row.summary,
-                repeated_errors=row.repeated_errors,
-                next_focus=row.next_focus,
-                action_items=row.action_items,
-                content=row.content,
-                research_notes=row.research_notes,
-                tags_text=row.tags_text,
-                filter_snapshot_json=None,
-                is_favorite=bool(row.is_favorite),
-                star_rating=row.star_rating,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-            )
-            db.add(obj)
-            db.flush()
-
-            trade_links = (
-                db.query(ReviewTradeLink)
-                .filter(ReviewTradeLink.review_id == row.id)
-                .order_by(ReviewTradeLink.id.asc())
-                .all()
-            )
-            for index, link in enumerate(trade_links):
-                db.add(
-                    ReviewSessionTradeLink(
-                        review_session_id=obj.id,
-                        trade_id=link.trade_id,
-                        role=link.role,
-                        note=link.notes,
-                        sort_order=index,
-                    )
-                )
-        db.commit()
-    finally:
-        db.close()
-
-
 def _init_default_notebooks():
     from services.notes_runtime import init_default_notebooks
 
@@ -401,7 +320,6 @@ def _index_links_for_existing_notes():
 
 
 from services import notes_runtime as _notes_runtime
-from services import review_runtime as _review_runtime
 from services import trade_analytics_runtime as _trade_analytics_runtime
 from services import trade_broker_runtime as _trade_broker_runtime
 from services import trade_import_runtime as _trade_import_runtime
@@ -469,21 +387,6 @@ update_todo = _notes_runtime.update_todo
 delete_todo = _notes_runtime.delete_todo
 
 
-_attach_review_session_fields = _review_runtime._attach_review_session_fields
-list_review_sessions = _review_runtime.list_review_sessions
-create_review_session = _review_runtime.create_review_session
-create_review_session_from_selection = _review_runtime.create_review_session_from_selection
-get_review_session = _review_runtime.get_review_session
-update_review_session = _review_runtime.update_review_session
-delete_review_session = _review_runtime.delete_review_session
-upsert_review_session_trade_links = _review_runtime.upsert_review_session_trade_links
-list_reviews = _review_runtime.list_reviews
-create_review = _review_runtime.create_review
-get_review = _review_runtime.get_review
-update_review = _review_runtime.update_review
-delete_review = _review_runtime.delete_review
-upsert_review_trade_links = _review_runtime.upsert_review_trade_links
-
 _attach_trade_plan_fields = _trade_plan_runtime._attach_trade_plan_fields
 list_trade_plans = _trade_plan_runtime.list_trade_plans
 create_trade_plan = _trade_plan_runtime.create_trade_plan
@@ -491,8 +394,6 @@ get_trade_plan = _trade_plan_runtime.get_trade_plan
 update_trade_plan = _trade_plan_runtime.update_trade_plan
 delete_trade_plan = _trade_plan_runtime.delete_trade_plan
 upsert_trade_plan_trade_links = _trade_plan_runtime.upsert_trade_plan_trade_links
-upsert_trade_plan_review_session_links = _trade_plan_runtime.upsert_trade_plan_review_session_links
-create_followup_review_session_from_trade_plan = _trade_plan_runtime.create_followup_review_session_from_trade_plan
 
 upload_file = _utility_runtime.upload_file
 get_upload = _utility_runtime.get_upload
@@ -531,10 +432,11 @@ def init_runtime() -> None:
 
     from services.auth_runtime import migrate_legacy_auth_to_users
     from services.monitor_runtime import init_monitor_runtime, purge_obsolete_server_monitoring_data
+    from trading.research_service import migrate_legacy_trading_research
 
     Base.metadata.create_all(bind=engine)
     _migrate_legacy_schema()
-    _migrate_reviews_to_review_sessions()
+    migrate_legacy_trading_research()
     _init_default_notebooks()
     migrate_legacy_auth_to_users()
     purge_obsolete_server_monitoring_data()

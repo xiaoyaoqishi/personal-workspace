@@ -78,15 +78,22 @@ export default function TradeFillsTable({
       render: (_, r) => (r.has_trade_review ? <Tag color="green">是</Tag> : <Tag>否</Tag>),
     },
     {
-      title: '',
-      width: 120,
+      title: '操作',
+      width: 112,
+      align: 'center',
       fixed: 'right',
       render: (_, r) => (
         <Space size={0}>
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => onOpenDetail(r.id)} />
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => onOpenEdit(r.id)} />
+          <Tooltip title="查看详情">
+            <Button type="text" size="small" aria-label="查看详情" icon={<EyeOutlined />} onClick={() => onOpenDetail(r.id)} />
+          </Tooltip>
+          <Tooltip title="编辑交易">
+            <Button type="text" size="small" aria-label="编辑交易" icon={<EditOutlined />} onClick={() => onOpenEdit(r.id)} />
+          </Tooltip>
           <Popconfirm title="确定移入回收站？" onConfirm={() => onDelete(r.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Tooltip title="移入回收站">
+              <Button type="text" size="small" aria-label="移入回收站" danger icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -103,6 +110,7 @@ export default function TradeFillsTable({
       pagination={{
         ...pagination,
         showSizeChanger: true,
+        showQuickJumper: true,
         pageSizeOptions: ['10', '20', '50', '100'],
         onChange: onPageChange,
         showTotal: (t) => `共 ${t} 条`,

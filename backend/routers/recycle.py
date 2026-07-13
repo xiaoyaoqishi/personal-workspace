@@ -14,11 +14,6 @@ router.delete("/trade-brokers/clear")(recycle_service.clear_recycle_trade_broker
 router.post("/trade-brokers/{broker_id}/restore")(recycle_service.restore_recycle_trade_broker)
 router.delete("/trade-brokers/{broker_id}/purge")(recycle_service.purge_recycle_trade_broker)
 
-router.get("/review-sessions")(recycle_service.list_recycle_review_sessions)
-router.delete("/review-sessions/clear")(recycle_service.clear_recycle_review_sessions)
-router.post("/review-sessions/{review_session_id}/restore")(recycle_service.restore_recycle_review_session)
-router.delete("/review-sessions/{review_session_id}/purge")(recycle_service.purge_recycle_review_session)
-
 router.get("/trade-plans")(recycle_service.list_recycle_trade_plans)
 router.delete("/trade-plans/clear")(recycle_service.clear_recycle_trade_plans)
 router.post("/trade-plans/{trade_plan_id}/restore")(recycle_service.restore_recycle_trade_plan)

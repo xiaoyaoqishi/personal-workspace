@@ -89,7 +89,6 @@ function AppLayout() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isEmbed = searchParams.get('embed') === '1';
-  const moduleScope = (searchParams.get('scope') || searchParams.get('module_scope') || 'notes').trim().toLowerCase() || 'notes';
   const [notebooks, setNotebooks] = useState([]);
 
   const loadNotebooks = useCallback(async () => {
@@ -103,10 +102,10 @@ function AppLayout() {
   useEffect(() => {
     auditApi.track({
       path: '/notes/',
-      module: moduleScope === 'trading' ? 'trading' : 'notes',
-      detail: `path:${location.pathname};scope:${moduleScope};embed:${isEmbed ? '1' : '0'}`,
+      module: 'notes',
+      detail: `path:${location.pathname};embed:${isEmbed ? '1' : '0'}`,
     }).catch(() => {});
-  }, [isEmbed, location.pathname, moduleScope]);
+  }, [isEmbed, location.pathname]);
 
   return (
     <NotebooksContext.Provider value={{ notebooks, reload: loadNotebooks }}>

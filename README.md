@@ -6,7 +6,7 @@
 `tradingRecords` is a self-hosted personal multi-app workspace. It combines trading records and review, notes, admin-side site checks, personal ledger, unified login, and a shared portal in one repository.
 
 ## Module Map
-- `Trading`: Trade records, analytics, review sessions, plans, and research workflow.
+- `Trading`: Trade records, analytics, structured per-trade reviews, plans, and research workflow.
 - `Notes`: Notebooks, diary and document notes, backlinks, todo, and recycle flow.
 - `Monitor`: Admin-side site checks, users, and audit logs.
 - `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, analytics, and an in-app asset library.
@@ -25,18 +25,17 @@
 - New-trade creation includes a dedicated `Trade Decision` tab, and trade details show the same decision content in a read-only section.
 - New trades require current stop-loss, target points, and capital allocation percentage; later edits append timestamped snapshots of all three values so pyramiding changes remain traceable.
 - Trade date is derived from the single user-facing open-time field, and risk-point history timestamps are displayed in China Standard Time.
-- The trade workspace uses single-record operations and no longer provides multi-select or filter-based bulk actions.
+- The trade records page uses single-record operations and no longer provides multi-select or filter-based bulk actions.
 - Statistics and analytics endpoints for trading records.
 - Trading frontend now includes four switchable themes (`ink` / `light` / `tech` / `dark`) through a sidebar dropdown selector, with `ink` preserved as the default paper-style theme and the selected theme persisted locally.
-- Paste-based trade import implementation is retained, but its trading-workspace entry is temporarily offline.
+- Paste-based trade import implementation is retained, but its trade-records-page entry is temporarily offline.
 - Structured per-trade review data and review taxonomy support.
 - Trade details display structured reviews in read-only mode; review maintenance is available only from the trade edit page.
-- Review sessions with linked trades.
-- Trade plans with linked trades and follow-up review flow.
-- Review session and trade plan workspaces support long-content bottom scroll buffer and a back-to-top button for long pages.
-- Review session and trade plan workspaces support collapsible sidebars, grouped sections (`研究内容` / `属性与关联`), and title-free main panels.
-- Trading now includes a dedicated `Research` submodule that embeds the same document workspace capabilities as Notes docs, while keeping research data isolated from the main Notes module.
-- Trading recycle bin for trades, brokers, review sessions, and plans.
+- Trade plans with linked trades.
+- The former grouped review-session workbench and its plan follow-up flow have been removed; structured per-trade reviews remain available.
+- Trading subpages use consistent compact action bars without standalone title-and-description headers; primary actions stay on the right, and the trade-record filters, view switch, and create action share one control row.
+- Trading now includes an independent `Research` submodule with a document-style folder tree and single reading/editing area, plus folder hierarchy, search, tags, pinning, wiki links/backlinks, and recycle flow. Its rich-text toolbar matches the Notes document editor while its code, APIs, and tables remain trading-owned; legacy trading-scoped Notes data is copied into the research domain during runtime migration.
+- Trading recycle bin for trades, brokers, and plans.
 
 ### Notes
 - Notebook management for diary and document collections.
@@ -146,7 +145,7 @@ The portal is the entry layer for the workspace. Each frontend is built independ
   - `services/`: Shared service modules plus ledger-specific services.
   - `models/`: SQLAlchemy models for workspace domains.
   - `schemas/`: Pydantic schemas for API input and output.
-  - `trading/`: Trading-specific business logic such as imports, analytics, reviews, and plans.
+  - `trading/`: Trading-specific business logic such as imports, analytics, research, reviews, and plans.
   - `data/`: SQLite database and local runtime data. Production uploads are configured outside the repo.
 - `frontend-trading/`: Trading frontend served under `/trading/`.
 - `frontend-notes/`: Notes frontend served under `/notes/`.

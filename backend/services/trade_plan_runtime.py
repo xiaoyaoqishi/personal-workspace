@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -11,17 +10,14 @@ from core.db import get_db
 from models import TradePlan
 from schemas import (
     TradePlanCreate,
-    TradePlanReviewSessionLinksPayload,
     TradePlanTradeLinksPayload,
     TradePlanUpdate,
 )
-from services import review_runtime
 from services import runtime as legacy_runtime
 from trading.trade_plan_service import (
     assert_trade_plan_status_transition as _trade_plan_assert_status_transition,
     attach_trade_plan_link_fields as _trade_plan_attach_link_fields,
     normalize_trade_plan_status as _trade_plan_normalize_status,
-    sync_trade_plan_review_session_links as _trade_plan_sync_review_session_links,
     sync_trade_plan_trade_links as _trade_plan_sync_trade_links,
 )
 from trading.tag_service import normalize_tag_list as _normalize_tag_list
@@ -31,7 +27,7 @@ from trading.tag_service import serialize_legacy_tags as _serialize_legacy_tags
 def _attach_trade_plan_fields(db: Session, rows: List[TradePlan]) -> List[TradePlan]:
     rows = _trade_plan_attach_link_fields(db, rows)
     for row in rows:
-        setattr(row, "tags", review_runtime._parse_tags_text(row.tags_text))
+        setattr(row, "tags", _normalize_tag_list(row.tags_text))
     return rows
 
 
@@ -123,62 +119,3 @@ def upsert_trade_plan_trade_links(
     db.commit()
     db.refresh(row)
     return _attach_trade_plan_fields(db, [row])[0]
-
-
-def upsert_trade_plan_review_session_links(
-    trade_plan_id: int,
-    payload: TradePlanReviewSessionLinksPayload,
-    db: Session = Depends(get_db),
-):
-    row = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
-    if not row:
-        raise HTTPException(404, "Trade plan not found")
-    _trade_plan_sync_review_session_links(
-        db,
-        row,
-        [item.model_dump() for item in (payload.review_session_links or [])],
-    )
-    db.commit()
-    db.refresh(row)
-    return _attach_trade_plan_fields(db, [row])[0]
-
-
-def create_followup_review_session_from_trade_plan(trade_plan_id: int, db: Session = Depends(get_db)):
-    plan = db.query(TradePlan).filter(TradePlan.id == trade_plan_id, TradePlan.is_deleted == False).first()  # noqa: E712
-    if not plan:
-        raise HTTPException(404, "Trade plan not found")
-    plan = _attach_trade_plan_fields(db, [plan])[0]
-    trade_links = [
-        {"trade_id": item.trade_id, "role": "linked_trade", "sort_order": index}
-        for index, item in enumerate(getattr(plan, "trade_links", []))
-    ]
-    session = review_runtime._create_review_session_from_payload(
-        db,
-        {
-            "title": f"计划跟踪复盘：{plan.title}",
-            "review_kind": "plan-followup",
-            "review_scope": "campaign",
-            "selection_mode": "plan_linked",
-            "selection_basis": f"来自交易计划 #{plan.id} 的关联成交样本",
-            "review_goal": "评估计划到执行的转化质量与偏差",
-            "market_regime": plan.market_regime,
-            "summary": None,
-            "repeated_errors": None,
-            "next_focus": None,
-            "action_items": None,
-            "content": None,
-            "research_notes": None,
-            "tags": review_runtime._parse_tags_text(plan.tags_text),
-            "filter_snapshot_json": json.dumps({"source": "trade_plan", "trade_plan_id": plan.id}, ensure_ascii=False),
-            "owner_role": plan.owner_role,
-        },
-        trade_links,
-    )
-    _trade_plan_sync_review_session_links(
-        db,
-        plan,
-        [{"review_session_id": session.id, "note": "自动创建计划跟踪复盘"}],
-    )
-    db.commit()
-    db.refresh(plan)
-    return session

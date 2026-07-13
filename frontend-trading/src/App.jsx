@@ -7,7 +7,6 @@ import {
   DashboardOutlined,
   FormatPainterOutlined,
   OrderedListOutlined,
-  FileTextOutlined,
   LogoutOutlined,
   MoonOutlined,
   BankOutlined,
@@ -20,7 +19,6 @@ import {
 import Dashboard from './pages/Dashboard';
 import TradeList from './pages/TradeList';
 import TradeForm from './pages/TradeForm';
-import ReviewList from './pages/ReviewList';
 import InfoMaintain from './pages/BrokerManage';
 import TradePlanList from './pages/TradePlanList';
 import TradingRecycleBin from './pages/TradingRecycleBin';
@@ -32,7 +30,6 @@ import './styles/tokens.css';
 const tabs = [
   { key: '/trades', icon: <OrderedListOutlined />, label: '记录' },
   { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
-  { key: '/reviews', icon: <FileTextOutlined />, label: '复盘会话' },
   { key: '/plans', icon: <ProjectOutlined />, label: '计划' },
   { key: '/research', icon: <SearchOutlined />, label: '研究' },
   { key: '/maintain', icon: <BankOutlined />, label: '信息维护' },
@@ -127,10 +124,10 @@ function AppLayout({ theme, setTheme }) {
           <Route path="/trades/new" element={<TradeForm />} />
           <Route path="/trades/:id/edit" element={<TradeForm />} />
           <Route path="/maintain" element={<InfoMaintain />} />
-          <Route path="/reviews" element={<ReviewList />} />
           <Route path="/plans" element={<TradePlanList />} />
           <Route path="/research" element={<TradingResearch />} />
           <Route path="/recycle" element={<TradingRecycleBin />} />
+          <Route path="*" element={<Navigate to="/trades" replace />} />
         </Routes>
       </div>
     </div>

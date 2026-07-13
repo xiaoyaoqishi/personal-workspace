@@ -1,4 +1,5 @@
-﻿import { Col, DatePicker, Row, Segmented, Select, Space } from 'antd';
+﻿import { Button, Col, DatePicker, Row, Segmented, Select, Space } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 
 const { RangePicker } = DatePicker;
 
@@ -8,9 +9,10 @@ export default function TradeWorkspaceFilterBar({
   symbolOptions,
   onSetDateRange,
   onUpdateFilter,
+  onCreateTrade,
 }) {
   return (
-    <div className="ink-filter-bar">
+    <div className="ink-filter-bar trade-control-bar">
       <Row justify="space-between" align="middle" gutter={[12, 12]}>
         <Col>
           <Segmented
@@ -66,6 +68,12 @@ export default function TradeWorkspaceFilterBar({
             </Space>
           </Col>
         )}
+
+        <Col className="trade-primary-action">
+          <Button type="primary" icon={<PlusOutlined />} onClick={onCreateTrade}>
+            新建交易
+          </Button>
+        </Col>
       </Row>
     </div>
   );

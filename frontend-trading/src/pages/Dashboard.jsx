@@ -190,17 +190,6 @@ export default function Dashboard() {
 
   return (
     <div className="analytics-workspace">
-      <div className="analytics-header">
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            交易分析工作台
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            多维复盘视角：绩效、维度、结构化复盘与风控持仓。
-          </Typography.Text>
-        </div>
-      </div>
-
       <AnalyticsFilterBar
         symbolOptions={symbolOptions}
         sourceOptions={sourceOptions}
@@ -228,7 +217,7 @@ export default function Dashboard() {
               <div className="analytics-note-list">
                 <div>1. 结构化复盘分类字段的标准键保持英文，界面统一显示中文标签。</div>
                 <div>2. 来源展示优先使用来源元数据，旧备注仅作兼容回退。</div>
-                <div>3. 粘贴导入能力仍保留，当前仅暂停交易工作台入口。</div>
+                <div>3. 粘贴导入能力仍保留，当前仅暂停交易记录页面入口。</div>
               </div>
             ),
           },

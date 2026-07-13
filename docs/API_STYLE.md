@@ -11,9 +11,11 @@
 - 当前 trading 对外 API 继续使用：
   - `/api/trades`
   - `/api/trades/{trade_id}/risk-point-history`
+  - `/api/trades/research/*`
   - `/api/trade-brokers`
   - `/api/trade-review-taxonomy`
 - 禁止在普通重构中新增独立的 trading 模块级 API 前缀。
+- 独立研究能力沿用现有 `/api/trades` 前缀，收敛在 `/api/trades/research/*`，不复用 Notes API。
 - 如未来需要新的 trading 模块级 API 前缀，必须单独发起 API v2 迁移，不能在普通重构中顺手修改。
 
 ### 已迁移模块/文件
@@ -24,8 +26,6 @@
 - `backend/routers/notes.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/notes"`。
 - `backend/routers/notebook.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/notebooks"`。
 - `backend/routers/todo.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/todos"`。
-- `backend/routers/review.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/reviews"`。
-- `backend/routers/review_sessions.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/review-sessions"`。
 - `backend/routers/trade_plans.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/trade-plans"`。
 - `backend/routers/auth.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/auth"`。
 - `backend/routers/admin.py` 已迁移为模块级 prefix + decorator 风格，当前使用 `prefix="/api/admin"`。

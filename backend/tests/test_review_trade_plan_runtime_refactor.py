@@ -1,67 +1,23 @@
 from services import utility_runtime
 
 
-def test_review_session_and_legacy_review_routes(admin_login):
+def test_removed_review_routes_are_not_registered(admin_login):
     client = admin_login
-
-    created = client.post(
-        "/api/review-sessions",
-        json={
-            "title": "session-refactor",
-            "review_kind": "custom",
-            "selection_basis": "manual selection",
-            "review_goal": "verify runtime split",
-            "tags": ["alpha", "beta"],
-        },
-    )
-    assert created.status_code == 200
-    session_id = created.json()["id"]
-
-    legacy = client.get(f"/api/reviews/{session_id}")
-    assert legacy.status_code == 200
-    assert legacy.json()["id"] == session_id
-    assert legacy.json()["tags"] == ["alpha", "beta"]
-
-    updated = client.put(
-        f"/api/reviews/{session_id}",
-        json={"title": "legacy-updated", "tags": ["gamma"]},
-    )
-    assert updated.status_code == 200
-    assert updated.json()["title"] == "legacy-updated"
-    assert updated.json()["tags"] == ["gamma"]
-
-    session = client.get(f"/api/review-sessions/{session_id}")
-    assert session.status_code == 200
-    assert session.json()["title"] == "legacy-updated"
-    assert session.json()["tags"] == ["gamma"]
+    assert client.get("/api/reviews").status_code == 404
+    assert client.get("/api/review-sessions").status_code == 404
+    assert client.get("/api/recycle/review-sessions").status_code == 404
 
 
-def test_trade_plan_followup_review_session_route(admin_login):
+def test_trade_plan_no_longer_exposes_review_session_flow(admin_login):
     client = admin_login
-
     created = client.post(
         "/api/trade-plans",
-        json={
-            "title": "plan-refactor",
-            "plan_date": "2026-04-27",
-            "tags": ["followup"],
-        },
+        json={"title": "standalone-plan", "plan_date": "2026-04-27", "tags": ["plan"]},
     )
     assert created.status_code == 200
     plan_id = created.json()["id"]
-
-    followup = client.post(f"/api/trade-plans/{plan_id}/create-followup-review-session")
-    assert followup.status_code == 200
-    assert followup.json()["tags"] == ["followup"]
-    assert followup.json()["linked_trade_ids"] == []
-
-    plan = client.get(f"/api/trade-plans/{plan_id}")
-    assert plan.status_code == 200
-    links = plan.json()["review_session_links"]
-    assert len(links) == 1
-    assert links[0]["note"] == "自动创建计划跟踪复盘"
-    assert links[0]["review_session"]["selection_mode"] == "plan_linked"
-    assert links[0]["review_session"]["tags_text"] == "followup"
+    assert "review_session_links" not in created.json()
+    assert client.post(f"/api/trade-plans/{plan_id}/create-followup-review-session").status_code == 404
 
 
 def test_poem_and_upload_routes(admin_login, tmp_path):

@@ -7,13 +7,11 @@ from sqlalchemy.orm import Session
 
 from core.db import get_db
 from models import (
-    ReviewSession,
     ReviewSessionTradeLink,
     ReviewTradeLink,
     Trade,
     TradeBroker,
     TradePlan,
-    TradePlanReviewSessionLink,
     TradePlanTradeLink,
 )
 from services import notes_runtime
@@ -92,61 +90,6 @@ def purge_recycle_trade_broker(broker_id: int, db: Session = Depends(get_db)):
     db.delete(row)
     db.commit()
     return {"ok": True}
-
-
-def _attach_review_session_fields(db: Session, rows: List[ReviewSession]) -> List[ReviewSession]:
-    from services import review_runtime
-
-    return review_runtime._attach_review_session_fields(db, rows)
-
-
-def list_recycle_review_sessions(
-    page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
-):
-    rows = (
-        db.query(ReviewSession)
-        .filter(ReviewSession.is_deleted == True)  # noqa: E712
-        .order_by(ReviewSession.deleted_at.desc(), ReviewSession.id.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
-    return _attach_review_session_fields(db, rows)
-
-
-def restore_recycle_review_session(review_session_id: int, db: Session = Depends(get_db)):
-    row = (
-        db.query(ReviewSession)
-        .filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == True)  # noqa: E712
-        .first()
-    )
-    if not row:
-        raise HTTPException(404, "Review session not found in recycle bin")
-    row.is_deleted = False
-    row.deleted_at = None
-    db.commit()
-    db.refresh(row)
-    return _attach_review_session_fields(db, [row])[0]
-
-
-def purge_recycle_review_session(review_session_id: int, db: Session = Depends(get_db)):
-    row = (
-        db.query(ReviewSession)
-        .filter(ReviewSession.id == review_session_id, ReviewSession.is_deleted == True)  # noqa: E712
-        .first()
-    )
-    if not row:
-        raise HTTPException(404, "Review session not found in recycle bin")
-    db.query(TradePlanReviewSessionLink).filter(
-        TradePlanReviewSessionLink.review_session_id == review_session_id
-    ).delete(synchronize_session=False)
-    db.delete(row)
-    db.commit()
-    return {"ok": True}
-
-
 def _attach_trade_plan_fields(db: Session, rows: List[TradePlan]) -> List[TradePlan]:
     from services import trade_plan_runtime
 
@@ -207,20 +150,6 @@ def clear_recycle_trade_brokers(db: Session = Depends(get_db)):
     rows = db.query(TradeBroker).filter(TradeBroker.is_deleted == True).all()
     if not rows:
         return {"ok": True, "cleared": 0}
-    for row in rows:
-        db.delete(row)
-    db.commit()
-    return {"ok": True, "cleared": len(rows)}
-
-
-def clear_recycle_review_sessions(db: Session = Depends(get_db)):
-    rows = db.query(ReviewSession).filter(ReviewSession.is_deleted == True).all()
-    if not rows:
-        return {"ok": True, "cleared": 0}
-    session_ids = [r.id for r in rows]
-    db.query(TradePlanReviewSessionLink).filter(
-        TradePlanReviewSessionLink.review_session_id.in_(session_ids)
-    ).delete(synchronize_session=False)
     for row in rows:
         db.delete(row)
     db.commit()

@@ -37,25 +37,6 @@ export const brokerApi = {
   delete: (id) => api.delete(`/trade-brokers/${id}`),
 };
 
-export const reviewApi = {
-  list: (params) => api.get('/reviews', { params }),
-  get: (id) => api.get(`/reviews/${id}`),
-  create: (data) => api.post('/reviews', data),
-  update: (id, data) => api.put(`/reviews/${id}`, data),
-  delete: (id) => api.delete(`/reviews/${id}`),
-  upsertTradeLinks: (id, data) => api.put(`/reviews/${id}/trade-links`, data),
-};
-
-export const reviewSessionApi = {
-  list: (params) => api.get('/review-sessions', { params }),
-  get: (id) => api.get(`/review-sessions/${id}`),
-  create: (data) => api.post('/review-sessions', data),
-  update: (id, data) => api.put(`/review-sessions/${id}`, data),
-  delete: (id) => api.delete(`/review-sessions/${id}`),
-  upsertTradeLinks: (id, data) => api.put(`/review-sessions/${id}/trade-links`, data),
-  createFromSelection: (data) => api.post('/review-sessions/create-from-selection', data),
-};
-
 export const tradePlanApi = {
   list: (params) => api.get('/trade-plans', { params }),
   get: (id) => api.get(`/trade-plans/${id}`),
@@ -63,8 +44,6 @@ export const tradePlanApi = {
   update: (id, data) => api.put(`/trade-plans/${id}`, data),
   delete: (id) => api.delete(`/trade-plans/${id}`),
   upsertTradeLinks: (id, data) => api.put(`/trade-plans/${id}/trade-links`, data),
-  upsertReviewSessionLinks: (id, data) => api.put(`/trade-plans/${id}/review-session-links`, data),
-  createFollowupReviewSession: (id) => api.post(`/trade-plans/${id}/create-followup-review-session`),
 };
 
 export const tradeReviewApi = {
@@ -96,12 +75,6 @@ export const recycleApi = {
     purge: (id) => api.delete(`/recycle/trade-brokers/${id}/purge`),
     clear: () => api.delete('/recycle/trade-brokers/clear'),
   },
-  reviewSessions: {
-    list: (params) => api.get('/recycle/review-sessions', { params }),
-    restore: (id) => api.post(`/recycle/review-sessions/${id}/restore`),
-    purge: (id) => api.delete(`/recycle/review-sessions/${id}/purge`),
-    clear: () => api.delete('/recycle/review-sessions/clear'),
-  },
   tradePlans: {
     list: (params) => api.get('/recycle/trade-plans', { params }),
     restore: (id) => api.post(`/recycle/trade-plans/${id}/restore`),
@@ -110,13 +83,28 @@ export const recycleApi = {
   },
 };
 
-export const noteApi = {
-  list: (params) => api.get('/notes', { params }),
-  search: (params) => api.get('/notes/search', { params }),
-};
-
-export const notebookApi = {
-  list: () => api.get('/notebooks'),
+export const researchApi = {
+  folders: {
+    list: () => api.get('/trades/research/folders'),
+    create: (data) => api.post('/trades/research/folders', data),
+    update: (id, data) => api.put(`/trades/research/folders/${id}`, data),
+    delete: (id) => api.delete(`/trades/research/folders/${id}`),
+  },
+  documents: {
+    list: (params) => api.get('/trades/research/documents', { params }),
+    get: (id) => api.get(`/trades/research/documents/${id}`),
+    create: (data) => api.post('/trades/research/documents', data),
+    update: (id, data) => api.put(`/trades/research/documents/${id}`, data),
+    delete: (id) => api.delete(`/trades/research/documents/${id}`),
+    backlinks: (id) => api.get(`/trades/research/documents/${id}/backlinks`),
+    resolveLink: (name) => api.get('/trades/research/resolve-link', { params: { name } }),
+  },
+  recycle: {
+    list: () => api.get('/trades/research/recycle'),
+    restore: (id) => api.post(`/trades/research/recycle/${id}/restore`),
+    purge: (id) => api.delete(`/trades/research/recycle/${id}/purge`),
+    clear: () => api.delete('/trades/research/recycle'),
+  },
 };
 
 export default api;
