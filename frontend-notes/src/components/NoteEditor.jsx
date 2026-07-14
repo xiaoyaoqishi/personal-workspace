@@ -416,6 +416,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
   const readViewRef = useRef(null);
   const noteRef = useRef(note);
   const onUpdateRef = useRef(onUpdate);
+  const contentDirtyRef = useRef(false);
   const settings = loadEditorSettings();
 
   noteRef.current = note;
@@ -447,6 +448,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
     content: parseContent(note?.content),
     editable: false,
     onUpdate: ({ editor }) => {
+      contentDirtyRef.current = true;
       const json = JSON.stringify(editor.getJSON());
       const text = editor.getText();
       onUpdateRef.current(noteRef.current.id, { content: json, word_count: text.length });
@@ -489,7 +491,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
 
   useEffect(() => {
     return () => {
-      if (editor && !editor.isDestroyed) {
+      if (editor && !editor.isDestroyed && contentDirtyRef.current) {
         const json = JSON.stringify(editor.getJSON());
         const text = editor.getText();
         onUpdateRef.current(noteRef.current.id, { content: json, word_count: text.length, _flush: true });
@@ -513,7 +515,8 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
     setMode(defaultEditing ? 'edit' : 'read');
     if (editor) {
       editor.setEditable(defaultEditing);
-      editor.commands.setContent(parseContent(note.content));
+      editor.commands.setContent(parseContent(note.content), { emitUpdate: false });
+      contentDirtyRef.current = false;
       if (defaultEditing) {
         setTimeout(() => {
           try { editor.chain().focus().run(); } catch {}

@@ -7,7 +7,7 @@
 
 ## Module Map
 - `Trading`: Trade records, analytics, structured per-trade reviews, plans, and research workflow.
-- `Notes`: Notebooks, diary and document notes, backlinks, todo, and recycle flow.
+- `Notes`: Notebooks, diary and document notes, wiki-link navigation, todo, and recycle flow.
 - `Monitor`: Admin-side site checks, users, and audit logs.
 - `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, analytics, and an in-app asset library.
 - `Portal`: Static home page and login entry for the workspace.
@@ -41,7 +41,7 @@
 - Notebook management for diary and document collections.
 - Diary and document note CRUD with shared editor flow.
 - Search, calendar, diary tree, and "history today" style browsing.
-- Wiki-link resolution and backlinks between notes.
+- Wiki-link resolution and forward navigation between notes.
 - Todo management in the notes workspace.
 - Notes recycle bin with restore and purge flow.
 

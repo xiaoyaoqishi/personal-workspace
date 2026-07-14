@@ -17,7 +17,6 @@ ALLOWED_RUNTIME_FUNCTIONS = {
     "_current_role",
     "_current_username",
     "_ensure_sqlite_column",
-    "_index_links_for_existing_notes",
     "_init_default_notebooks",
     "_maintenance_loop",
     "_migrate_legacy_schema",

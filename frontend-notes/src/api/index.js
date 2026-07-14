@@ -32,7 +32,6 @@ export const noteApi = {
   diarySummaries: (params) => api.get('/notes/diary-summaries', { params }),
   search: (params) => api.get('/notes/search', { params }),
   resolveLink: (name) => api.get('/notes/resolve-link', { params: { name } }),
-  backlinks: (id, params) => api.get(`/notes/${id}/backlinks`, { params }),
   recycleList: (params) => api.get('/recycle/notes', { params }),
   restore: (id) => api.post(`/recycle/notes/${id}/restore`),
   purge: (id) => api.delete(`/recycle/notes/${id}/purge`),

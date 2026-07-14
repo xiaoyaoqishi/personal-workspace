@@ -372,19 +372,123 @@ body {
 }
 .write-today-btn:hover { border-color: var(--nk-color-primary); color: var(--nk-color-primary); background: var(--nk-color-surface-2); }
 
-.doc-actions { padding: 8px 12px; }
-.action-btn {
+.doc-side-panel {
+  width: 272px;
+  min-width: 272px;
+  background: var(--nk-color-surface);
+}
+
+.doc-sidebar-header {
+  padding: 18px 14px 12px;
+}
+
+.doc-sidebar-title {
+  color: var(--nk-color-text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.doc-sidebar-meta {
+  margin-top: 3px;
+  color: var(--nk-color-text-muted);
+  font-size: 11px;
+}
+
+.doc-quick-actions,
+.doc-empty-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.doc-create-btn {
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--nk-color-border);
+  border-radius: var(--nk-radius-sm);
+  background: var(--nk-color-surface);
+  color: var(--nk-color-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.doc-create-btn:hover {
+  border-color: var(--nk-color-primary);
+  color: var(--nk-color-primary);
+  background: var(--nk-color-primary-soft);
+}
+
+.doc-create-btn:active { transform: translateY(1px); }
+
+.doc-create-btn.primary {
+  border-color: var(--nk-color-primary);
+  background: var(--nk-color-primary);
+  color: #fff;
+}
+
+.doc-create-btn.primary:hover {
+  border-color: var(--nk-color-primary);
+  background: color-mix(in srgb, var(--nk-color-primary) 88%, #000);
+  color: #fff;
+}
+
+.doc-side-panel .side-search { padding: 0 14px 12px; }
+.doc-side-panel .side-search .ant-input-affix-wrapper {
+  height: 34px;
+  background: var(--nk-color-surface-2);
+  border-color: transparent;
+}
+
+.doc-library-nav {
+  padding: 0 10px 10px;
+  border-bottom: 1px solid var(--nk-color-border);
+}
+
+.doc-library-item {
   width: 100%;
-  padding: 8px;
-  border: 1px dashed var(--nk-color-text-muted);
-  border-radius: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--nk-radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: transparent;
   color: var(--nk-color-text-secondary);
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.2s;
+  text-align: left;
 }
-.action-btn:hover { border-color: var(--nk-color-primary); color: var(--nk-color-primary); background: var(--nk-color-surface-2); }
+
+.doc-library-item.active {
+  background: var(--nk-color-primary-soft);
+  color: var(--nk-color-primary);
+  font-weight: 600;
+}
+
+.doc-library-count {
+  margin-left: auto;
+  color: var(--nk-color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.doc-tree-heading {
+  padding: 14px 14px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--nk-color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
 /* 鈹€鈹€ Date Tree / Folder Tree 鈹€鈹€ */
 .date-tree, .folder-tree {
@@ -465,18 +569,54 @@ body {
 .tree-day.active, .tree-file.active { background: var(--nk-color-primary-soft); color: var(--nk-color-primary); }
 
 .tree-folder {
-  padding: 5px 14px;
+  min-height: 34px;
+  padding: 4px 10px;
   cursor: pointer;
   color: var(--nk-color-text-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-radius: 6px;
+  margin: 1px 6px;
   transition: background 0.15s;
 }
 .tree-folder:hover { background: var(--nk-color-surface-2); }
 .tree-folder.active { background: var(--nk-color-primary-soft); color: var(--nk-color-primary); }
-.tree-folder.add-folder { color: var(--nk-color-text-muted); gap: 6px; justify-content: flex-start; border-top: 1px solid var(--nk-color-border); margin-top: 8px; }
-.tree-folder.add-folder:hover { color: var(--nk-color-primary); }
+.tree-folder-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tree-chevron {
+  width: 10px;
+  flex: 0 0 10px;
+  color: var(--nk-color-text-muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.tree-folder-icon { color: var(--nk-color-primary); font-size: 14px; }
+.tree-folder-name,
+.tree-file-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-node-count {
+  color: var(--nk-color-text-muted);
+  font-size: 10px;
+}
+
+.tree-file-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+}
 
 .tree-folder-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
 .tree-folder:hover .tree-folder-actions { opacity: 1; }
@@ -485,6 +625,41 @@ body {
 .tree-action-icon { font-size: 12px; color: var(--nk-color-text-muted); cursor: pointer; padding: 2px; }
 .tree-action-icon:hover { color: var(--nk-color-primary); }
 .tree-action-icon.danger:hover { color: var(--nk-color-danger); }
+
+.doc-tree-empty {
+  width: calc(100% - 24px);
+  margin: 6px 12px;
+  padding: 10px;
+  border: 1px dashed var(--nk-color-border);
+  border-radius: var(--nk-radius-sm);
+  background: transparent;
+  color: var(--nk-color-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.doc-tree-empty:hover {
+  border-color: var(--nk-color-primary);
+  color: var(--nk-color-primary);
+  background: var(--nk-color-primary-soft);
+}
+
+.doc-empty-state { color: var(--nk-color-text-secondary); }
+.doc-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nk-color-primary-soft);
+  color: var(--nk-color-primary);
+  font-size: 25px;
+}
+.doc-empty-title { color: var(--nk-color-text); font-size: 17px; font-weight: 700; }
+.doc-empty-desc { margin-top: 7px; color: var(--nk-color-text-muted); font-size: 13px; }
+.doc-empty-actions { width: 260px; margin-top: 18px; }
 
 .tree-delete {
   color: var(--nk-color-text-muted);
@@ -503,111 +678,7 @@ body {
   display: flex;
   overflow: hidden;
   min-height: 0;
-}
-
-.doc-main-split {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-.doc-main-editor {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.doc-backlinks {
-  width: 280px;
-  min-width: 280px;
-  border-left: 1px solid var(--nk-color-border);
-  background: var(--nk-color-surface-2);
-  padding: 12px 10px;
-  overflow-y: auto;
-  transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
-}
-
-.doc-backlinks-resizer {
-  width: 6px;
-  cursor: col-resize;
-  background: transparent;
-  border-left: 1px solid var(--nk-color-border);
-  border-right: 1px solid var(--nk-color-border);
-}
-
-.doc-backlinks-resizer:hover {
-  background: var(--nk-color-border);
-}
-
-.doc-backlinks.collapsed {
-  width: 40px;
-  min-width: 40px;
-  padding: 8px 4px;
-  overflow: hidden;
-}
-
-.doc-backlinks-toggle {
-  width: 100%;
-  border: 1px solid var(--nk-color-border);
-  background: var(--nk-color-surface);
-  color: var(--nk-color-text-secondary);
-  border-radius: var(--nk-radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 6px 4px;
-  margin-bottom: 8px;
-}
-
-.doc-backlinks.collapsed .doc-backlinks-toggle {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  padding: 8px 2px;
-  margin: 0 auto;
-  height: 120px;
-}
-
-.doc-backlinks-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--nk-color-text-secondary);
-  margin-bottom: 8px;
-}
-
-.doc-backlink-item {
-  border: 1px solid var(--nk-color-border);
-  background: var(--nk-color-surface);
-  border-radius: var(--nk-radius-sm);
-  padding: 8px 9px;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
-.doc-backlink-item:hover {
-  border-color: var(--nk-color-primary);
-  background: var(--nk-color-surface-2);
-}
-
-.doc-backlink-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--nk-color-text-secondary);
-  margin-bottom: 4px;
-}
-
-.doc-backlink-snippet {
-  font-size: 12px;
-  color: var(--nk-color-text-muted);
-  line-height: 1.45;
-}
-
-.doc-backlink-empty {
-  color: var(--nk-color-text-muted);
-  font-size: 12px;
-  padding: 8px 2px;
+  background: var(--nk-color-bg);
 }
 
 /* 鈹€鈹€ Editor 鈹€鈹€ */

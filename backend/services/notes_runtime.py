@@ -326,26 +326,6 @@ def _search_rank(title: str, plain: str, keys: List[str]) -> int:
     return score
 
 
-def _parse_note_wikilinks(text: str) -> List[tuple[str, Optional[str]]]:
-    out = []
-    seen = set()
-    for m in re.finditer(r"\[\[([^\[\]\n]{1,220})\]\]", text or ""):
-        raw = (m.group(1) or "").strip()
-        if not raw:
-            continue
-        name, heading = (raw.split("#", 1) + [None])[:2]
-        name = (name or "").strip()
-        heading = (heading or "").strip() or None
-        if not name:
-            continue
-        key = (name.lower(), (heading or "").lower())
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append((name, heading))
-    return out
-
-
 def _resolve_link_target_id(db: Session, target_name: str, module_scope: Optional[str] = None) -> Optional[int]:
     scope = _normalize_module_scope(module_scope)
     name = (target_name or "").strip()
@@ -366,40 +346,6 @@ def _resolve_link_target_id(db: Session, target_name: str, module_scope: Optiona
         .first()
     )  # noqa: E712
     return note.id if note else None
-
-
-def _index_note_links(db: Session, note: Note):
-    db.query(NoteLink).filter(NoteLink.source_note_id == note.id).delete(synchronize_session=False)
-    plain = _note_plain_text(note.content, note.title)
-    for name, heading in _parse_note_wikilinks(plain):
-        db.add(
-            NoteLink(
-                source_note_id=note.id,
-                target_note_id=_resolve_link_target_id(db, name, note.module_scope),
-                target_name=name,
-                target_heading=heading,
-            )
-        )
-
-
-def _refresh_link_targets(db: Session):
-    links = db.query(NoteLink).all()
-    for lk in links:
-        source_note = db.query(Note).filter(Note.id == lk.source_note_id).first()
-        source_scope = source_note.module_scope if source_note else DEFAULT_NOTE_SCOPE
-        lk.target_note_id = _resolve_link_target_id(db, lk.target_name, source_scope)
-
-
-def index_links_for_existing_notes():
-    db = SessionLocal()
-    try:
-        notes = db.query(Note).filter(Note.is_deleted == False).all()  # noqa: E712
-        db.query(NoteLink).delete(synchronize_session=False)
-        for n in notes:
-            _index_note_links(db, n)
-        db.commit()
-    finally:
-        db.close()
 
 
 def search_notes(
@@ -474,39 +420,6 @@ def resolve_note_link(name: str = Query(..., min_length=1), module_scope: Option
     }
 
 
-def note_backlinks(note_id: int, limit: int = Query(100, ge=1, le=300), module_scope: Optional[str] = Query(None), db: Session = Depends(get_db)):
-    scope = _normalize_module_scope(module_scope)
-    target = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False, Note.module_scope == scope).first()  # noqa: E712
-    if not target:
-        raise HTTPException(404, "Note not found")
-    rows = (
-        db.query(NoteLink, Note)
-        .join(Note, Note.id == NoteLink.source_note_id)
-        .filter(NoteLink.target_note_id == note_id, Note.is_deleted == False, Note.module_scope == scope)  # noqa: E712
-        .order_by(Note.updated_at.desc())
-        .limit(limit)
-        .all()
-    )
-    out = []
-    for lk, src in rows:
-        plain = _note_plain_text(src.content, src.title)
-        needle = f"[[{lk.target_name}]]"
-        if lk.target_heading:
-            needle = f"[[{lk.target_name}#{lk.target_heading}]]"
-        out.append(
-            {
-                "source_note_id": src.id,
-                "source_title": src.title or "无标题",
-                "source_note_type": src.note_type,
-                "source_updated_at": str(src.updated_at) if src.updated_at else None,
-                "snippet": _make_search_snippet(plain, needle),
-                "target_name": lk.target_name,
-                "target_heading": lk.target_heading,
-            }
-        )
-    return out
-
-
 def diary_summaries(
     year: int = Query(..., ge=1970, le=2100),
     month: Optional[int] = Query(None, ge=1, le=12),
@@ -560,9 +473,6 @@ def create_note(data: NoteCreate, db: Session = Depends(get_db)):
     db.add(obj)
     db.commit()
     db.refresh(obj)
-    _index_note_links(db, obj)
-    _refresh_link_targets(db)
-    db.commit()
     return obj
 
 
@@ -578,7 +488,6 @@ def update_note(note_id: int, module_scope: Optional[str] = None, data: NoteUpda
     n = db.query(Note).filter(Note.id == note_id, Note.is_deleted == False, Note.module_scope == scope).first()  # noqa: E712
     if not n:
         raise HTTPException(404, "Note not found")
-    old_title = (n.title or "").strip()
     updates = data.model_dump(exclude_unset=True)
     if "notebook_id" in updates:
         target_nb = db.query(Notebook).filter(Notebook.id == updates["notebook_id"]).first()
@@ -591,9 +500,6 @@ def update_note(note_id: int, module_scope: Optional[str] = None, data: NoteUpda
         updates["module_scope"] = scope
     for k, v in updates.items():
         setattr(n, k, v)
-    _index_note_links(db, n)
-    if (n.title or "").strip() != old_title:
-        _refresh_link_targets(db)
     db.commit()
     db.refresh(n)
     return n
@@ -624,8 +530,6 @@ def restore_note(note_id: int, module_scope: Optional[str] = None, db: Session =
         raise HTTPException(404, "Note not found in recycle bin")
     n.is_deleted = False
     n.deleted_at = None
-    _index_note_links(db, n)
-    _refresh_link_targets(db)
     db.commit()
     db.refresh(n)
     return n

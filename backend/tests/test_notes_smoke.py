@@ -16,11 +16,10 @@ def test_notes_core_flow(admin_login):
     )
     assert note.status_code == 200
     created_note = note.json()
-    note_id = created_note.get("id")
-    if note_id is None:
-        listing_after_create = client.get("/api/notes")
-        assert listing_after_create.status_code == 200
-        note_id = next(x["id"] for x in listing_after_create.json() if x.get("title") == "hello")
+    assert created_note["title"] == "hello"
+    assert created_note["content"] == "world"
+    assert created_note["note_type"] == "doc"
+    note_id = created_note["id"]
 
     fetched = client.get(f"/api/notes/{note_id}")
     assert fetched.status_code == 200
@@ -29,6 +28,9 @@ def test_notes_core_flow(admin_login):
     listing = client.get("/api/notes")
     assert listing.status_code == 200
     assert any(x["id"] == note_id for x in listing.json())
+
+    backlinks = client.get(f"/api/notes/{note_id}/backlinks")
+    assert backlinks.status_code == 404
 
 
 def test_notes_api_no_longer_opens_trading_scope(admin_login):

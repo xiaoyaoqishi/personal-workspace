@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Input, Modal, Popconfirm, Select, message } from 'antd';
-import { SearchOutlined, PlusOutlined, DeleteOutlined, FolderOutlined, FolderAddOutlined, FileTextOutlined, FileAddOutlined, CopyOutlined, SwapOutlined } from '@ant-design/icons';
+import { SearchOutlined, DeleteOutlined, FolderOutlined, FolderAddOutlined, FileTextOutlined, FileAddOutlined, CopyOutlined, SwapOutlined } from '@ant-design/icons';
 import { noteApi, notebookApi } from '../api';
 import NoteEditor from './NoteEditor';
 
@@ -15,9 +15,13 @@ function FolderNode({ nb, allNotebooks, notesByNb, activeNote, expandedFolders, 
         className={`tree-folder`}
         onClick={() => onToggle(nb.id)}
       >
-        <span>
-          {(children.length > 0 || notes.length > 0) ? (isExpanded ? '▾' : '▸') : '　'}
-          {' '}<FolderOutlined /> {nb.icon} {nb.name}
+        <span className="tree-folder-main">
+          <span className="tree-chevron">
+            {(children.length > 0 || notes.length > 0) ? (isExpanded ? '▾' : '▸') : ''}
+          </span>
+          <span className="tree-folder-icon"><FolderOutlined /></span>
+          <span className="tree-folder-name">{nb.name}</span>
+          {notes.length > 0 && <span className="tree-node-count">{notes.length}</span>}
         </span>
         <span className="tree-folder-actions" onClick={e => e.stopPropagation()}>
           <FileAddOutlined
@@ -64,7 +68,7 @@ function FolderNode({ nb, allNotebooks, notesByNb, activeNote, expandedFolders, 
               className={`tree-file ${activeNote?.id === note.id ? 'active' : ''}`}
               onClick={() => onSelectNote(note)}
             >
-              <span><FileTextOutlined /> {note.title || '无标题'}</span>
+              <span className="tree-file-main"><FileTextOutlined /> <span>{note.title || '无标题'}</span></span>
               <span className="tree-file-actions" onClick={e => e.stopPropagation()}>
                 <CopyOutlined
                   className="tree-action-icon"
@@ -118,30 +122,9 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   const [transferMode, setTransferMode] = useState('copy');
   const [transferNote, setTransferNote] = useState(null);
   const [transferTargetNb, setTransferTargetNb] = useState(null);
-  const [backlinks, setBacklinks] = useState([]);
-  const [backlinksCollapsed, setBacklinksCollapsed] = useState(true);
-  const [backlinksWidth, setBacklinksWidth] = useState(280);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
-  const resizingRef = useRef(false);
   const saveTimer = useRef(null);
   const createdFromEntryRef = useRef(false);
-
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!resizingRef.current) return;
-      const panelMin = 220;
-      const panelMax = 520;
-      const next = Math.max(panelMin, Math.min(panelMax, window.innerWidth - e.clientX));
-      setBacklinksWidth(next);
-    };
-    const onUp = () => { resizingRef.current = false; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, []);
 
   const loadNotes = useCallback(async () => {
     const params = { note_type: 'doc' };
@@ -192,15 +175,6 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   useEffect(() => {
     setJumpAnchor(initialAnchor || '');
   }, [initialAnchor, initialNoteId]);
-
-  useEffect(() => {
-    const id = activeNote?.id;
-    if (!id) {
-      setBacklinks([]);
-      return;
-    }
-    noteApi.backlinks(id, { limit: 100 }).then(r => setBacklinks(r.data || [])).catch(() => setBacklinks([]));
-  }, [activeNote?.id]);
 
   const handleCreateDoc = async (nbId) => {
     const targetNb = nbId || notebooks.find(n => !n.parent_id)?.id;
@@ -417,7 +391,20 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
 
   return (
     <div className="view-container">
-      <div className="side-panel">
+      <div className="side-panel doc-side-panel">
+        <div className="doc-sidebar-header">
+          <div className="doc-sidebar-title">文档库</div>
+          <div className="doc-sidebar-meta">{notes.length} 篇文档 · {notebooks.length} 个文件夹</div>
+          <div className="doc-quick-actions">
+            <button className="doc-create-btn primary" onClick={() => handleCreateDoc()}>
+              <FileAddOutlined /> 新建文档
+            </button>
+            <button className="doc-create-btn" onClick={openCreateRootFolder}>
+              <FolderAddOutlined /> 新建文件夹
+            </button>
+          </div>
+        </div>
+
         <div className="side-search">
           <Input
             prefix={<SearchOutlined />}
@@ -442,18 +429,20 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
           </div>
         )}
 
-        <div className="side-tags">
-          <div className="side-tags-header">标签：</div>
-          <div className="tag-item active">
-            📋 全部文档 <span className="tag-count">({notes.length})</span>
-          </div>
-        </div>
-
-        <div className="doc-actions">
-          <button className="action-btn" onClick={() => handleCreateDoc()}>
-            <PlusOutlined /> 新建文档
+        <div className="doc-library-nav">
+          <button className="doc-library-item active">
+            <FileTextOutlined />
+            <span>全部文档</span>
+            <span className="doc-library-count">{notes.length}</span>
           </button>
         </div>
+
+        {!keyword.trim() && (
+          <div className="doc-tree-heading">
+            <span>文件夹</span>
+            <span>{rootNotebooks.length}</span>
+          </div>
+        )}
 
         <div className="folder-tree">
           {keyword.trim() ? (
@@ -475,92 +464,53 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
                 <div className="empty-hint">无匹配结果</div>
               )}
             </div>
-          ) : rootNotebooks.map(nb => (
-            <FolderNode
-              key={nb.id}
-              nb={nb}
-              allNotebooks={notebooks}
-              notesByNb={notesByNb}
-              activeNote={activeNote}
-              expandedFolders={expandedFolders}
-              onToggle={toggleFolder}
-              onSelectNote={setActiveNote}
-              onDeleteNote={handleDeleteNote}
-              onDeleteFolder={handleDeleteFolder}
-              onCreateDoc={handleCreateDoc}
-              onCreateSubfolder={openCreateSubfolder}
-              onCopyNote={(note) => openTransfer(note, 'copy')}
-              onMoveNote={(note) => openTransfer(note, 'move')}
-            />
-          ))}
-
-          {!keyword.trim() && (
-            <div className="tree-folder add-folder" onClick={openCreateRootFolder}>
-              <PlusOutlined /> 新建文件夹
-            </div>
-          )}
+          ) : rootNotebooks.length ? rootNotebooks.map(nb => (
+              <FolderNode
+                key={nb.id}
+                nb={nb}
+                allNotebooks={notebooks}
+                notesByNb={notesByNb}
+                activeNote={activeNote}
+                expandedFolders={expandedFolders}
+                onToggle={toggleFolder}
+                onSelectNote={setActiveNote}
+                onDeleteNote={handleDeleteNote}
+                onDeleteFolder={handleDeleteFolder}
+                onCreateDoc={handleCreateDoc}
+                onCreateSubfolder={openCreateSubfolder}
+                onCopyNote={(note) => openTransfer(note, 'copy')}
+                onMoveNote={(note) => openTransfer(note, 'move')}
+              />
+            )) : (
+              <button className="doc-tree-empty" onClick={openCreateRootFolder}>
+                <FolderAddOutlined /> 创建第一个文件夹
+              </button>
+            )}
         </div>
       </div>
 
       <div className="main-content">
         {activeNote ? (
-          <div className="doc-main-split">
-            <div className="doc-main-editor">
-              <NoteEditor
-                note={activeNote}
-                onUpdate={handleUpdateNote}
-                onOpenWikiLink={handleOpenWikiLink}
-                jumpAnchor={jumpAnchor}
-                defaultEditing={activeNote?._justCreated === true}
-              />
-            </div>
-            {!backlinksCollapsed && (
-              <div
-                className="doc-backlinks-resizer"
-                onMouseDown={() => { resizingRef.current = true; }}
-                title="拖动调整宽度"
-              />
-            )}
-            <div
-              className={`doc-backlinks ${backlinksCollapsed ? 'collapsed' : ''}`}
-              style={backlinksCollapsed ? undefined : { width: backlinksWidth, minWidth: backlinksWidth }}
-            >
-              <button
-                className="doc-backlinks-toggle"
-                onClick={() => setBacklinksCollapsed(v => !v)}
-                title={backlinksCollapsed ? '展开反向链接' : '折叠反向链接'}
-              >
-                {backlinksCollapsed ? '◀ 反向链接' : '▶ 折叠'}
-              </button>
-              {!backlinksCollapsed && (
-                <>
-                  <div className="doc-backlinks-title">反向链接</div>
-                  {backlinks.length ? backlinks.map((b, idx) => (
-                    <div
-                      key={`${b.source_note_id}-${idx}`}
-                      className="doc-backlink-item"
-                      onClick={async () => {
-                        try {
-                          const res = await noteApi.get(b.source_note_id);
-                          expandNotebookPath(res.data.notebook_id);
-                          setActiveNote(res.data);
-                        } catch {}
-                      }}
-                    >
-                      <div className="doc-backlink-name">{b.source_title || '无标题'}</div>
-                      <div className="doc-backlink-snippet">{b.snippet || ''}</div>
-                    </div>
-                  )) : (
-                    <div className="doc-backlink-empty">暂无文档引用此篇</div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          <NoteEditor
+            note={activeNote}
+            onUpdate={handleUpdateNote}
+            onOpenWikiLink={handleOpenWikiLink}
+            jumpAnchor={jumpAnchor}
+            defaultEditing={activeNote?._justCreated === true}
+          />
         ) : (
-          <div className="empty-editor">
-            <div className="empty-icon">📄</div>
-            <div>选择文档或点击「新建文档」开始写作</div>
+          <div className="empty-editor doc-empty-state">
+            <div className="doc-empty-icon"><FileTextOutlined /></div>
+            <div className="doc-empty-title">开始整理你的文档</div>
+            <div className="doc-empty-desc">从左侧选择已有文档，或创建一篇新文档开始记录。</div>
+            <div className="doc-empty-actions">
+              <button className="doc-create-btn primary" onClick={() => handleCreateDoc()}>
+                <FileAddOutlined /> 新建文档
+              </button>
+              <button className="doc-create-btn" onClick={openCreateRootFolder}>
+                <FolderAddOutlined /> 新建文件夹
+              </button>
+            </div>
           </div>
         )}
       </div>

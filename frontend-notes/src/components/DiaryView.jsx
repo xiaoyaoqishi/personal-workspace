@@ -31,6 +31,7 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
   const [summaries, setSummaries] = useState([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
+  const [editorLoadRevision, setEditorLoadRevision] = useState(0);
   const saveTimer = useRef(null);
   const creatingToday = useRef(false);
   const handledRouteAction = useRef('');
@@ -119,14 +120,21 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
       const res = await noteApi.list({ note_type: 'diary', note_date: todayStr });
       if (res.data.length > 0) {
         const existingNote = res.data[0];
-        if ((existingNote.title || '').trim()) {
-          setActiveNote({ ...existingNote, _forceEdit: true });
-        } else {
-          const title = await buildTodayDiaryTitle();
-          const updated = await noteApi.update(existingNote.id, { title });
-          setActiveNote({ ...updated.data, _forceEdit: true });
+        const updates = {};
+        if (!(existingNote.title || '').trim()) {
+          updates.title = await buildTodayDiaryTitle();
+        }
+        if (!(existingNote.content || '').trim()) {
+          updates.content = JSON.stringify(buildDiaryTemplate(templateKey));
+        }
+        let noteToOpen = existingNote;
+        if (Object.keys(updates).length > 0) {
+          const updated = await noteApi.update(existingNote.id, updates);
+          noteToOpen = updated.data;
           loadTree();
         }
+        setEditorLoadRevision(value => value + 1);
+        setActiveNote({ ...noteToOpen, _forceEdit: true });
         setJumpAnchor('');
         setSummaryTitle('');
         setSummaries([]);
@@ -137,10 +145,11 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
         const newNote = await noteApi.create({
           notebook_id: nb.id,
           title,
-          content: templateKey ? JSON.stringify(buildDiaryTemplate(templateKey)) : '',
+          content: JSON.stringify(buildDiaryTemplate(templateKey)),
           note_type: 'diary',
           note_date: todayStr,
         });
+        setEditorLoadRevision(value => value + 1);
         setActiveNote({ ...newNote.data, _forceEdit: true });
         setJumpAnchor('');
         setSummaryTitle('');
@@ -352,7 +361,7 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
           />
         </div>
 
-        <button className="write-today-btn" onClick={handleWriteToday}>
+        <button className="write-today-btn" onClick={() => handleWriteToday()}>
           ✏️ 写今天的日记
         </button>
 
@@ -417,6 +426,7 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
       <div className="main-content">
         {activeNote ? (
           <NoteEditor
+            key={`${activeNote.id}:${editorLoadRevision}`}
             note={activeNote}
             onUpdate={handleUpdateNote}
             jumpAnchor={jumpAnchor}

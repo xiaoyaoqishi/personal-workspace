@@ -11,7 +11,6 @@ history_today = notes_runtime.history_today
 diary_tree = notes_runtime.diary_tree
 search_notes = notes_runtime.search_notes
 resolve_note_link = notes_runtime.resolve_note_link
-note_backlinks = notes_runtime.note_backlinks
 diary_summaries = notes_runtime.diary_summaries
 notes_calendar = notes_runtime.notes_calendar
 create_note = notes_runtime.create_note

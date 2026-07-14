@@ -313,12 +313,6 @@ def _init_default_notebooks():
     init_default_notebooks()
 
 
-def _index_links_for_existing_notes():
-    from services import notes_runtime as _notes_runtime
-
-    _notes_runtime.index_links_for_existing_notes()
-
-
 from services import notes_runtime as _notes_runtime
 from services import trade_analytics_runtime as _trade_analytics_runtime
 from services import trade_broker_runtime as _trade_broker_runtime
@@ -374,7 +368,6 @@ history_today = _notes_runtime.history_today
 diary_tree = _notes_runtime.diary_tree
 search_notes = _notes_runtime.search_notes
 resolve_note_link = _notes_runtime.resolve_note_link
-note_backlinks = _notes_runtime.note_backlinks
 diary_summaries = _notes_runtime.diary_summaries
 notes_calendar = _notes_runtime.notes_calendar
 create_note = _notes_runtime.create_note
@@ -440,7 +433,6 @@ def init_runtime() -> None:
     _init_default_notebooks()
     migrate_legacy_auth_to_users()
     purge_obsolete_server_monitoring_data()
-    _index_links_for_existing_notes()
     _maintenance_thread.start()
     init_monitor_runtime()
     _RUNTIME_INITIALIZED = True
