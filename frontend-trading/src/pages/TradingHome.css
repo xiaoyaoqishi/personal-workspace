@@ -4,8 +4,7 @@
 }
 
 .trading-home-shell {
-  width: min(1180px, 100%);
-  margin: 0 auto;
+  width: 100%;
   padding: 16px 0 48px;
 }
 
@@ -20,14 +19,14 @@
 .trading-home-date {
   color: var(--td-color-text-tertiary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: .08em;
 }
 
 .trading-home-header h1 {
   margin: 8px 0 5px;
   color: var(--td-color-text);
-  font-size: 30px;
+  font-size: 34px;
   line-height: 1.2;
   letter-spacing: -.035em;
 }
@@ -35,7 +34,7 @@
 .trading-home-header p {
   margin: 0;
   color: var(--td-color-text-secondary);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .trading-home-create {
@@ -47,6 +46,7 @@
   background: var(--td-color-primary);
   color: var(--td-color-bg);
   padding: 9px 15px;
+  font-size: 14px;
   font-weight: 650;
   cursor: pointer;
   transition: opacity .18s, transform .18s;
@@ -85,9 +85,9 @@
   font-size: 15px;
 }
 .trading-home-shortcuts > button > div { display: flex; min-width: 0; flex: 1; flex-direction: column; }
-.trading-home-shortcuts strong { color: var(--td-color-text); font-size: 12px; }
-.trading-home-shortcuts small { margin-top: 3px; color: var(--td-color-text-tertiary); font-size: 10px; }
-.trading-home-shortcuts > button > .anticon { font-size: 10px; }
+.trading-home-shortcuts strong { color: var(--td-color-text); font-size: 14px; }
+.trading-home-shortcuts small { margin-top: 4px; color: var(--td-color-text-tertiary); font-size: 12px; }
+.trading-home-shortcuts > button > .anticon { font-size: 12px; }
 
 .trading-home-overview {
   display: grid;
@@ -99,19 +99,19 @@
 }
 .trading-home-overview > div { position: relative; padding: 18px 20px; }
 .trading-home-overview > div + div::before { content: ''; position: absolute; top: 18px; bottom: 18px; left: 0; width: 1px; background: var(--td-color-border); }
-.trading-home-overview span, .trading-home-overview small { display: block; color: var(--td-color-text-tertiary); font-size: 10px; }
-.trading-home-overview strong { display: block; margin: 7px 0 4px; color: var(--td-color-text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 24px; line-height: 1; }
+.trading-home-overview span, .trading-home-overview small { display: block; color: var(--td-color-text-tertiary); font-size: 12px; }
+.trading-home-overview strong { display: block; margin: 9px 0 6px; color: var(--td-color-text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 28px; line-height: 1; }
 .trading-home-overview strong.positive, .trading-home-trades b.positive { color: #cf1322; }
 .trading-home-overview strong.negative, .trading-home-trades b.negative { color: #3f8600; }
 
-.trading-home-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .8fr); gap: 36px; }
+.trading-home-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(360px, .8fr); gap: 36px; }
 .trading-home-main, .trading-home-side-column { display: flex; min-width: 0; flex-direction: column; gap: 34px; }
 .trading-home-side-column { gap: 18px; }
 
 .trading-home-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.trading-home-section-head span { display: block; margin-bottom: 3px; color: var(--td-color-text-tertiary); font-size: 9px; letter-spacing: .08em; }
-.trading-home-section-head h2 { margin: 0; color: var(--td-color-text); font-size: 16px; line-height: 1.2; }
-.trading-home-section-head > button { border: 0; background: transparent; color: var(--td-color-primary); font-size: 10px; cursor: pointer; }
+.trading-home-section-head span { display: block; margin-bottom: 4px; color: var(--td-color-text-tertiary); font-size: 11px; letter-spacing: .08em; }
+.trading-home-section-head h2 { margin: 0; color: var(--td-color-text); font-size: 19px; line-height: 1.2; }
+.trading-home-section-head > button { border: 0; background: transparent; color: var(--td-color-primary); font-size: 12px; cursor: pointer; }
 
 .trading-home-position-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .trading-home-position-list > div {
@@ -125,10 +125,10 @@
   padding: 11px;
 }
 .trading-home-position-list > div > div { display: flex; min-width: 0; flex: 1; flex-direction: column; }
-.trading-home-position-list strong { overflow: hidden; color: var(--td-color-text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.trading-home-position-list small { margin-top: 4px; color: var(--td-color-text-tertiary); font-size: 9px; }
+.trading-home-position-list strong { overflow: hidden; color: var(--td-color-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.trading-home-position-list small { margin-top: 5px; color: var(--td-color-text-tertiary); font-size: 11px; }
 .trading-home-position-list > div > .anticon { color: var(--td-color-text-tertiary); }
-.trading-home-side { flex: 0 0 auto; border-radius: 999px; padding: 3px 7px; font-size: 9px; font-weight: 650; }
+.trading-home-side { flex: 0 0 auto; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 650; }
 .trading-home-side.long, .trading-home-direction.long { background: rgba(207, 19, 34, .1); color: #cf1322; }
 .trading-home-side.short, .trading-home-direction.short { background: rgba(63, 134, 0, .12); color: #3f8600; }
 
@@ -148,28 +148,28 @@
   cursor: pointer;
 }
 .trading-home-trades > button:hover { background: color-mix(in srgb, var(--td-color-accent) 28%, transparent); }
-.trading-home-direction { justify-self: start; border-radius: 999px; padding: 3px 7px; font-size: 9px; }
+.trading-home-direction { justify-self: start; border-radius: 999px; padding: 4px 8px; font-size: 11px; }
 .trading-home-trades > button > div { display: flex; min-width: 0; flex-direction: column; }
-.trading-home-trades strong { color: var(--td-color-text); font-size: 11px; }
-.trading-home-trades small { margin-top: 3px; overflow: hidden; color: var(--td-color-text-tertiary); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.trading-home-trade-status { color: var(--td-color-text-tertiary); font-size: 9px; text-align: right; }
-.trading-home-trades b { color: var(--td-color-text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; text-align: right; }
+.trading-home-trades strong { color: var(--td-color-text); font-size: 14px; }
+.trading-home-trades small { margin-top: 4px; overflow: hidden; color: var(--td-color-text-tertiary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.trading-home-trade-status { color: var(--td-color-text-tertiary); font-size: 11px; text-align: right; }
+.trading-home-trades b { color: var(--td-color-text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; text-align: right; }
 
 .trading-home-research-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
 .trading-home-research-list button { display: flex; min-width: 0; align-items: center; gap: 9px; border: 1px solid var(--td-color-border); border-radius: 9px; background: transparent; color: var(--td-color-text-tertiary); padding: 10px; text-align: left; cursor: pointer; }
 .trading-home-research-list button:hover { background: var(--td-color-accent); color: var(--td-color-primary); }
 .trading-home-research-list button > span { display: flex; min-width: 0; flex-direction: column; }
-.trading-home-research-list strong { overflow: hidden; color: var(--td-color-text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.trading-home-research-list small { margin-top: 3px; color: var(--td-color-text-tertiary); font-size: 9px; }
+.trading-home-research-list strong { overflow: hidden; color: var(--td-color-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.trading-home-research-list small { margin-top: 4px; color: var(--td-color-text-tertiary); font-size: 11px; }
 
 .trading-home-aside { border: 1px solid var(--td-color-border); border-radius: 13px; background: color-mix(in srgb, var(--td-color-surface) 60%, transparent); padding: 16px; }
 .trading-home-plan-list, .trading-home-attention-list { display: flex; flex-direction: column; }
 .trading-home-plan-list > button, .trading-home-attention-list > button { display: flex; min-width: 0; align-items: center; gap: 9px; border: 0; border-top: 1px solid var(--td-color-border-light); background: transparent; color: var(--td-color-text-secondary); padding: 10px 0; text-align: left; cursor: pointer; }
 .trading-home-plan-list > button:hover strong, .trading-home-attention-list > button:hover strong { color: var(--td-color-primary); }
 .trading-home-plan-list > button > div, .trading-home-attention-list > button > div { display: flex; min-width: 0; flex: 1; flex-direction: column; }
-.trading-home-plan-list strong, .trading-home-attention-list strong { overflow: hidden; color: var(--td-color-text); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.trading-home-plan-list small, .trading-home-attention-list small { margin-top: 3px; color: var(--td-color-text-tertiary); font-size: 8px; line-height: 1.4; }
-.trading-home-plan-list em { flex: 0 0 auto; color: var(--td-color-text-tertiary); font-size: 8px; font-style: normal; }
+.trading-home-plan-list strong, .trading-home-attention-list strong { overflow: hidden; color: var(--td-color-text); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.trading-home-plan-list small, .trading-home-attention-list small { margin-top: 4px; color: var(--td-color-text-tertiary); font-size: 11px; line-height: 1.4; }
+.trading-home-plan-list em { flex: 0 0 auto; color: var(--td-color-text-tertiary); font-size: 10px; font-style: normal; }
 .trading-home-plan-priority { flex: 0 0 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--td-color-text-tertiary); }
 .trading-home-plan-priority.high { background: #cf1322; }
 .trading-home-plan-priority.medium { background: #d89614; }
@@ -179,20 +179,20 @@
 .trading-home-attention-list > button > span.warning { color: #d89614; }
 .trading-home-attention-list > button > span.primary { color: var(--td-color-primary); }
 .trading-home-attention-list > button > span.muted { color: var(--td-color-text-tertiary); }
-.trading-home-attention-list > button > .anticon { font-size: 9px; }
+.trading-home-attention-list > button > .anticon { font-size: 11px; }
 
 .trading-home-analysis-link { display: flex; align-items: center; gap: 10px; border: 0; border-radius: 13px; background: var(--td-color-primary); color: var(--td-color-bg); padding: 15px; text-align: left; cursor: pointer; }
 .trading-home-analysis-link > span { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.14); font-size: 16px; }
 .trading-home-analysis-link > div { display: flex; min-width: 0; flex: 1; flex-direction: column; }
-.trading-home-analysis-link strong { font-size: 11px; }
-.trading-home-analysis-link small { margin-top: 3px; font-size: 8px; opacity: .7; }
-.trading-home-analysis-link > .anticon { font-size: 9px; }
+.trading-home-analysis-link strong { font-size: 14px; }
+.trading-home-analysis-link small { margin-top: 4px; font-size: 11px; opacity: .75; }
+.trading-home-analysis-link > .anticon { font-size: 11px; }
 
 .trading-home-empty { display: flex; min-height: 100px; flex-direction: column; align-items: center; justify-content: center; color: var(--td-color-text-tertiary); text-align: center; }
 .trading-home-empty > .anticon { margin-bottom: 7px; color: var(--td-color-primary); font-size: 20px; }
-.trading-home-empty strong { color: var(--td-color-text-secondary); font-size: 10px; }
-.trading-home-empty span { margin-top: 4px; font-size: 8px; }
-.trading-home-empty button { margin-top: 8px; border: 0; background: transparent; color: var(--td-color-primary); font-size: 9px; cursor: pointer; }
+.trading-home-empty strong { color: var(--td-color-text-secondary); font-size: 13px; }
+.trading-home-empty span { margin-top: 5px; font-size: 11px; }
+.trading-home-empty button { margin-top: 9px; border: 0; background: transparent; color: var(--td-color-primary); font-size: 12px; cursor: pointer; }
 .trading-home-empty.compact { min-height: 90px; }
 .trading-home-skeleton { display: flex; flex-direction: column; gap: 8px; }
 .trading-home-skeleton i { height: 38px; border-radius: 8px; background: linear-gradient(90deg, var(--td-color-surface-alt), var(--td-color-surface), var(--td-color-surface-alt)); background-size: 200% 100%; animation: tradingHomeShimmer 1.2s linear infinite; }
