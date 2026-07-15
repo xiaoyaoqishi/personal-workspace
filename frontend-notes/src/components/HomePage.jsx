@@ -1,15 +1,43 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  ArrowRightOutlined,
+  CalendarOutlined,
+  CheckOutlined,
+  CheckSquareOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  FormOutlined,
+  PushpinFilled,
+  PushpinOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
+import { message } from 'antd';
+import { Solar } from 'lunar-javascript';
+import dayjs from 'dayjs';
 import { noteApi, todoApi } from '../api';
 import { getWeather } from '../utils/weather';
-import { Lunar, Solar } from 'lunar-javascript';
-import dayjs from 'dayjs';
+
+const PINNED_DOC_KEY = 'notes-home-pinned-docs';
+
+function formatRelativeTime(value) {
+  const date = dayjs(value);
+  if (!date.isValid()) return '';
+  if (date.isSame(dayjs(), 'day')) return `今天 ${date.format('HH:mm')}`;
+  if (date.isSame(dayjs().subtract(1, 'day'), 'day')) return `昨天 ${date.format('HH:mm')}`;
+  return date.format('M月D日');
+}
+
+function getGreeting(hour) {
+  if (hour < 6) return '夜深了';
+  if (hour < 11) return '早上好';
+  if (hour < 14) return '中午好';
+  if (hour < 18) return '下午好';
+  return '晚上好';
+}
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const PINNED_DOC_KEY = 'notes-home-pinned-docs';
-
-  // ---- State ----
   const [stats, setStats] = useState(null);
   const [weather, setWeather] = useState(null);
   const [todos, setTodos] = useState([]);
@@ -21,81 +49,67 @@ export default function HomePage() {
   const [selectedMonth, setSelectedMonth] = useState(() => dayjs().startOf('month'));
   const [pinnedDocIds, setPinnedDocIds] = useState(() => {
     try {
-      const arr = JSON.parse(localStorage.getItem(PINNED_DOC_KEY) || '[]');
-      return Array.isArray(arr) ? arr.slice(0, 5) : [];
-    } catch { return []; }
+      const stored = JSON.parse(localStorage.getItem(PINNED_DOC_KEY) || '[]');
+      return Array.isArray(stored) ? stored.slice(0, 5) : [];
+    } catch {
+      return [];
+    }
   });
-
-  // 分区块 loading
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingTodos, setLoadingTodos] = useState(true);
   const [loadingTree, setLoadingTree] = useState(true);
   const [loadingWeather, setLoadingWeather] = useState(true);
 
-  // ---- 分优先级加载 ----
   useEffect(() => {
     let alive = true;
-    const todayStr = dayjs().format('YYYY-MM-DD');
+    const today = dayjs().format('YYYY-MM-DD');
 
-    // P1: stats + todos
-    Promise.allSettled([
-      noteApi.stats(),
-      todoApi.list(),
-    ]).then(([statsRes, todosRes]) => {
+    Promise.allSettled([noteApi.stats(), todoApi.list()]).then(([statsResult, todosResult]) => {
       if (!alive) return;
-      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
-      if (todosRes.status === 'fulfilled') setTodos(todosRes.value.data || []);
+      if (statsResult.status === 'fulfilled') setStats(statsResult.value.data);
+      if (todosResult.status === 'fulfilled') setTodos(todosResult.value.data || []);
       setLoadingStats(false);
       setLoadingTodos(false);
     });
 
-    // P2: diaryTree + todayDiaries (微延迟)
-    setTimeout(() => {
+    Promise.allSettled([
+      noteApi.diaryTree(),
+      noteApi.list({ note_type: 'diary', note_date: today }),
+    ]).then(([treeResult, todayResult]) => {
       if (!alive) return;
-      Promise.allSettled([
-        noteApi.diaryTree(),
-        noteApi.list({ note_type: 'diary', note_date: todayStr }),
-      ]).then(([treeRes, todayRes]) => {
-        if (!alive) return;
-        if (treeRes.status === 'fulfilled') setDiaryTree(treeRes.value.data || {});
-        if (todayRes.status === 'fulfilled') setTodayDiaries(todayRes.value.data || []);
-        setLoadingTree(false);
-      });
-    }, 50);
+      if (treeResult.status === 'fulfilled') setDiaryTree(treeResult.value.data || {});
+      if (todayResult.status === 'fulfilled') setTodayDiaries(todayResult.value.data || []);
+      setLoadingTree(false);
+    });
 
-    // P3: weather (延迟加载)
-    setTimeout(() => {
-      if (!alive) return;
-      Promise.allSettled([getWeather()]).then(([weatherRes]) => {
-        if (!alive) return;
-        if (weatherRes.status === 'fulfilled') setWeather(weatherRes.value || null);
-        setLoadingWeather(false);
-      });
-    }, 300);
+    getWeather().then((result) => {
+      if (alive) setWeather(result || null);
+    }).catch(() => {}).finally(() => {
+      if (alive) setLoadingWeather(false);
+    });
 
     return () => { alive = false; };
   }, []);
 
-  // ---- 搜索 ----
   useEffect(() => {
-    const q = searchKeyword.trim();
-    if (!q) {
+    const query = searchKeyword.trim();
+    if (!query) {
       setSearchResults({ diary: [], doc: [], todo: [] });
       setSearchLoading(false);
-      return;
+      return undefined;
     }
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
       try {
-        setSearchLoading(true);
-        const [d1, d2, d3] = await Promise.all([
-          noteApi.search({ q, note_type: 'diary', limit: 6 }),
-          noteApi.search({ q, note_type: 'doc', limit: 6 }),
-          todoApi.list({ include_completed: true, keyword: q }),
+        const [diaries, docs, todoItems] = await Promise.all([
+          noteApi.search({ q: query, note_type: 'diary', limit: 5 }),
+          noteApi.search({ q: query, note_type: 'doc', limit: 5 }),
+          todoApi.list({ include_completed: true, keyword: query }),
         ]);
         setSearchResults({
-          diary: d1.data || [],
-          doc: d2.data || [],
-          todo: (d3.data || []).slice(0, 6),
+          diary: diaries.data || [],
+          doc: docs.data || [],
+          todo: (todoItems.data || []).slice(0, 5),
         });
       } catch {
         setSearchResults({ diary: [], doc: [], todo: [] });
@@ -103,309 +117,270 @@ export default function HomePage() {
         setSearchLoading(false);
       }
     }, 220);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [searchKeyword]);
 
-  // ---- 计算属性 ----
   const now = dayjs();
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
   const solar = Solar.fromDate(new Date());
   const lunar = solar.getLunar();
-  const lunarStr = `${lunar.getYearInGanZhi()}年 ${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
-  const dateStr = `${now.format('YYYY年M月D日')} 星期${weekdays[now.day()]}`;
+  const lunarText = `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
+  const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const pendingTodos = useMemo(() => todos.filter((todo) => !todo.is_completed), [todos]);
+  const completedTodos = todos.length - pendingTodos.length;
 
-  const pendingTodos = todos.filter((t) => !t.is_completed);
   const diaryDates = useMemo(() => {
-    const set = new Set();
+    const dates = new Set();
     Object.values(diaryTree).forEach((months) => {
-      Object.values(months).forEach((days) => {
-        days.forEach((n) => set.add(n.date));
-      });
+      Object.values(months).forEach((days) => days.forEach((item) => dates.add(item.date)));
     });
-    return set;
+    return dates;
   }, [diaryTree]);
 
   const streakDays = useMemo(() => {
     let count = 0;
-    let d = dayjs();
-    while (diaryDates.has(d.format('YYYY-MM-DD'))) {
+    let date = dayjs();
+    while (diaryDates.has(date.format('YYYY-MM-DD'))) {
       count += 1;
-      d = d.subtract(1, 'day');
+      date = date.subtract(1, 'day');
     }
     return count;
   }, [diaryDates]);
 
-  const monthLabel = selectedMonth.format('YYYY年M月');
   const monthKey = selectedMonth.format('YYYY-MM-');
-  const monthTotalDays = selectedMonth.daysInMonth();
   const monthWrittenDays = useMemo(
-    () => Array.from(diaryDates).filter((d) => d.startsWith(monthKey)).length,
+    () => Array.from(diaryDates).filter((date) => date.startsWith(monthKey)).length,
     [diaryDates, monthKey]
   );
-  const monthRate = monthTotalDays ? Math.round((monthWrittenDays / monthTotalDays) * 100) : 0;
-  const todayStr = now.format('YYYY-MM-DD');
+  const monthTotalDays = selectedMonth.daysInMonth();
+  const monthRate = Math.round((monthWrittenDays / monthTotalDays) * 100);
   const canGoNextMonth = selectedMonth.isBefore(dayjs().startOf('month'), 'month');
-  const heatWeekDays = ['一', '二', '三', '四', '五', '六', '日'];
-  const monthHeatCells = useMemo(() => {
-    const monthStart = selectedMonth.startOf('month');
-    const firstDayOffset = (monthStart.day() + 6) % 7;
-    const cells = [];
-    for (let i = 0; i < firstDayOffset; i++) {
-      cells.push({ key: `blank-${i}`, empty: true });
-    }
-    for (let day = 1; day <= monthStart.daysInMonth(); day++) {
-      const d = monthStart.date(day);
-      const date = d.format('YYYY-MM-DD');
-      cells.push({
-        key: date,
-        empty: false,
-        day,
-        date,
-        has: diaryDates.has(date),
-        today: date === todayStr,
-      });
+  const monthCells = useMemo(() => {
+    const start = selectedMonth.startOf('month');
+    const cells = Array.from({ length: (start.day() + 6) % 7 }, (_, index) => ({ key: `blank-${index}`, blank: true }));
+    for (let day = 1; day <= start.daysInMonth(); day += 1) {
+      const date = start.date(day).format('YYYY-MM-DD');
+      cells.push({ key: date, day, date, written: diaryDates.has(date), today: date === dayjs().format('YYYY-MM-DD') });
     }
     return cells;
-  }, [selectedMonth, diaryDates, todayStr]);
+  }, [diaryDates, selectedMonth]);
+
   const todayDiaryWords = useMemo(
-    () => (todayDiaries || []).reduce((sum, n) => sum + (n.word_count || 0), 0),
+    () => todayDiaries.reduce((total, diary) => total + (diary.word_count || 0), 0),
     [todayDiaries]
   );
-  const todoDoneRate = useMemo(() => {
-    const total = todos.length;
-    if (!total) return 0;
-    const done = todos.filter((t) => t.is_completed).length;
-    return Math.round((done / total) * 100);
-  }, [todos]);
 
-  const sortedRecentDocs = useMemo(() => {
-    const arr = stats?.recent_docs || [];
-    const order = new Map(pinnedDocIds.map((id, idx) => [id, idx]));
-    return [...arr].sort((a, b) => {
-      const ap = order.has(a.id);
-      const bp = order.has(b.id);
-      if (ap && bp) return order.get(a.id) - order.get(b.id);
-      if (ap) return -1;
-      if (bp) return 1;
+  const recentDocs = useMemo(() => {
+    const documents = stats?.recent_docs || [];
+    const pinOrder = new Map(pinnedDocIds.map((id, index) => [id, index]));
+    return [...documents].sort((left, right) => {
+      const leftPinned = pinOrder.has(left.id);
+      const rightPinned = pinOrder.has(right.id);
+      if (leftPinned && rightPinned) return pinOrder.get(left.id) - pinOrder.get(right.id);
+      if (leftPinned) return -1;
+      if (rightPinned) return 1;
       return 0;
     });
-  }, [stats, pinnedDocIds]);
+  }, [pinnedDocIds, stats]);
 
-  const togglePinDoc = (id) => {
-    setPinnedDocIds((prev) => {
-      const exists = prev.includes(id);
-      const next = exists ? prev.filter((x) => x !== id) : [id, ...prev].slice(0, 5);
+  const searchResultCount = searchResults.diary.length + searchResults.doc.length + searchResults.todo.length;
+
+  const togglePin = (id) => {
+    setPinnedDocIds((previous) => {
+      const next = previous.includes(id) ? previous.filter((item) => item !== id) : [id, ...previous].slice(0, 5);
       try { localStorage.setItem(PINNED_DOC_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
   };
 
+  const completeTodo = async (todo) => {
+    setTodos((previous) => previous.map((item) => item.id === todo.id ? { ...item, is_completed: true } : item));
+    try {
+      await todoApi.update(todo.id, { is_completed: true });
+      message.success('已完成');
+    } catch {
+      setTodos((previous) => previous.map((item) => item.id === todo.id ? todo : item));
+      message.error('更新待办失败');
+    }
+  };
+
   const openFirstSearchResult = () => {
-    if (searchResults.diary[0]) { navigate(`/diary/${searchResults.diary[0].id}`); return; }
-    if (searchResults.doc[0]) { navigate(`/doc/${searchResults.doc[0].id}`); return; }
-    if (searchResults.todo[0]) navigate('/todo');
+    if (searchResults.diary[0]) navigate(`/diary/${searchResults.diary[0].id}`);
+    else if (searchResults.doc[0]) navigate(`/doc/${searchResults.doc[0].id}`);
+    else if (searchResults.todo[0]) navigate('/todo');
   };
 
-  const switchMonth = (delta) => {
-    setSelectedMonth((prev) => prev.add(delta, 'month').startOf('month'));
-  };
-
-  // ---- Render ----
-  return (
-    <div className="home-page">
-      {/* Header: 日期 + 天气 */}
-      <div className="home-header-card">
-        <div className="home-header-left">
-          <div className="home-date-solar">{dateStr}</div>
-          <div className="home-date-lunar">{lunarStr}</div>
+  const renderSearchGroup = (label, icon, items, type) => {
+    if (!items.length) return null;
+    return (
+      <div className="home-v2-search-group">
+        <div className="home-v2-search-label">{icon}<span>{label}</span></div>
+        <div>
+          {items.slice(0, 4).map((item) => (
+            <button
+              key={`${type}-${item.id}`}
+              onClick={() => navigate(type === 'todo' ? '/todo' : `/${type}/${item.id}`)}
+            >
+              <span>{type === 'todo' && item.is_completed ? '已完成 · ' : ''}{item.title || item.content || '无标题'}</span>
+              <ArrowRightOutlined />
+            </button>
+          ))}
         </div>
-        {!loadingWeather && weather && (
-          <div className="home-header-weather">
-            <span className="weather-icon-lg">{weather.icon}</span>
-            <span className="weather-temp">{weather.temp}°C</span>
-            <span className="weather-text">{weather.text}</span>
-            <span className="weather-location">{weather.city}</span>
-          </div>
-        )}
-        {loadingWeather && <div className="home-skeleton-inline" />}
       </div>
+    );
+  };
 
-      <div className="home-dashboard">
-        {/* 左栏 */}
-        <div className="home-main-col">
-          {/* KPI 卡片行 */}
-          <div className="home-kpi-row">
-            <div className="home-kpi-card">
-              <div className="home-kpi-num">{loadingStats ? '-' : todayDiaryWords}</div>
-              <div className="home-kpi-label">今日字数</div>
+  return (
+    <div className="home-page home-workspace">
+      <div className="home-v2-shell">
+        <section className="home-v2-hero">
+          <div className="home-v2-hero-top">
+            <div>
+              <span className="home-v2-eyebrow">{now.format('M月D日')} · {weekDays[now.day()]} · 农历{lunarText}</span>
+              <h1>{getGreeting(now.hour())}，欢迎回到知识笔记</h1>
+              <p>翻开最近的内容，或者从一个新的想法开始。</p>
             </div>
-            <div className="home-kpi-card">
-              <div className="home-kpi-num">{loadingStats ? '-' : (stats?.diary_count || 0)}</div>
-              <div className="home-kpi-label">日记总数</div>
-            </div>
-            <div className="home-kpi-card">
-              <div className="home-kpi-num">{loadingStats ? '-' : (stats?.doc_count || 0)}</div>
-              <div className="home-kpi-label">文档总数</div>
-            </div>
-            <div className="home-kpi-card">
-              <div className="home-kpi-num">{loadingTodos ? '-' : `${todoDoneRate}%`}</div>
-              <div className="home-kpi-label">待办完成率</div>
+            <div className="home-v2-weather" aria-label="天气">
+              {loadingWeather ? <span className="home-v2-weather-loading" /> : weather ? (
+                <><b>{weather.icon}</b><strong>{weather.temp}°</strong><span>{weather.text}<small>{weather.city}</small></span></>
+              ) : <span>{now.format('HH:mm')}</span>}
             </div>
           </div>
 
-          {/* 快速入口卡片 */}
-          <div className="home-card">
-            <div className="home-card-title">快速入口</div>
-            <div className="home-global-search">
-              <input
-                className="home-search-input"
-                placeholder="搜索日记、文档、待办..."
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') openFirstSearchResult(); }}
-              />
-              {searchKeyword.trim() && (
-                <div className="home-search-result-panel">
-                  {searchLoading ? (
-                    <div className="empty-hint">搜索中...</div>
-                  ) : (
-                    <>
-                      {searchResults.diary.length > 0 && (
-                        <div className="home-search-group">
-                          <div className="home-search-group-title">日记</div>
-                          {searchResults.diary.slice(0, 3).map((n) => (
-                            <div key={`d-${n.id}`} className="home-search-item" onClick={() => navigate(`/diary/${n.id}`)}>
-                              {n.title || '无标题'}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {searchResults.doc.length > 0 && (
-                        <div className="home-search-group">
-                          <div className="home-search-group-title">文档</div>
-                          {searchResults.doc.slice(0, 3).map((n) => (
-                            <div key={`n-${n.id}`} className="home-search-item" onClick={() => navigate(`/doc/${n.id}`)}>
-                              {n.title || '无标题'}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {searchResults.todo.length > 0 && (
-                        <div className="home-search-group">
-                          <div className="home-search-group-title">待办</div>
-                          {searchResults.todo.slice(0, 3).map((t) => (
-                            <div key={`t-${t.id}`} className="home-search-item" onClick={() => navigate('/todo')}>
-                              {t.is_completed ? '✅' : '⬜'} {t.content}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {!searchResults.diary.length && !searchResults.doc.length && !searchResults.todo.length && (
-                        <div className="empty-hint">无匹配结果</div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="home-quick-grid">
-              <button className="home-action-btn primary" onClick={() => navigate('/diary?action=today')}>写今日日记</button>
-              <button className="home-action-btn" onClick={() => navigate('/doc?action=new')}>新建文档</button>
-              <button className="home-action-btn" onClick={() => navigate('/todo?action=new')}>新建待办</button>
-            </div>
-            <div className="home-inline-section">
-              <div className="home-card-header">
-                <div className="home-card-title">最近文档</div>
-                <button className="home-card-link" onClick={() => navigate('/doc')}>查看全部</button>
+          <div className="home-v2-search-wrap">
+            <SearchOutlined />
+            <input
+              value={searchKeyword}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter') openFirstSearchResult(); }}
+              placeholder="搜索日记、文档和待办…"
+            />
+            {searchKeyword && <button onClick={() => setSearchKeyword('')} aria-label="清空搜索">×</button>}
+            {searchKeyword.trim() && (
+              <div className="home-v2-search-panel">
+                {searchLoading ? <div className="home-v2-search-state">正在搜索…</div> : searchResultCount ? (
+                  <>
+                    {renderSearchGroup('日记', <FormOutlined />, searchResults.diary, 'diary')}
+                    {renderSearchGroup('文档', <FileTextOutlined />, searchResults.doc, 'doc')}
+                    {renderSearchGroup('待办', <CheckSquareOutlined />, searchResults.todo, 'todo')}
+                  </>
+                ) : <div className="home-v2-search-state">没有找到相关内容</div>}
               </div>
-              {loadingStats ? (
-                <div className="home-skeleton-list"><div className="home-skeleton-line" /><div className="home-skeleton-line" /></div>
-              ) : sortedRecentDocs.length > 0 ? (
-                <div className="home-recent-docs">
-                  {sortedRecentDocs.slice(0, 5).map(doc => (
-                    <div key={doc.id} className="home-recent-doc-item" onClick={() => navigate(`/doc/${doc.id}`)}>
-                      <span className="home-recent-doc-title">{doc.title}</span>
+            )}
+          </div>
+
+          <div className="home-v2-actions">
+            <button className="primary" onClick={() => navigate('/diary?action=today')}>
+              <span className="home-v2-action-icon"><FormOutlined /></span>
+              <span><strong>写今日日记</strong><small>{todayDiaries.length ? '继续记录今天' : '从此刻开始记录'}</small></span>
+              <ArrowRightOutlined />
+            </button>
+            <button onClick={() => navigate('/doc?action=new')}>
+              <span className="home-v2-action-icon"><FileTextOutlined /></span>
+              <span><strong>新建文档</strong><small>整理知识与想法</small></span>
+              <ArrowRightOutlined />
+            </button>
+            <button onClick={() => navigate('/todo?action=new')}>
+              <span className="home-v2-action-icon"><CheckSquareOutlined /></span>
+              <span><strong>添加待办</strong><small>{pendingTodos.length ? `${pendingTodos.length} 项等待完成` : '安排下一件事'}</small></span>
+              <ArrowRightOutlined />
+            </button>
+          </div>
+        </section>
+
+        <div className="home-v2-content-head">
+          <div><span>你的知识空间</span><h2>最近与今天</h2></div>
+          <p>继续尚未完成的思考，也照顾好今天要做的事。</p>
+        </div>
+
+        <div className="home-v2-layout">
+          <div className="home-v2-main">
+            <section className="home-card home-v2-panel">
+              <header className="home-v2-panel-header">
+                <div><span>最近打开</span><h2>继续你的工作</h2></div>
+                <button onClick={() => navigate('/doc')}>全部文档 <ArrowRightOutlined /></button>
+              </header>
+              {loadingStats ? <div className="home-v2-list-skeleton"><i /><i /><i /></div> : recentDocs.length ? (
+                <div className="home-v2-doc-list">
+                  {recentDocs.slice(0, 6).map((doc) => (
+                    <div key={doc.id} className="home-v2-doc-row" onClick={() => navigate(`/doc/${doc.id}`)}>
+                      <span className="home-v2-doc-icon"><FileTextOutlined /></span>
+                      <div><strong>{doc.title || '无标题'}</strong><small><ClockCircleOutlined /> {formatRelativeTime(doc.updated_at)}</small></div>
                       <button
-                        className={`home-pin-btn ${pinnedDocIds.includes(doc.id) ? 'active' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); togglePinDoc(doc.id); }}
-                        title={pinnedDocIds.includes(doc.id) ? '取消固定' : '固定'}
+                        className={pinnedDocIds.includes(doc.id) ? 'active' : ''}
+                        onClick={(event) => { event.stopPropagation(); togglePin(doc.id); }}
+                        title={pinnedDocIds.includes(doc.id) ? '取消固定' : '固定到顶部'}
                       >
-                        {pinnedDocIds.includes(doc.id) ? '★' : '☆'}
+                        {pinnedDocIds.includes(doc.id) ? <PushpinFilled /> : <PushpinOutlined />}
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="empty-hint">暂无文档</div>
+                <div className="home-v2-empty"><FileTextOutlined /><strong>还没有文档</strong><button onClick={() => navigate('/doc?action=new')}>创建第一篇</button></div>
               )}
-            </div>
+            </section>
+
+            <section className="home-card home-v2-panel">
+              <header className="home-v2-panel-header">
+                <div><span>今日计划</span><h2>接下来要做</h2></div>
+                <button onClick={() => navigate('/todo')}>管理待办 <ArrowRightOutlined /></button>
+              </header>
+              {loadingTodos ? <div className="home-v2-list-skeleton"><i /><i /><i /></div> : pendingTodos.length ? (
+                <div className="home-v2-todo-list">
+                  {pendingTodos.slice(0, 5).map((todo) => (
+                    <div key={todo.id} className="home-v2-todo-row">
+                      <button className="home-v2-todo-check" onClick={() => completeTodo(todo)} title="标记为完成"><CheckOutlined /></button>
+                      <span className={`home-v2-priority priority-${todo.priority}`} />
+                      <strong>{todo.content}</strong>
+                      {todo.due_at && <small className={dayjs(todo.due_at).isBefore(dayjs()) ? 'overdue' : ''}><CalendarOutlined /> {dayjs(todo.due_at).format('MM-DD HH:mm')}</small>}
+                    </div>
+                  ))}
+                  {pendingTodos.length > 5 && <button className="home-v2-more" onClick={() => navigate('/todo')}>还有 {pendingTodos.length - 5} 项待办</button>}
+                </div>
+              ) : (
+                <div className="home-v2-empty compact"><CheckOutlined /><strong>今天没有待办</strong><span>享受片刻清闲，或者安排一件新事情。</span><button onClick={() => navigate('/todo?action=new')}>添加待办</button></div>
+              )}
+            </section>
           </div>
 
-          {/* 待办摘要卡片 */}
-          <div className="home-card">
-            <div className="home-card-header">
-              <div className="home-card-title">待办事项</div>
-              <button className="home-card-link" onClick={() => navigate('/todo')}>查看全部</button>
-            </div>
-            {loadingTodos ? (
-              <div className="home-skeleton-list"><div className="home-skeleton-line" /><div className="home-skeleton-line" /><div className="home-skeleton-line" /></div>
-            ) : pendingTodos.length > 0 ? (
-              <div className="home-todo-list">
-                {pendingTodos.slice(0, 5).map((t) => (
-                  <div key={t.id} className="home-todo-item">
-                    <span className={`home-todo-dot priority-${t.priority}`} />
-                    <span className="home-todo-text">{t.content}</span>
-                    {t.due_at && <span className="home-todo-due">{dayjs(t.due_at).format('MM-DD')}</span>}
+          <aside className="home-v2-side">
+            <section className="home-card home-v2-overview">
+              <header><span>今日概览</span><b>{now.format('YYYY.MM.DD')}</b></header>
+              <div className="home-v2-stats">
+                <div><strong>{loadingStats ? '—' : todayDiaryWords}</strong><span>今日字数</span></div>
+                <div><strong>{loadingTree ? '—' : streakDays}</strong><span>连续记录</span></div>
+                <div><strong>{loadingTodos ? '—' : completedTodos}</strong><span>完成待办</span></div>
+              </div>
+              <div className="home-v2-library-stats">
+                <span><FileTextOutlined /> 知识库</span>
+                <b>{loadingStats ? '—' : `${stats?.doc_count || 0} 文档 · ${stats?.diary_count || 0} 日记`}</b>
+              </div>
+            </section>
+
+            <section className="home-card home-v2-calendar">
+              <header className="home-v2-panel-header">
+                <div><span>记录节奏</span><h2>{selectedMonth.format('YYYY年M月')}</h2></div>
+                <div className="home-v2-month-nav">
+                  <button onClick={() => setSelectedMonth((month) => month.subtract(1, 'month'))}>‹</button>
+                  <button disabled={!canGoNextMonth} onClick={() => setSelectedMonth((month) => month.add(1, 'month'))}>›</button>
+                </div>
+              </header>
+              <div className="home-v2-progress"><span style={{ width: `${monthRate}%` }} /></div>
+              <div className="home-v2-progress-label"><span>本月记录 {monthWrittenDays} 天</span><b>{monthRate}%</b></div>
+              {loadingTree ? <div className="home-v2-calendar-loading" /> : (
+                <>
+                  <div className="home-v2-weekdays">{['一', '二', '三', '四', '五', '六', '日'].map((day) => <span key={day}>{day}</span>)}</div>
+                  <div className="home-v2-calendar-grid">
+                    {monthCells.map((cell) => (
+                      <span key={cell.key} className={`${cell.blank ? 'blank' : ''} ${cell.written ? 'written' : ''} ${cell.today ? 'today' : ''}`} title={cell.date || ''}>
+                        {cell.day || ''}
+                      </span>
+                    ))}
                   </div>
-                ))}
-                {pendingTodos.length > 5 && <div className="home-todo-more">还有 {pendingTodos.length - 5} 项...</div>}
-              </div>
-            ) : (
-              <div className="empty-hint">暂无待办事项</div>
-            )}
-          </div>
-        </div>
-
-        {/* 右栏 */}
-        <div className="home-side-col">
-          {/* 连续记录卡片 */}
-          <div className="home-card">
-            <div className="home-card-header">
-              <div className="home-card-title">写作连续性</div>
-              <div className="home-month-switch">
-                <button className="home-month-nav" onClick={() => switchMonth(-1)} aria-label="上个月">‹</button>
-                <span className="home-month-label">{monthLabel}</span>
-                <button className="home-month-nav" onClick={() => switchMonth(1)} disabled={!canGoNextMonth} aria-label="下个月">›</button>
-              </div>
-            </div>
-            {loadingTree ? (
-              <div className="home-skeleton-line" style={{ height: 140 }} />
-            ) : (
-              <>
-                <div className="home-streak-row">
-                  <div className="home-streak-num">{streakDays}</div>
-                  <div className="home-streak-unit">天连续记录</div>
-                </div>
-                <div className="home-month-rate">{monthLabel} {monthRate}%（{monthWrittenDays}/{monthTotalDays}天）</div>
-                <div className="home-heat-weekdays">
-                  {heatWeekDays.map((w) => (
-                    <span key={w} className="home-heat-weekday">{w}</span>
-                  ))}
-                </div>
-                <div className="home-heat-grid month">
-                  {monthHeatCells.map((cell) => (
-                    <span
-                      key={cell.key}
-                      className={`home-heat-cell ${cell.empty ? 'blank' : ''} ${cell.has ? 'active' : ''} ${cell.today ? 'today' : ''}`}
-                      title={cell.empty ? '' : cell.date}
-                    >
-                      {cell.empty ? '' : cell.day}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </section>
+          </aside>
         </div>
       </div>
     </div>

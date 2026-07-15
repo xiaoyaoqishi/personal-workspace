@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useContext, useCallback, useState, useEffect } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import IconSidebar from './components/IconSidebar';
 import useTheme from './hooks/useTheme';
 import { antdThemeToken, darkThemeToken, inkThemeToken, techThemeToken } from './styles/theme';
@@ -75,10 +75,15 @@ function DocViewWrapper() {
 
 function TodoViewWrapper() {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const action = searchParams.get('action') || '';
   const initialAction = action === 'new' ? `new:${Date.now()}` : '';
-  return <TodoView onNavigate={() => {}} initialAction={initialAction} />;
+  const handleNavigate = (tab, payload) => {
+    const anchor = payload?.anchor ? `?anchor=${encodeURIComponent(payload.anchor)}` : '';
+    navigate(`/${tab}/${payload.id}${anchor}`);
+  };
+  return <TodoView onNavigate={handleNavigate} initialAction={initialAction} />;
 }
 
 function RecycleViewWrapper() {

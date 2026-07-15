@@ -27,6 +27,7 @@
 - Trade date is derived from the single user-facing open-time field, and risk-point history timestamps are displayed in China Standard Time.
 - The trade records page uses single-record operations and no longer provides multi-select or filter-based bulk actions.
 - Statistics and analytics endpoints for trading records.
+- Trading opens on an action-oriented home workspace that summarizes current positions, monthly PnL, recent trades, active plans, review/source reminders, and recent research; the full dashboard remains dedicated to deep analytics.
 - Trading frontend now includes four switchable themes (`ink` / `light` / `tech` / `dark`) through a sidebar dropdown selector, with `ink` preserved as the default paper-style theme and the selected theme persisted locally.
 - Paste-based trade import implementation is retained, but its trade-records-page entry is temporarily offline.
 - Structured per-trade review data and review taxonomy support.
@@ -41,8 +42,9 @@
 - Notebook management for diary and document collections.
 - Diary and document note CRUD with shared editor flow.
 - Search, calendar, diary tree, and "history today" style browsing.
+- Action-oriented Notes home with unified search, quick capture shortcuts, recent documents, actionable todos, and a compact writing rhythm overview.
 - Wiki-link resolution and forward navigation between notes.
-- Todo management in the notes workspace.
+- Streamlined todo workspace with quick capture, optional scheduling and reminders, clear completion controls, filters, and an explicit bulk-management mode.
 - Notes recycle bin with restore and purge flow.
 
 ### Monitor / Admin
@@ -129,7 +131,7 @@ Open the portal at `http://127.0.0.1:5172`.
 ## Routes & Entry Points
 - `/`: Portal home page for the workspace.
 - `/login`: Shared login page.
-- `/trading/`: Trading SPA entry; the app redirects to `/trading/dashboard` and includes the `/trading/research` submodule.
+- `/trading/`: Trading home workspace; records, analytics, plans, research, maintenance, and recycle remain available as dedicated subpages.
 - `/notes/`: Notes workspace entry.
 - `/monitor/`: Monitor and admin workspace entry.
 - `/ledger/`: Ledger SPA entry; the app redirects to `/ledger/imports`.

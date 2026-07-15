@@ -6,6 +6,7 @@ import {
   CrownOutlined,
   DashboardOutlined,
   FormatPainterOutlined,
+  HomeOutlined,
   OrderedListOutlined,
   LogoutOutlined,
   MoonOutlined,
@@ -17,6 +18,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
+import TradingHome from './pages/TradingHome';
 import TradeList from './pages/TradeList';
 import TradeForm from './pages/TradeForm';
 import InfoMaintain from './pages/BrokerManage';
@@ -28,6 +30,7 @@ import useTheme from './hooks/useTheme';
 import './styles/tokens.css';
 
 const tabs = [
+  { key: '/', icon: <HomeOutlined />, label: '首页' },
   { key: '/trades', icon: <OrderedListOutlined />, label: '记录' },
   { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
   { key: '/plans', icon: <ProjectOutlined />, label: '计划' },
@@ -118,7 +121,7 @@ function AppLayout({ theme, setTheme }) {
       <IconSidebar theme={theme} setTheme={setTheme} />
       <div className="app-content">
         <Routes>
-          <Route path="/" element={<Navigate to="/trades" replace />} />
+          <Route path="/" element={<TradingHome />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/trades" element={<TradeList />} />
           <Route path="/trades/new" element={<TradeForm />} />
@@ -127,7 +130,7 @@ function AppLayout({ theme, setTheme }) {
           <Route path="/plans" element={<TradePlanList />} />
           <Route path="/research" element={<TradingResearch />} />
           <Route path="/recycle" element={<TradingRecycleBin />} />
-          <Route path="*" element={<Navigate to="/trades" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </div>

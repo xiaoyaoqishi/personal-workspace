@@ -1,52 +1,80 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DatePicker, message } from 'antd';
+import { DatePicker, Popconfirm, message } from 'antd';
+import {
+  BellOutlined,
+  CalendarOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  LinkOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  SelectOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { noteApi, todoApi } from '../api';
 
 const REMINDER_KEY = 'todo-reminded-ids';
+const PRIORITY_LABELS = { high: '高优先级', medium: '普通', low: '低优先级' };
 
-function toBackendDatetime(v) {
-  if (!v) return null;
-  const d = dayjs(v);
-  return d.isValid() ? d.format('YYYY-MM-DDTHH:mm:ss') : null;
+function toBackendDatetime(value) {
+  if (!value) return null;
+  const date = dayjs(value);
+  return date.isValid() ? date.format('YYYY-MM-DDTHH:mm:ss') : null;
+}
+
+function getDueMeta(value, completed) {
+  if (!value) return null;
+  const date = dayjs(value);
+  if (!date.isValid()) return null;
+  const hasTime = date.hour() !== 23 || date.minute() !== 59;
+  const label = date.isSame(dayjs(), 'day')
+    ? `今天${hasTime ? ` ${date.format('HH:mm')}` : ''}`
+    : date.isSame(dayjs().add(1, 'day'), 'day')
+      ? `明天${hasTime ? ` ${date.format('HH:mm')}` : ''}`
+      : date.format(hasTime ? 'MM月DD日 HH:mm' : 'MM月DD日');
+  return { label, overdue: !completed && date.isBefore(dayjs()) };
 }
 
 export default function TodoView({ onNavigate, initialAction }) {
   const [todos, setTodos] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [newTodo, setNewTodo] = useState('');
+  const [newPriority, setNewPriority] = useState('medium');
   const [newDueAt, setNewDueAt] = useState(null);
   const [newReminderAt, setNewReminderAt] = useState(null);
+  const [showCreateOptions, setShowCreateOptions] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [filter, setFilter] = useState('pending');
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [expandedIds, setExpandedIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const createInputRef = useRef(null);
 
   const loadTodos = async () => {
     try {
-      const params = { include_completed: true };
-      if (keyword.trim()) params.keyword = keyword.trim();
-      const res = await todoApi.list(params);
+      const res = await todoApi.list({ include_completed: true });
       const list = res.data || [];
       setTodos(list);
-      const nextDrafts = {};
-      list.forEach((t) => { nextDrafts[t.id] = t.content; });
-      setDrafts(nextDrafts);
-      setSelectedIds((prev) => prev.filter((id) => list.some((t) => t.id === id)));
+      setDrafts(Object.fromEntries(list.map((todo) => [todo.id, todo.content])));
+      setSelectedIds((prev) => prev.filter((id) => list.some((todo) => todo.id === id)));
     } catch {
       message.error('加载待办失败');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     loadTodos();
-  }, [keyword]);
+  }, []);
 
   useEffect(() => {
     if (typeof initialAction === 'string' && initialAction.startsWith('new:')) {
-      setTimeout(() => {
-        createInputRef.current?.focus();
-      }, 0);
+      setTimeout(() => createInputRef.current?.focus(), 0);
     }
   }, [initialAction]);
 
@@ -61,254 +89,321 @@ export default function TodoView({ onNavigate, initialAction }) {
       }
       const remindedSet = new Set(reminded);
       let touched = false;
-      for (const t of todos) {
-        if (t.is_completed || !t.reminder_at) continue;
-        const due = dayjs(t.reminder_at);
-        if (!due.isValid()) continue;
-        if (due.isBefore(now) || due.isSame(now)) {
-          if (!remindedSet.has(t.id)) {
-            message.info(`待办提醒：${t.content}`);
-            remindedSet.add(t.id);
-            touched = true;
-          }
+      for (const todo of todos) {
+        if (todo.is_completed || !todo.reminder_at) continue;
+        const reminder = dayjs(todo.reminder_at);
+        if (reminder.isValid() && !reminder.isAfter(now) && !remindedSet.has(todo.id)) {
+          message.info(`待办提醒：${todo.content}`);
+          remindedSet.add(todo.id);
+          touched = true;
         }
       }
-      if (touched) {
-        localStorage.setItem(REMINDER_KEY, JSON.stringify(Array.from(remindedSet)));
-      }
+      if (touched) localStorage.setItem(REMINDER_KEY, JSON.stringify(Array.from(remindedSet)));
     }, 30000);
     return () => clearInterval(timer);
   }, [todos]);
 
+  const counts = useMemo(() => ({
+    all: todos.length,
+    pending: todos.filter((todo) => !todo.is_completed).length,
+    completed: todos.filter((todo) => todo.is_completed).length,
+  }), [todos]);
+
   const visibleTodos = useMemo(() => {
-    if (showCompleted) return todos;
-    return todos.filter((t) => !t.is_completed);
-  }, [todos, showCompleted]);
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    return todos.filter((todo) => {
+      if (filter === 'pending' && todo.is_completed) return false;
+      if (filter === 'completed' && !todo.is_completed) return false;
+      return !normalizedKeyword || todo.content.toLowerCase().includes(normalizedKeyword);
+    });
+  }, [filter, keyword, todos]);
 
   const createTodo = async () => {
     const content = newTodo.trim();
-    if (!content) return;
+    if (!content || creating) {
+      if (!content) createInputRef.current?.focus();
+      return;
+    }
+    setCreating(true);
     try {
       await todoApi.create({
         content,
-        priority: 'medium',
+        priority: newPriority,
         due_at: toBackendDatetime(newDueAt),
         reminder_at: toBackendDatetime(newReminderAt),
       });
       setNewTodo('');
+      setNewPriority('medium');
       setNewDueAt(null);
       setNewReminderAt(null);
-      loadTodos();
-    } catch (e) {
-      message.error(e.response?.data?.detail || '创建失败');
+      setShowCreateOptions(false);
+      await loadTodos();
+      message.success('待办已创建');
+      createInputRef.current?.focus();
+    } catch (error) {
+      message.error(error.response?.data?.detail || '创建失败');
+    } finally {
+      setCreating(false);
     }
   };
 
   const updateTodo = async (id, patch) => {
     try {
       await todoApi.update(id, patch);
-      loadTodos();
-    } catch (e) {
-      message.error(e.response?.data?.detail || '更新失败');
+      await loadTodos();
+    } catch (error) {
+      message.error(error.response?.data?.detail || '更新失败');
     }
   };
 
   const deleteTodo = async (id) => {
     try {
       await todoApi.delete(id);
-      loadTodos();
+      await loadTodos();
+      message.success('待办已删除');
     } catch {
       message.error('删除失败');
     }
   };
 
   const jumpToSource = async (todo) => {
-    if (!todo?.source_note_id) {
-      message.warning('该待办没有来源');
-      return;
-    }
+    if (!todo?.source_note_id) return;
     try {
       const res = await noteApi.get(todo.source_note_id);
-      const n = res.data;
-      const tab = n.note_type === 'diary' ? 'diary' : 'doc';
-      onNavigate?.(tab, { id: n.id, anchor: todo.source_anchor_text || '' });
+      const note = res.data;
+      onNavigate?.(note.note_type === 'diary' ? 'diary' : 'doc', {
+        id: note.id,
+        anchor: todo.source_anchor_text || '',
+      });
     } catch {
       message.error('来源笔记不存在或已删除');
     }
   };
 
-  const toggleSelect = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) return prev.includes(id) ? prev : [...prev, id];
-      return prev.filter((x) => x !== id);
-    });
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => !prev);
+    setSelectedIds([]);
   };
 
   const selectAllVisible = () => {
-    setSelectedIds((prev) => {
-      const set = new Set(prev);
-      visibleTodos.forEach((t) => set.add(t.id));
-      return Array.from(set);
-    });
+    const visibleIds = visibleTodos.map((todo) => todo.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : visibleIds);
   };
 
-  const clearSelected = () => setSelectedIds([]);
-
   const bulkSetCompleted = async (isCompleted) => {
-    if (selectedIds.length === 0) {
-      message.warning('请先勾选待办');
-      return;
-    }
+    if (!selectedIds.length) return;
     try {
       await Promise.all(selectedIds.map((id) => todoApi.update(id, { is_completed: isCompleted })));
-      message.success(isCompleted ? '批量标记完成' : '批量标记未完成');
+      message.success(isCompleted ? '已批量完成' : '已恢复为未完成');
       setSelectedIds([]);
-      loadTodos();
+      setSelectionMode(false);
+      await loadTodos();
     } catch {
       message.error('批量更新失败');
     }
   };
 
+  const toggleDetails = (id) => {
+    setExpandedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+  };
+
+  const setQuickDue = (days) => {
+    setNewDueAt(dayjs().add(days, 'day').hour(23).minute(59).second(0));
+    setShowCreateOptions(true);
+  };
+
   return (
-    <div className="view-container">
-      <div className="side-panel todo-side-panel">
-        <div className="side-search">
-          <input
-            className="todo-input"
-            placeholder="搜索待办..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-        </div>
+    <div className="todo-page">
+      <div className="todo-page-inner">
+        <header className="todo-page-header">
+          <div>
+            <h1>待办</h1>
+            <p>{counts.pending ? `还有 ${counts.pending} 件事等待完成` : '今天的事情都完成了'}</p>
+          </div>
+          <button className={`todo-select-mode-btn ${selectionMode ? 'active' : ''}`} onClick={toggleSelectionMode}>
+            <SelectOutlined /> {selectionMode ? '退出选择' : '批量管理'}
+          </button>
+        </header>
 
-        <div className="side-search">
-          <input
-            ref={createInputRef}
-            className="todo-input"
-            placeholder="输入待办事项，回车创建"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') createTodo();
-            }}
-          />
-          <div className="todo-date-grid">
-            <label>截止</label>
-            <DatePicker
-              className="todo-datetime-picker"
-              popupClassName="todo-time-picker-popup"
-              showTime
-              format="YYYY-MM-DD HH:mm"
-              value={newDueAt}
-              onChange={(v) => setNewDueAt(v)}
-              placeholder="选择截止时间"
+        <section className="todo-compose-card">
+          <div className="todo-compose-main">
+            <span className="todo-compose-icon"><PlusOutlined /></span>
+            <input
+              ref={createInputRef}
+              className="todo-compose-input"
+              placeholder="写下要做的事，按 Enter 快速创建"
+              value={newTodo}
+              onChange={(event) => setNewTodo(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) createTodo();
+              }}
             />
-            <label>提醒</label>
-            <DatePicker
-              className="todo-datetime-picker"
-              popupClassName="todo-time-picker-popup"
-              showTime
-              format="YYYY-MM-DD HH:mm"
-              value={newReminderAt}
-              onChange={(v) => setNewReminderAt(v)}
-              placeholder="选择提醒时间"
-            />
+            <button className="todo-create-btn" disabled={!newTodo.trim() || creating} onClick={createTodo}>
+              {creating ? '创建中…' : '添加待办'}
+            </button>
           </div>
+          <div className="todo-compose-tools">
+            <button className={newDueAt?.isSame(dayjs(), 'day') ? 'active' : ''} onClick={() => setQuickDue(0)}>
+              <CalendarOutlined /> 今天
+            </button>
+            <button className={newDueAt?.isSame(dayjs().add(1, 'day'), 'day') ? 'active' : ''} onClick={() => setQuickDue(1)}>
+              <CalendarOutlined /> 明天
+            </button>
+            <button className={showCreateOptions ? 'active' : ''} onClick={() => setShowCreateOptions((prev) => !prev)}>
+              <ClockCircleOutlined /> 更多设置
+            </button>
+          </div>
+          {showCreateOptions && (
+            <div className="todo-compose-options">
+              <label>
+                <span>优先级</span>
+                <select value={newPriority} onChange={(event) => setNewPriority(event.target.value)}>
+                  <option value="high">高优先级</option>
+                  <option value="medium">普通</option>
+                  <option value="low">低优先级</option>
+                </select>
+              </label>
+              <label>
+                <span>截止时间</span>
+                <DatePicker showTime format="YYYY-MM-DD HH:mm" value={newDueAt} onChange={setNewDueAt} placeholder="可选" />
+              </label>
+              <label>
+                <span>提醒时间</span>
+                <DatePicker showTime format="YYYY-MM-DD HH:mm" value={newReminderAt} onChange={setNewReminderAt} placeholder="可选" />
+              </label>
+            </div>
+          )}
+        </section>
+
+        <div className="todo-toolbar">
+          <div className="todo-filter-tabs" role="tablist" aria-label="筛选待办">
+            {[
+              ['pending', '未完成'],
+              ['all', '全部'],
+              ['completed', '已完成'],
+            ].map(([value, label]) => (
+              <button key={value} className={filter === value ? 'active' : ''} onClick={() => setFilter(value)}>
+                {label}<span>{counts[value]}</span>
+              </button>
+            ))}
+          </div>
+          <label className="todo-search">
+            <SearchOutlined />
+            <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索待办" />
+            {keyword && <button onClick={() => setKeyword('')} aria-label="清空搜索">×</button>}
+          </label>
         </div>
 
-        <div className="doc-actions">
-          <button className="action-btn" onClick={createTodo}>+ 新建待办</button>
-        </div>
-
-        <div className="side-tags">
-          <div className="side-tags-header">显示：</div>
-          <div className={`tag-item ${showCompleted ? 'active' : ''}`} onClick={() => setShowCompleted(true)}>
-            全部 ({todos.length})
+        {selectionMode && (
+          <div className="todo-selection-bar">
+            <button onClick={selectAllVisible}>全选当前</button>
+            <span>已选择 {selectedIds.length} 项</span>
+            <div>
+              <button disabled={!selectedIds.length} onClick={() => bulkSetCompleted(true)}>标为完成</button>
+              <button disabled={!selectedIds.length} onClick={() => bulkSetCompleted(false)}>恢复未完成</button>
+            </div>
           </div>
-          <div className={`tag-item ${!showCompleted ? 'active' : ''}`} onClick={() => setShowCompleted(false)}>
-            未完成 ({todos.filter((t) => !t.is_completed).length})
-          </div>
-        </div>
-      </div>
+        )}
 
-      <div className="main-content">
-        <div className="todo-view-main">
-          <div className="todo-view-title">稍后待办管理</div>
-          <div className="todo-bulk-bar">
-            <button className="todo-bulk-btn" onClick={selectAllVisible}>全选当前</button>
-            <button className="todo-bulk-btn" onClick={clearSelected}>清空勾选</button>
-            <button className="todo-bulk-btn primary" onClick={() => bulkSetCompleted(true)}>批量完成</button>
-            <button className="todo-bulk-btn" onClick={() => bulkSetCompleted(false)}>批量未完成</button>
-            <span className="todo-bulk-count">已选 {selectedIds.length} 条</span>
-          </div>
-          <div className="todo-list">
-            {visibleTodos.length > 0 ? visibleTodos.map((t) => (
-              <div key={t.id} className={`todo-item ${t.is_completed ? 'done' : ''}`}>
-                <div className="todo-row">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(t.id)}
-                    onChange={(e) => toggleSelect(t.id, e.target.checked)}
-                    title="勾选用于批量操作"
-                  />
-                  <input
-                    type="checkbox"
-                    checked={t.is_completed}
-                    onChange={(e) => updateTodo(t.id, { is_completed: e.target.checked })}
-                  />
-                  <input
-                    className="todo-content-input"
-                    value={drafts[t.id] || ''}
-                    onChange={(e) => setDrafts((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                    onBlur={() => {
-                      const val = (drafts[t.id] || '').trim();
-                      if (val && val !== t.content) updateTodo(t.id, { content: val });
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                  />
-                </div>
-
-                <div className="todo-row todo-meta">
-                  <select
-                    className={`todo-priority priority-${t.priority}`}
-                    value={t.priority}
-                    onChange={(e) => updateTodo(t.id, { priority: e.target.value })}
+        <main className="todo-list">
+          {loading ? (
+            <div className="todo-empty"><span className="todo-empty-icon">···</span><strong>正在加载</strong></div>
+          ) : visibleTodos.length ? visibleTodos.map((todo) => {
+            const dueMeta = getDueMeta(todo.due_at, todo.is_completed);
+            const selected = selectedIds.includes(todo.id);
+            const expanded = expandedIds.includes(todo.id);
+            return (
+              <article key={todo.id} className={`todo-item ${todo.is_completed ? 'done' : ''} ${selected ? 'selected' : ''}`}>
+                <div className="todo-item-main">
+                  {selectionMode && (
+                    <button
+                      className={`todo-select-check ${selected ? 'checked' : ''}`}
+                      onClick={() => toggleSelect(todo.id)}
+                      aria-label={selected ? '取消选择' : '选择待办'}
+                    >
+                      {selected && <CheckOutlined />}
+                    </button>
+                  )}
+                  <button
+                    className={`todo-complete-check ${todo.is_completed ? 'checked' : ''}`}
+                    onClick={() => updateTodo(todo.id, { is_completed: !todo.is_completed })}
+                    aria-label={todo.is_completed ? '恢复为未完成' : '标记为完成'}
+                    title={todo.is_completed ? '恢复为未完成' : '标记为完成'}
                   >
-                    <option value="high">高优先级</option>
-                    <option value="medium">中优先级</option>
-                    <option value="low">低优先级</option>
-                  </select>
-                  <span className="todo-priority-text">添加于 {dayjs(t.created_at).format('YYYY-MM-DD HH:mm:ss')}</span>
-                  <button className="todo-del-btn" onClick={() => jumpToSource(t)}>回跳来源</button>
-                  <button className="todo-del-btn" onClick={() => deleteTodo(t.id)}>删除</button>
+                    {todo.is_completed && <CheckOutlined />}
+                  </button>
+                  <div className="todo-item-body">
+                    <input
+                      className="todo-content-input"
+                      value={drafts[todo.id] || ''}
+                      onChange={(event) => setDrafts((prev) => ({ ...prev, [todo.id]: event.target.value }))}
+                      onBlur={() => {
+                        const value = (drafts[todo.id] || '').trim();
+                        if (value && value !== todo.content) updateTodo(todo.id, { content: value });
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') event.currentTarget.blur();
+                      }}
+                      aria-label="待办内容"
+                    />
+                    <div className="todo-item-meta">
+                      <span className={`todo-priority-badge priority-${todo.priority}`}>
+                        <i />{PRIORITY_LABELS[todo.priority] || '普通'}
+                      </span>
+                      {dueMeta && (
+                        <span className={dueMeta.overdue ? 'overdue' : ''}>
+                          <CalendarOutlined /> {dueMeta.overdue ? '已逾期 · ' : ''}{dueMeta.label}
+                        </span>
+                      )}
+                      {todo.reminder_at && <span><BellOutlined /> 已设置提醒</span>}
+                      {todo.source_note_id && <span><LinkOutlined /> 来自笔记</span>}
+                    </div>
+                  </div>
+                  <div className="todo-item-actions">
+                    {todo.source_note_id && <button onClick={() => jumpToSource(todo)} title="查看来源"><LinkOutlined /></button>}
+                    <button className={expanded ? 'active' : ''} onClick={() => toggleDetails(todo.id)} title="编辑详情"><EditOutlined /></button>
+                    <Popconfirm title="删除这条待办？" okText="删除" cancelText="取消" onConfirm={() => deleteTodo(todo.id)}>
+                      <button className="danger" title="删除"><DeleteOutlined /></button>
+                    </Popconfirm>
+                  </div>
                 </div>
-
-                <div className="todo-row todo-date-row">
-                  <span className="todo-date-label">截止</span>
-                  <DatePicker
-                    className="todo-datetime-picker row"
-                    popupClassName="todo-time-picker-popup"
-                    showTime
-                    format="YYYY-MM-DD HH:mm"
-                    value={t.due_at ? dayjs(t.due_at) : null}
-                    onChange={(v) => updateTodo(t.id, { due_at: toBackendDatetime(v) })}
-                  />
-                  <span className="todo-date-label">提醒</span>
-                  <DatePicker
-                    className="todo-datetime-picker row"
-                    popupClassName="todo-time-picker-popup"
-                    showTime
-                    format="YYYY-MM-DD HH:mm"
-                    value={t.reminder_at ? dayjs(t.reminder_at) : null}
-                    onChange={(v) => updateTodo(t.id, { reminder_at: toBackendDatetime(v) })}
-                  />
-                </div>
-              </div>
-            )) : <div className="empty-hint">暂无待办事项</div>}
-          </div>
-        </div>
+                {expanded && (
+                  <div className="todo-item-details">
+                    <label>
+                      <span>优先级</span>
+                      <select value={todo.priority} onChange={(event) => updateTodo(todo.id, { priority: event.target.value })}>
+                        <option value="high">高优先级</option>
+                        <option value="medium">普通</option>
+                        <option value="low">低优先级</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>截止时间</span>
+                      <DatePicker showTime format="YYYY-MM-DD HH:mm" value={todo.due_at ? dayjs(todo.due_at) : null} onChange={(value) => updateTodo(todo.id, { due_at: toBackendDatetime(value) })} placeholder="未设置" />
+                    </label>
+                    <label>
+                      <span>提醒时间</span>
+                      <DatePicker showTime format="YYYY-MM-DD HH:mm" value={todo.reminder_at ? dayjs(todo.reminder_at) : null} onChange={(value) => updateTodo(todo.id, { reminder_at: toBackendDatetime(value) })} placeholder="未设置" />
+                    </label>
+                    <span className="todo-created-at">创建于 {dayjs(todo.created_at).format('YYYY-MM-DD HH:mm')}</span>
+                  </div>
+                )}
+              </article>
+            );
+          }) : (
+            <div className="todo-empty">
+              <span className="todo-empty-icon"><CheckOutlined /></span>
+              <strong>{keyword ? '没有找到相关待办' : filter === 'pending' ? '没有未完成的待办' : '这里还没有待办'}</strong>
+              <p>{keyword ? '换个关键词试试' : filter === 'pending' ? '可以安心休息，或添加一件新事情' : '新建的待办会显示在这里'}</p>
+              {!keyword && <button onClick={() => createInputRef.current?.focus()}>添加待办</button>}
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
