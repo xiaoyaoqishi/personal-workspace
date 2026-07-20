@@ -22,6 +22,7 @@ import { common, createLowlight } from 'lowlight';
 import { Markdown } from 'tiptap-markdown';
 import MarkdownIt from 'markdown-it';
 import dayjs from 'dayjs';
+import { backendTimeInChina } from '../utils/datetime';
 import api, { todoApi } from '../api';
 
 const lowlight = createLowlight(common);
@@ -620,7 +621,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
       </div>
       <div className="editor-footer">
         <span>{note.word_count || 0} 字</span>
-        <span>最后编辑: {dayjs(note.updated_at).format('YYYY-MM-DD HH:mm')}</span>
+        <span>最后编辑: {backendTimeInChina(note.updated_at).format('YYYY-MM-DD HH:mm')}</span>
       </div>
       {lightboxSrc && createPortal(
         <div className="image-lightbox" onClick={() => setLightboxSrc(null)}>

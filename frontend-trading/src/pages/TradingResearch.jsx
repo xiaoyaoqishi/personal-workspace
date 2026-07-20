@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { researchApi } from '../api';
+import { backendTimeInChina } from '../utils/datetime';
 import ResearchEditor, { renderResearchContent } from '../components/ResearchEditor';
 import './TradingResearch.css';
 
@@ -389,7 +390,7 @@ export default function TradingResearch() {
                   {keyword.trim() ? documents.map((document) => (
                     <div key={document.id} className={`research-search-result${selectedId === document.id ? ' active' : ''}`} onClick={() => setSelectedId(document.id)}>
                       <strong>{document.title}</strong>
-                      <span>{document.word_count || 0} 字 · {dayjs(document.updated_at).format('MM-DD HH:mm')}</span>
+                      <span>{document.word_count || 0} 字 · {backendTimeInChina(document.updated_at).format('MM-DD HH:mm')}</span>
                     </div>
                   )) : roots.map((folder) => (
                     <ResearchTreeNode
@@ -454,7 +455,7 @@ export default function TradingResearch() {
             <div className="research-reader-panel">
               <div className="research-reader-header">
                 <div className="research-reader-actions">
-                  <div className="research-reader-meta">最后编辑：{dayjs(selectedDocument.updated_at).format('YYYY-MM-DD HH:mm')} · {selectedDocument.word_count || 0} 字</div>
+                  <div className="research-reader-meta">最后编辑：{backendTimeInChina(selectedDocument.updated_at).format('YYYY-MM-DD HH:mm')} · {selectedDocument.word_count || 0} 字</div>
                   {mode === 'active' ? (
                     <Space>
                       <Tooltip title={selectedDocument.is_pinned ? '取消置顶' : '置顶'}><Button icon={selectedDocument.is_pinned ? <PushpinFilled /> : <PushpinOutlined />} onClick={togglePinned} /></Tooltip>

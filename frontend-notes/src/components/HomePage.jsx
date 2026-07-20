@@ -17,14 +17,16 @@ import { Solar } from 'lunar-javascript';
 import dayjs from 'dayjs';
 import { noteApi, todoApi } from '../api';
 import { getWeather } from '../utils/weather';
+import { backendTimeInChina, chinaNow } from '../utils/datetime';
 
 const PINNED_DOC_KEY = 'notes-home-pinned-docs';
 
 function formatRelativeTime(value) {
-  const date = dayjs(value);
+  const date = backendTimeInChina(value);
+  const now = chinaNow();
   if (!date.isValid()) return '';
-  if (date.isSame(dayjs(), 'day')) return `今天 ${date.format('HH:mm')}`;
-  if (date.isSame(dayjs().subtract(1, 'day'), 'day')) return `昨天 ${date.format('HH:mm')}`;
+  if (date.isSame(now, 'day')) return `今天 ${date.format('HH:mm')}`;
+  if (date.isSame(now.subtract(1, 'day'), 'day')) return `昨天 ${date.format('HH:mm')}`;
   return date.format('M月D日');
 }
 

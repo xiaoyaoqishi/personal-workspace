@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { noteApi, todoApi } from '../api';
+import { backendTimeInChina } from '../utils/datetime';
 
 const REMINDER_KEY = 'todo-reminded-ids';
 const PRIORITY_LABELS = { high: '高优先级', medium: '普通', low: '低优先级' };
@@ -390,7 +391,7 @@ export default function TodoView({ onNavigate, initialAction }) {
                       <span>提醒时间</span>
                       <DatePicker showTime format="YYYY-MM-DD HH:mm" value={todo.reminder_at ? dayjs(todo.reminder_at) : null} onChange={(value) => updateTodo(todo.id, { reminder_at: toBackendDatetime(value) })} placeholder="未设置" />
                     </label>
-                    <span className="todo-created-at">创建于 {dayjs(todo.created_at).format('YYYY-MM-DD HH:mm')}</span>
+                    <span className="todo-created-at">创建于 {backendTimeInChina(todo.created_at).format('YYYY-MM-DD HH:mm')}</span>
                   </div>
                 )}
               </article>

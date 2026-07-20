@@ -171,11 +171,18 @@ export function formatDate(value) {
 
 export function formatDateTime(value) {
   if (!value) return EMPTY_VALUE
-  const date = toShanghaiDayjs(value)
+  const date = backendTimeInChina(value)
   if (!date.isValid()) {
     return String(value)
   }
   return date.format('YYYY-MM-DD HH:mm')
+}
+
+function backendTimeInChina(value) {
+  if (typeof value === 'string' && !hasExplicitTimezone(value)) {
+    return dayjs.utc(value).tz(CHINA_TIMEZONE)
+  }
+  return dayjs(value).tz(CHINA_TIMEZONE)
 }
 
 function hasExplicitTimezone(value) {

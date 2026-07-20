@@ -8,6 +8,7 @@ import ResearchContentPanel from '../features/trading/components/ResearchContent
 import { buildTradeSearchOption, formatInstrumentDisplay, normalizeTagList } from '../features/trading/display';
 import { MenuFoldOutlined, MenuUnfoldOutlined, ReadOutlined, ShareAltOutlined } from '@ant-design/icons';
 import './ReviewList.css';
+import { backendTimeInChina } from '../utils/datetime';
 
 const { TextArea } = Input;
 
@@ -54,7 +55,7 @@ function loadPlanReaderFontScale() {
 
 function formatDateTime(value) {
   if (!value) return '-';
-  const d = dayjs(value);
+  const d = backendTimeInChina(value);
   if (!d.isValid()) return '-';
   return d.format('YYYY-MM-DD HH:mm');
 }

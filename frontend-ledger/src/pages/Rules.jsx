@@ -23,6 +23,7 @@ import RuleDryRunDrawer from '../components/rules/RuleDryRunDrawer'
 import RuleStatsCards from '../components/rules/RuleStatsCards'
 import RuleWizard from '../components/rules/RuleWizard'
 import SkeletonCard from '../components/SkeletonCard'
+import { backendTimeInChina } from '../utils/date'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -72,7 +73,7 @@ function buildTargetSummary(row, categories) {
 
 function formatTime(v) {
   if (!v) return '-'
-  const d = dayjs(v)
+  const d = backendTimeInChina(v)
   return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-'
 }
 

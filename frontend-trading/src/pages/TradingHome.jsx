@@ -18,6 +18,7 @@ import {
 import dayjs from 'dayjs';
 import { researchApi, tradeApi, tradePlanApi } from '../api';
 import { formatInstrumentDisplay } from '../features/trading/display';
+import { backendTimeInChina, chinaNow } from '../utils/datetime';
 import './TradingHome.css';
 
 const ACTIVE_PLAN_STATUSES = new Set(['draft', 'active', 'triggered']);
@@ -44,10 +45,11 @@ function pnlClass(value) {
 }
 
 function relativeDate(value) {
-  const date = dayjs(value);
+  const date = backendTimeInChina(value);
+  const now = chinaNow();
   if (!date.isValid()) return '-';
-  if (date.isSame(dayjs(), 'day')) return `今天 ${date.format('HH:mm')}`;
-  if (date.isSame(dayjs().subtract(1, 'day'), 'day')) return `昨天 ${date.format('HH:mm')}`;
+  if (date.isSame(now, 'day')) return `今天 ${date.format('HH:mm')}`;
+  if (date.isSame(now.subtract(1, 'day'), 'day')) return `昨天 ${date.format('HH:mm')}`;
   return date.format('MM-DD HH:mm');
 }
 
