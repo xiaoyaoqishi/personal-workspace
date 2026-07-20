@@ -32,7 +32,8 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
   const [editorLoadRevision, setEditorLoadRevision] = useState(0);
-  const saveTimer = useRef(null);
+  const pendingSaves = useRef(new Map());
+  const noteRequestRef = useRef(0);
   const creatingToday = useRef(false);
   const handledRouteAction = useRef('');
   const loadedInitialNoteId = useRef(null);
@@ -115,6 +116,7 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
   const handleWriteToday = useCallback(async (templateKey = '') => {
     if (creatingToday.current) return;
     creatingToday.current = true;
+    const requestId = ++noteRequestRef.current;
     const todayStr = dayjs().format('YYYY-MM-DD');
     try {
       const res = await noteApi.list({ note_type: 'diary', note_date: todayStr });
@@ -133,11 +135,13 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
           noteToOpen = updated.data;
           loadTree();
         }
-        setEditorLoadRevision(value => value + 1);
-        setActiveNote({ ...noteToOpen, _forceEdit: true });
-        setJumpAnchor('');
-        setSummaryTitle('');
-        setSummaries([]);
+        if (requestId === noteRequestRef.current) {
+          setEditorLoadRevision(value => value + 1);
+          setActiveNote({ ...noteToOpen, _forceEdit: true });
+          setJumpAnchor('');
+          setSummaryTitle('');
+          setSummaries([]);
+        }
       } else {
         const nb = notebooks[0];
         if (!nb) { message.warning('请先创建笔记本'); creatingToday.current = false; return; }
@@ -149,11 +153,13 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
           note_type: 'diary',
           note_date: todayStr,
         });
-        setEditorLoadRevision(value => value + 1);
-        setActiveNote({ ...newNote.data, _forceEdit: true });
-        setJumpAnchor('');
-        setSummaryTitle('');
-        setSummaries([]);
+        if (requestId === noteRequestRef.current) {
+          setEditorLoadRevision(value => value + 1);
+          setActiveNote({ ...newNote.data, _forceEdit: true });
+          setJumpAnchor('');
+          setSummaryTitle('');
+          setSummaries([]);
+        }
         loadTree();
         loadCalendar(dayjs());
       }
@@ -170,7 +176,10 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
     }
     if (loadedInitialNoteId.current === initialNoteId) return;
     loadedInitialNoteId.current = initialNoteId;
-    noteApi.get(initialNoteId).then(r => setActiveNote(r.data)).catch(() => {});
+    const requestId = ++noteRequestRef.current;
+    noteApi.get(initialNoteId).then((res) => {
+      if (requestId === noteRequestRef.current) setActiveNote(res.data);
+    }).catch(() => {});
   }, [initialNoteId]);
 
   useEffect(() => {
@@ -184,10 +193,12 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
   }, [initialAction, initialTemplate, initialNoteId, notebooks, handleWriteToday]);
 
   const handleSelectDate = async (date) => {
+    const requestId = ++noteRequestRef.current;
     setSelectedDate(date);
     const dateStr = date.format('YYYY-MM-DD');
     try {
       const res = await noteApi.list({ note_type: 'diary', note_date: dateStr });
+      if (requestId !== noteRequestRef.current) return;
       if (res.data.length > 0) {
         setActiveNote(res.data[0]);
         setJumpAnchor('');
@@ -200,8 +211,10 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
   };
 
   const handleSelectTreeNote = async (noteId) => {
+    const requestId = ++noteRequestRef.current;
     try {
       const res = await noteApi.get(noteId);
+      if (requestId !== noteRequestRef.current) return;
       setActiveNote(res.data);
       setJumpAnchor('');
       setSummaryTitle('');
@@ -263,6 +276,7 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
   };
 
   const loadSummary = async (year, month = null, title = '') => {
+    noteRequestRef.current += 1;
     setSummaryLoading(true);
     setSummaryTitle(title);
     setActiveNote(null);
@@ -296,17 +310,27 @@ export default function DiaryView({ initialNoteId, initialAnchor, initialAction,
 
   const handleUpdateNote = useCallback(async (id, updates) => {
     const { _flush, ...data } = updates;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    const pending = pendingSaves.current.get(id);
+    if (pending?.timer) clearTimeout(pending.timer);
+    const mergedData = { ...(pending?.data || {}), ...data };
+
     if (_flush) {
-      try { await noteApi.update(id, data); } catch {}
+      pendingSaves.current.delete(id);
+      try {
+        const res = await noteApi.update(id, mergedData);
+        setActiveNote((prev) => (prev?.id === res.data.id ? res.data : prev));
+      } catch {}
       return;
     }
-    saveTimer.current = setTimeout(async () => {
+
+    const timer = setTimeout(async () => {
+      pendingSaves.current.delete(id);
       try {
-        const res = await noteApi.update(id, data);
-        setActiveNote(res.data);
+        const res = await noteApi.update(id, mergedData);
+        setActiveNote((prev) => (prev?.id === res.data.id ? res.data : prev));
       } catch {}
     }, 800);
+    pendingSaves.current.set(id, { timer, data: mergedData });
   }, []);
 
   const handleDeleteNote = async (id) => {

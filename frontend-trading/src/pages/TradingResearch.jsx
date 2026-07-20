@@ -116,6 +116,20 @@ export default function TradingResearch() {
   const [folderModal, setFolderModal] = useState({ open: false, id: null, name: '', parent_id: null });
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
+  const selectedIdRef = useRef(null);
+  const selectionRevisionRef = useRef(0);
+
+  const updateSelectedId = (documentId) => {
+    selectedIdRef.current = documentId;
+    setSelectedId(documentId);
+  };
+
+  const selectDocument = (documentId) => {
+    selectionRevisionRef.current += 1;
+    updateSelectedId(documentId);
+    setEditing(false);
+    setIsNew(false);
+  };
 
   const roots = useMemo(() => folders.filter((folder) => !folder.parent_id), [folders]);
   const documentsByFolder = useMemo(() => documents.reduce((result, document) => {
@@ -151,10 +165,11 @@ export default function TradingResearch() {
         : ((await researchApi.documents.list({ size: 300, ...(requestedKeyword.trim() ? { keyword: requestedKeyword.trim() } : {}) })).data?.items || []);
       if (requestId !== listRequestRef.current) return;
       setDocuments(list);
+      const currentSelectedId = selectedIdRef.current;
       const nextId = preferredId && list.some((item) => item.id === preferredId)
         ? preferredId
-        : list.some((item) => item.id === selectedId) ? selectedId : list[0]?.id || null;
-      setSelectedId(nextId);
+        : list.some((item) => item.id === currentSelectedId) ? currentSelectedId : list[0]?.id || null;
+      updateSelectedId(nextId);
       if (!nextId) {
         setSelectedDocument(null);
         setBacklinks([]);
@@ -197,11 +212,12 @@ export default function TradingResearch() {
   useEffect(() => { loadDocument(selectedId, mode); }, [selectedId, mode, documents]);
 
   const changeMode = (nextMode) => {
+    selectionRevisionRef.current += 1;
     listRequestRef.current += 1;
     detailRequestRef.current += 1;
     setMode(nextMode);
     setDocuments([]);
-    setSelectedId(null);
+    updateSelectedId(null);
     setSelectedDocument(null);
     setBacklinks([]);
     setEditing(false);
@@ -216,7 +232,8 @@ export default function TradingResearch() {
     }
     const targetFolderId = folderId || roots[0]?.id || folders[0].id;
     setExpanded((current) => ({ ...current, [targetFolderId]: true }));
-    setSelectedId(null);
+    selectionRevisionRef.current += 1;
+    updateSelectedId(null);
     setSelectedDocument(null);
     setBacklinks([]);
     setIsNew(true);
@@ -244,15 +261,21 @@ export default function TradingResearch() {
       return;
     }
     const creating = isNew;
+    const selectionRevision = selectionRevisionRef.current;
     setSaving(true);
     try {
       const payload = { ...draft, title, content: sanitizeResearchHtml(draft.content) };
       const saved = creating
         ? (await researchApi.documents.create(payload)).data
         : (await researchApi.documents.update(selectedDocument.id, payload)).data;
+      if (selectionRevision !== selectionRevisionRef.current) {
+        setDocuments((current) => current.map((item) => (item.id === saved.id ? { ...item, ...saved } : item)));
+        message.success(creating ? '研究已创建' : '研究已保存');
+        return;
+      }
       setEditing(false);
       setIsNew(false);
-      setSelectedId(saved.id);
+      updateSelectedId(saved.id);
       setExpanded((current) => ({ ...current, [saved.folder_id]: true }));
       await Promise.all([loadFolders(), loadDocuments('active', keyword, saved.id)]);
       await loadDocument(saved.id, 'active');
@@ -267,7 +290,7 @@ export default function TradingResearch() {
   const deleteDocument = async (documentId) => {
     await researchApi.documents.delete(documentId);
     if (selectedId === documentId) {
-      setSelectedId(null);
+      updateSelectedId(null);
       setSelectedDocument(null);
     }
     await Promise.all([loadFolders(), loadDocuments('active', keyword)]);
@@ -317,9 +340,11 @@ export default function TradingResearch() {
   };
 
   const openDocumentById = async (documentId) => {
+    selectionRevisionRef.current += 1;
     setMode('active');
     setEditing(false);
-    setSelectedId(documentId);
+    setIsNew(false);
+    updateSelectedId(documentId);
     const target = (await researchApi.documents.get(documentId)).data;
     const path = {};
     let folder = folders.find((item) => item.id === target.folder_id);
@@ -355,7 +380,7 @@ export default function TradingResearch() {
   const clearRecycle = async () => {
     await researchApi.recycle.clear();
     setSelectedDocument(null);
-    setSelectedId(null);
+    updateSelectedId(null);
     message.success('研究回收站已清空');
     await loadDocuments('recycle', '');
   };
@@ -388,7 +413,7 @@ export default function TradingResearch() {
               <Spin spinning={loading} wrapperClassName="research-tree-spin">
                 <div className="research-folder-tree">
                   {keyword.trim() ? documents.map((document) => (
-                    <div key={document.id} className={`research-search-result${selectedId === document.id ? ' active' : ''}`} onClick={() => setSelectedId(document.id)}>
+                    <div key={document.id} className={`research-search-result${selectedId === document.id ? ' active' : ''}`} onClick={() => selectDocument(document.id)}>
                       <strong>{document.title}</strong>
                       <span>{document.word_count || 0} 字 · {backendTimeInChina(document.updated_at).format('MM-DD HH:mm')}</span>
                     </div>
@@ -401,7 +426,7 @@ export default function TradingResearch() {
                       expanded={expanded}
                       activeId={selectedId}
                       onToggle={(id) => setExpanded((current) => ({ ...current, [id]: !current[id] }))}
-                      onSelect={(id) => { setSelectedId(id); setEditing(false); }}
+                      onSelect={selectDocument}
                       onCreate={startNew}
                       onEditFolder={openFolderModal}
                       onDeleteFolder={deleteFolder}
@@ -416,7 +441,7 @@ export default function TradingResearch() {
               <div className="research-side-summary">🗑 已删除研究 <span>{documents.length}</span></div>
               <div className="research-recycle-list">
                 {documents.map((document) => (
-                  <button type="button" key={document.id} className={selectedId === document.id ? 'active' : ''} onClick={() => setSelectedId(document.id)}>
+                  <button type="button" key={document.id} className={selectedId === document.id ? 'active' : ''} onClick={() => selectDocument(document.id)}>
                     <strong>{document.title}</strong>
                     <span>{dayjs(document.deleted_at).format('YYYY-MM-DD HH:mm')}</span>
                   </button>

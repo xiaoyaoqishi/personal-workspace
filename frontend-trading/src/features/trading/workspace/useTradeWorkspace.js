@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { message } from 'antd';
 import { tradeApi, tradeLinkedPlanApi, tradeReviewApi } from '../../../api';
 import {
@@ -33,6 +33,7 @@ export function useTradeWorkspace() {
   const [detailReview, setDetailReview] = useState(EMPTY_REVIEW);
   const [detailReviewExists, setDetailReviewExists] = useState(false);
   const [detailLinkedPlans, setDetailLinkedPlans] = useState([]);
+  const detailRequestRef = useRef(0);
 
   useEffect(() => {
     if (viewMode === 'fills') loadTrades();
@@ -132,6 +133,7 @@ export function useTradeWorkspace() {
   };
 
   const loadTradeDetail = async (tradeId) => {
+    const requestId = ++detailRequestRef.current;
     setDetailLoading(true);
     try {
       const [tradeRes, reviewRes, linkedPlansRes, riskPointHistoryRes] = await Promise.all([
@@ -140,6 +142,7 @@ export function useTradeWorkspace() {
         tradeLinkedPlanApi.get(tradeId).catch(() => ({ data: [] })),
         tradeApi.riskPointHistory(tradeId).catch(() => ({ data: [] })),
       ]);
+      if (requestId !== detailRequestRef.current) return;
       setDetailLinkedPlans(Array.isArray(linkedPlansRes.data) ? linkedPlansRes.data : []);
       setDetailRiskPointHistory(Array.isArray(riskPointHistoryRes.data) ? riskPointHistoryRes.data : []);
       const tradeData = tradeRes.data || null;
@@ -155,9 +158,9 @@ export function useTradeWorkspace() {
       setDetailReview(normalizedReview);
       setDetailReviewExists(!!reviewRes.data);
     } catch {
-      message.error('详情加载失败');
+      if (requestId === detailRequestRef.current) message.error('详情加载失败');
     }
-    setDetailLoading(false);
+    if (requestId === detailRequestRef.current) setDetailLoading(false);
   };
 
   const openTradeDetail = async (tradeId) => {

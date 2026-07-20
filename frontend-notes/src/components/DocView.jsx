@@ -123,7 +123,8 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   const [transferNote, setTransferNote] = useState(null);
   const [transferTargetNb, setTransferTargetNb] = useState(null);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
-  const saveTimer = useRef(null);
+  const pendingSaves = useRef(new Map());
+  const noteRequestRef = useRef(0);
   const createdFromEntryRef = useRef(false);
 
   const loadNotes = useCallback(async () => {
@@ -168,7 +169,10 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
     }
     if (initialNoteId && typeof initialNoteId === 'number') {
       createdFromEntryRef.current = false;
-      noteApi.get(initialNoteId).then(r => setActiveNote(r.data)).catch(() => {});
+      const requestId = ++noteRequestRef.current;
+      noteApi.get(initialNoteId).then((res) => {
+        if (requestId === noteRequestRef.current) setActiveNote(res.data);
+      }).catch(() => {});
     }
   }, [initialNoteId]);
 
@@ -179,6 +183,7 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   const handleCreateDoc = async (nbId) => {
     const targetNb = nbId || notebooks.find(n => !n.parent_id)?.id;
     if (!targetNb) { message.warning('请先创建文件夹'); return; }
+    const requestId = ++noteRequestRef.current;
     try {
       const res = await noteApi.create({
         notebook_id: targetNb,
@@ -186,7 +191,9 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
         content: '',
         note_type: 'doc',
       });
-      setActiveNote({ ...res.data, _justCreated: true });
+      if (requestId === noteRequestRef.current) {
+        setActiveNote({ ...res.data, _justCreated: true });
+      }
       setExpandedFolders(prev => ({ ...prev, [targetNb]: true }));
       loadNotes();
     } catch { message.error('创建失败'); }
@@ -219,21 +226,35 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
 
   const handleUpdateNote = useCallback(async (id, updates) => {
     const { _flush, ...data } = updates;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    const pending = pendingSaves.current.get(id);
+    if (pending?.timer) clearTimeout(pending.timer);
+    const mergedData = { ...(pending?.data || {}), ...data };
+
     if (_flush) {
-      try { await noteApi.update(id, data); } catch {}
+      pendingSaves.current.delete(id);
+      try {
+        const res = await noteApi.update(id, mergedData);
+        setActiveNote((prev) => {
+          if (!prev || prev.id !== res.data.id) return prev;
+          return { ...res.data, _justCreated: prev._justCreated === true };
+        });
+        loadNotes();
+      } catch {}
       return;
     }
-    saveTimer.current = setTimeout(async () => {
+
+    const timer = setTimeout(async () => {
+      pendingSaves.current.delete(id);
       try {
-        const res = await noteApi.update(id, data);
+        const res = await noteApi.update(id, mergedData);
         setActiveNote((prev) => {
-          if (!prev || prev.id !== res.data.id) return res.data;
+          if (!prev || prev.id !== res.data.id) return prev;
           return { ...res.data, _justCreated: prev._justCreated === true };
         });
         loadNotes();
       } catch {}
     }, 800);
+    pendingSaves.current.set(id, { timer, data: mergedData });
   }, [loadNotes]);
 
   const handleDeleteNote = async (id) => {
@@ -283,10 +304,12 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
 
   const openSearchResult = async (item) => {
     if (!item) return;
+    const requestId = ++noteRequestRef.current;
     pushHistory(keyword);
     expandNotebookPath(item.notebook_id);
     try {
       const res = await noteApi.get(item.id);
+      if (requestId !== noteRequestRef.current) return;
       setActiveNote(res.data);
       setJumpAnchor('');
     } catch {}
@@ -297,8 +320,10 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
     if (!text) return;
     const name = text.split('#')[0].trim();
     if (!name) return;
+    const requestId = ++noteRequestRef.current;
     try {
       const res = await noteApi.resolveLink(name);
+      if (requestId !== noteRequestRef.current) return;
       const row = res.data?.matches?.[0];
       if (!row) {
         message.warning(`未找到文档：${name}`);
@@ -306,6 +331,7 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
       }
       expandNotebookPath(row.notebook_id);
       const noteRes = await noteApi.get(row.id);
+      if (requestId !== noteRequestRef.current) return;
       setActiveNote(noteRes.data);
       setJumpAnchor('');
     } catch {
@@ -336,6 +362,12 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
 
   const toggleFolder = (nbId) => {
     setExpandedFolders(prev => ({ ...prev, [nbId]: !prev[nbId] }));
+  };
+
+  const handleSelectNote = (note) => {
+    noteRequestRef.current += 1;
+    setActiveNote(note);
+    setJumpAnchor('');
   };
 
   const openTransfer = (note, mode) => {
@@ -473,7 +505,7 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
                 activeNote={activeNote}
                 expandedFolders={expandedFolders}
                 onToggle={toggleFolder}
-                onSelectNote={setActiveNote}
+                onSelectNote={handleSelectNote}
                 onDeleteNote={handleDeleteNote}
                 onDeleteFolder={handleDeleteFolder}
                 onCreateDoc={handleCreateDoc}
@@ -492,6 +524,7 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
       <div className="main-content">
         {activeNote ? (
           <NoteEditor
+            key={activeNote.id}
             note={activeNote}
             onUpdate={handleUpdateNote}
             onOpenWikiLink={handleOpenWikiLink}
