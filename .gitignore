@@ -14,7 +14,15 @@ dist/
 
 .dev-logs/
 # Local AI assistant config
+AGENTS.md
+CLAUDE.md
 .mcp.json
 mcp.json
 .claude/
 .codex/
+
+# Local test, coverage, and OS metadata
+.pytest_cache/
+.coverage
+htmlcov/
+.DS_Store
