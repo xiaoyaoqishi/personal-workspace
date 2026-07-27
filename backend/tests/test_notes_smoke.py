@@ -59,3 +59,51 @@ def test_notes_api_no_longer_opens_trading_scope(admin_login):
     listing = client.get("/api/notes", params={"module_scope": "trading", "note_type": "doc"})
     assert listing.status_code == 200
     assert any(item["title"] == "alpha research" and item["module_scope"] == "notes" for item in listing.json())
+
+
+def test_documents_can_be_reordered_and_moved_between_notebooks(admin_login):
+    client = admin_login
+    source_id = client.post("/api/notebooks", json={"name": "Drag Source"}).json()["id"]
+    target_id = client.post("/api/notebooks", json={"name": "Drag Target"}).json()["id"]
+
+    first = client.post(
+        "/api/notes",
+        json={"notebook_id": source_id, "title": "first", "note_type": "doc"},
+    ).json()
+    second = client.post(
+        "/api/notes",
+        json={"notebook_id": source_id, "title": "second", "note_type": "doc"},
+    ).json()
+    target = client.post(
+        "/api/notes",
+        json={"notebook_id": target_id, "title": "target", "note_type": "doc"},
+    ).json()
+
+    reordered = client.post(
+        "/api/notes/reorder",
+        json={
+            "note_id": second["id"],
+            "target_notebook_id": source_id,
+            "target_note_id": first["id"],
+            "placement": "before",
+        },
+    )
+    assert reordered.status_code == 200
+
+    source_listing = client.get("/api/notes", params={"notebook_id": source_id, "note_type": "doc"})
+    assert [row["id"] for row in source_listing.json()] == [second["id"], first["id"]]
+
+    moved = client.post(
+        "/api/notes/reorder",
+        json={
+            "note_id": first["id"],
+            "target_notebook_id": target_id,
+            "target_note_id": target["id"],
+            "placement": "after",
+        },
+    )
+    assert moved.status_code == 200
+    assert moved.json()["notebook_id"] == target_id
+
+    target_listing = client.get("/api/notes", params={"notebook_id": target_id, "note_type": "doc"})
+    assert [row["id"] for row in target_listing.json()] == [target["id"], first["id"]]

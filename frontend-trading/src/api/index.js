@@ -95,6 +95,7 @@ export const researchApi = {
     get: (id) => api.get(`/trades/research/documents/${id}`),
     create: (data) => api.post('/trades/research/documents', data),
     update: (id, data) => api.put(`/trades/research/documents/${id}`, data),
+    reorder: (data) => api.post('/trades/research/documents/reorder', data),
     delete: (id) => api.delete(`/trades/research/documents/${id}`),
     backlinks: (id) => api.get(`/trades/research/documents/${id}/backlinks`),
     resolveLink: (name) => api.get('/trades/research/resolve-link', { params: { name } }),

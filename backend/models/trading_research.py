@@ -32,6 +32,7 @@ class TradingResearchDocument(Base):
     tags_text = Column("tags", Text)
     is_pinned = Column(Boolean, default=False, index=True)
     word_count = Column(Integer, default=0)
+    sort_order = Column(Integer, default=0)
     owner_role = Column(String(20), default="admin", index=True)
     is_deleted = Column(Boolean, default=False, index=True)
     deleted_at = Column(DateTime, nullable=True)

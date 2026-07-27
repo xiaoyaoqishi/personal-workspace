@@ -24,6 +24,7 @@ export const noteApi = {
   get: (id) => api.get(`/notes/${id}`),
   create: (data) => api.post('/notes', data),
   update: (id, data) => api.put(`/notes/${id}`, data),
+  reorder: (data) => api.post('/notes/reorder', data),
   delete: (id) => api.delete(`/notes/${id}`),
   calendar: (year, month) => api.get('/notes/calendar', { params: { year, month } }),
   stats: () => api.get('/notes/stats'),

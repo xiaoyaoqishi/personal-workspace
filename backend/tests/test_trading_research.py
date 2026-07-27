@@ -101,3 +101,57 @@ def test_legacy_trading_notes_are_migrated_idempotently(admin_login):
         assert migrated.content == "<p>需要迁移</p>"
     finally:
         db.close()
+
+
+def test_trading_research_documents_can_be_reordered_and_moved(admin_login):
+    client = admin_login
+    source_id = client.post("/api/trades/research/folders", json={"name": "排序来源"}).json()["id"]
+    target_id = client.post("/api/trades/research/folders", json={"name": "排序目标"}).json()["id"]
+
+    first = client.post(
+        "/api/trades/research/documents",
+        json={"folder_id": source_id, "title": "第一篇"},
+    ).json()
+    second = client.post(
+        "/api/trades/research/documents",
+        json={"folder_id": source_id, "title": "第二篇"},
+    ).json()
+    target = client.post(
+        "/api/trades/research/documents",
+        json={"folder_id": target_id, "title": "目标篇"},
+    ).json()
+
+    reordered = client.post(
+        "/api/trades/research/documents/reorder",
+        json={
+            "document_id": second["id"],
+            "target_folder_id": source_id,
+            "target_document_id": first["id"],
+            "placement": "before",
+        },
+    )
+    assert reordered.status_code == 200
+
+    source_listing = client.get(
+        "/api/trades/research/documents",
+        params={"folder_id": source_id, "order": "manual"},
+    )
+    assert [row["id"] for row in source_listing.json()["items"]] == [second["id"], first["id"]]
+
+    moved = client.post(
+        "/api/trades/research/documents/reorder",
+        json={
+            "document_id": first["id"],
+            "target_folder_id": target_id,
+            "target_document_id": target["id"],
+            "placement": "after",
+        },
+    )
+    assert moved.status_code == 200
+    assert moved.json()["folder_id"] == target_id
+
+    target_listing = client.get(
+        "/api/trades/research/documents",
+        params={"folder_id": target_id, "order": "manual"},
+    )
+    assert [row["id"] for row in target_listing.json()["items"]] == [target["id"], first["id"]]

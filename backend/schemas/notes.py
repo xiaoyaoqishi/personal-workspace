@@ -44,6 +44,7 @@ class NoteCreate(BaseModel):
     tags: Optional[str] = None
     is_pinned: Optional[bool] = False
     word_count: Optional[int] = 0
+    sort_order: Optional[int] = None
     module_scope: Optional[str] = "notes"
 
 
@@ -56,7 +57,15 @@ class NoteUpdate(BaseModel):
     tags: Optional[str] = None
     is_pinned: Optional[bool] = None
     word_count: Optional[int] = None
+    sort_order: Optional[int] = None
     module_scope: Optional[str] = None
+
+
+class NoteReorder(BaseModel):
+    note_id: int
+    target_notebook_id: int
+    target_note_id: Optional[int] = None
+    placement: str = Field(default="end", pattern="^(before|after|end)$")
 
 
 class NoteResponse(NoteCreate):

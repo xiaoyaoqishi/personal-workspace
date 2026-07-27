@@ -16,6 +16,7 @@ notes_calendar = notes_runtime.notes_calendar
 create_note = notes_runtime.create_note
 get_note = notes_runtime.get_note
 update_note = notes_runtime.update_note
+reorder_note = notes_runtime.reorder_note
 delete_note = notes_runtime.delete_note
 
 list_todos = notes_runtime.list_todos

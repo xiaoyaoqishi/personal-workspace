@@ -31,6 +31,7 @@ router.put("/trades/research/folders/{folder_id:int}")(research_service.update_r
 router.delete("/trades/research/folders/{folder_id:int}")(research_service.delete_research_folder)
 router.get("/trades/research/documents")(research_service.list_research_documents)
 router.post("/trades/research/documents")(research_service.create_research_document)
+router.post("/trades/research/documents/reorder")(research_service.reorder_research_document)
 router.get("/trades/research/documents/{document_id:int}")(research_service.get_research_document)
 router.put("/trades/research/documents/{document_id:int}")(research_service.update_research_document)
 router.delete("/trades/research/documents/{document_id:int}")(research_service.delete_research_document)

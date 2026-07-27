@@ -19,6 +19,7 @@ from models import (
 )
 from schemas.trading_research import (
     TradingResearchDocumentCreate,
+    TradingResearchDocumentReorder,
     TradingResearchDocumentUpdate,
     TradingResearchFolderCreate,
     TradingResearchFolderUpdate,
@@ -184,6 +185,7 @@ def list_research_documents(
     keyword: Optional[str] = None,
     tag: Optional[str] = None,
     owner_role: Optional[str] = None,
+    order: str = Query("recent", pattern="^(recent|manual)$"),
     page: int = Query(1, ge=1),
     size: int = Query(100, ge=1, le=300),
     db: Session = Depends(get_db),
@@ -200,12 +202,15 @@ def list_research_documents(
     if tag and tag.strip():
         q = q.filter(TradingResearchDocument.tags_text.contains(tag.strip()))
     total = q.count()
-    rows = (
-        q.order_by(TradingResearchDocument.is_pinned.desc(), TradingResearchDocument.updated_at.desc(), TradingResearchDocument.id.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
+    if order == "manual":
+        q = q.order_by(TradingResearchDocument.sort_order.asc(), TradingResearchDocument.id.asc())
+    else:
+        q = q.order_by(
+            TradingResearchDocument.is_pinned.desc(),
+            TradingResearchDocument.updated_at.desc(),
+            TradingResearchDocument.id.desc(),
+        )
+    rows = q.offset((page - 1) * size).limit(size).all()
     return {"items": _attach_document_fields(rows), "total": total}
 
 
@@ -217,6 +222,16 @@ def create_research_document(data: TradingResearchDocumentCreate, db: Session = 
     if not payload["title"]:
         raise HTTPException(400, "Document title is required")
     payload["word_count"] = _word_count(payload.get("content"))
+    if payload.get("sort_order") is None:
+        current_max = (
+            db.query(func.max(TradingResearchDocument.sort_order))
+            .filter(
+                TradingResearchDocument.folder_id == data.folder_id,
+                TradingResearchDocument.is_deleted == False,  # noqa: E712
+            )
+            .scalar()
+        )
+        payload["sort_order"] = (current_max if current_max is not None else -1) + 1
     row = TradingResearchDocument(**payload, owner_role=folder.owner_role or legacy_runtime._owner_role_value_for_create())
     row.tags_text = serialize_legacy_tags(normalize_tag_list(tags))
     db.add(row)
@@ -239,12 +254,41 @@ def update_research_document(document_id: int, data: TradingResearchDocumentUpda
     old_title = row.title
     if "folder_id" in updates:
         _folder_or_404(db, updates["folder_id"])
+        if updates["folder_id"] != row.folder_id and "sort_order" not in updates:
+            current_max = (
+                db.query(func.max(TradingResearchDocument.sort_order))
+                .filter(
+                    TradingResearchDocument.folder_id == updates["folder_id"],
+                    TradingResearchDocument.is_deleted == False,  # noqa: E712
+                )
+                .scalar()
+            )
+            updates["sort_order"] = (current_max if current_max is not None else -1) + 1
     if "title" in updates:
         updates["title"] = (updates["title"] or "").strip()
         if not updates["title"]:
             raise HTTPException(400, "Document title is required")
     if "content" in updates:
         updates["word_count"] = _word_count(updates["content"])
+    if "is_pinned" in updates and bool(updates["is_pinned"]) != bool(row.is_pinned) and "sort_order" not in updates:
+        boundary = (
+            db.query(
+                func.min(TradingResearchDocument.sort_order)
+                if updates["is_pinned"]
+                else func.max(TradingResearchDocument.sort_order)
+            )
+            .filter(
+                TradingResearchDocument.folder_id == updates.get("folder_id", row.folder_id),
+                TradingResearchDocument.is_deleted == False,  # noqa: E712
+                TradingResearchDocument.id != row.id,
+            )
+            .scalar()
+        )
+        updates["sort_order"] = (
+            (boundary if boundary is not None else 0) - 1
+            if updates["is_pinned"]
+            else (boundary if boundary is not None else -1) + 1
+        )
     for key, value in updates.items():
         setattr(row, key, value)
     if tags is not None:
@@ -255,6 +299,52 @@ def update_research_document(document_id: int, data: TradingResearchDocumentUpda
     db.commit()
     db.refresh(row)
     return _attach_document_fields([row])[0]
+
+
+def reorder_research_document(data: TradingResearchDocumentReorder, db: Session = Depends(get_db)):
+    document = _document_or_404(db, data.document_id)
+    target_folder = _folder_or_404(db, data.target_folder_id)
+
+    target_document = None
+    if data.target_document_id is not None:
+        target_document = db.query(TradingResearchDocument).filter(
+            TradingResearchDocument.id == data.target_document_id,
+            TradingResearchDocument.folder_id == target_folder.id,
+            TradingResearchDocument.is_deleted == False,  # noqa: E712
+        ).first()
+        if not target_document:
+            raise HTTPException(404, "Target research document not found")
+        if target_document.id == document.id:
+            return _attach_document_fields([document])[0]
+
+    source_folder_id = document.folder_id
+    target_documents = db.query(TradingResearchDocument).filter(
+        TradingResearchDocument.folder_id == target_folder.id,
+        TradingResearchDocument.is_deleted == False,  # noqa: E712
+        TradingResearchDocument.id != document.id,
+    ).order_by(TradingResearchDocument.sort_order.asc(), TradingResearchDocument.id.asc()).all()
+
+    insert_at = len(target_documents)
+    if target_document is not None and data.placement != "end":
+        target_index = next(index for index, row in enumerate(target_documents) if row.id == target_document.id)
+        insert_at = target_index + (1 if data.placement == "after" else 0)
+    target_documents.insert(insert_at, document)
+    document.folder_id = target_folder.id
+    for index, row in enumerate(target_documents):
+        row.sort_order = index
+
+    if source_folder_id != target_folder.id:
+        source_documents = db.query(TradingResearchDocument).filter(
+            TradingResearchDocument.folder_id == source_folder_id,
+            TradingResearchDocument.is_deleted == False,  # noqa: E712
+            TradingResearchDocument.id != document.id,
+        ).order_by(TradingResearchDocument.sort_order.asc(), TradingResearchDocument.id.asc()).all()
+        for index, row in enumerate(source_documents):
+            row.sort_order = index
+
+    db.commit()
+    db.refresh(document)
+    return _attach_document_fields([document])[0]
 
 
 def delete_research_document(document_id: int, db: Session = Depends(get_db)):
@@ -380,6 +470,7 @@ def migrate_legacy_trading_research() -> None:
                     tags_text=legacy.tags,
                     is_pinned=bool(legacy.is_pinned),
                     word_count=legacy.word_count or _word_count(legacy.content),
+                    sort_order=legacy.sort_order or 0,
                     owner_role=legacy.owner_role or folder.owner_role,
                     is_deleted=bool(legacy.is_deleted),
                     deleted_at=legacy.deleted_at,

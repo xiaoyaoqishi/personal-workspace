@@ -4,7 +4,12 @@ import { SearchOutlined, DeleteOutlined, FolderOutlined, FolderAddOutlined, File
 import { noteApi, notebookApi } from '../api';
 import NoteEditor from './NoteEditor';
 
-function FolderNode({ nb, allNotebooks, notesByNb, activeNote, expandedFolders, onToggle, onSelectNote, onDeleteNote, onDeleteFolder, onCreateDoc, onCreateSubfolder, onCopyNote, onMoveNote }) {
+function FolderNode({
+  nb, allNotebooks, notesByNb, activeNote, expandedFolders, onToggle, onSelectNote,
+  onDeleteNote, onDeleteFolder, onCreateDoc, onCreateSubfolder, onCopyNote, onMoveNote,
+  draggedNoteId, dropTarget, onDragStart, onDragEnd, onDragOverFolder, onDropOnFolder,
+  onDragOverNote, onDropOnNote,
+}) {
   const children = allNotebooks.filter(c => c.parent_id === nb.id);
   const notes = notesByNb[nb.id] || [];
   const isExpanded = expandedFolders[nb.id];
@@ -12,8 +17,10 @@ function FolderNode({ nb, allNotebooks, notesByNb, activeNote, expandedFolders, 
   return (
     <div>
       <div
-        className={`tree-folder`}
+        className={`tree-folder ${dropTarget?.type === 'folder' && dropTarget.id === nb.id ? 'drag-over' : ''}`}
         onClick={() => onToggle(nb.id)}
+        onDragOver={(event) => onDragOverFolder(event, nb.id)}
+        onDrop={(event) => onDropOnFolder(event, nb.id)}
       >
         <span className="tree-folder-main">
           <span className="tree-chevron">
@@ -60,13 +67,31 @@ function FolderNode({ nb, allNotebooks, notesByNb, activeNote, expandedFolders, 
               onCreateSubfolder={onCreateSubfolder}
               onCopyNote={onCopyNote}
               onMoveNote={onMoveNote}
+              draggedNoteId={draggedNoteId}
+              dropTarget={dropTarget}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              onDragOverFolder={onDragOverFolder}
+              onDropOnFolder={onDropOnFolder}
+              onDragOverNote={onDragOverNote}
+              onDropOnNote={onDropOnNote}
             />
           ))}
           {notes.map(note => (
             <div
               key={note.id}
-              className={`tree-file ${activeNote?.id === note.id ? 'active' : ''}`}
+              className={[
+                'tree-file',
+                activeNote?.id === note.id ? 'active' : '',
+                draggedNoteId === note.id ? 'dragging' : '',
+                dropTarget?.type === 'note' && dropTarget.id === note.id ? `drag-${dropTarget.placement}` : '',
+              ].filter(Boolean).join(' ')}
               onClick={() => onSelectNote(note)}
+              draggable
+              onDragStart={(event) => onDragStart(event, note)}
+              onDragEnd={onDragEnd}
+              onDragOver={(event) => onDragOverNote(event, note)}
+              onDrop={(event) => onDropOnNote(event, note)}
             >
               <span className="tree-file-main"><FileTextOutlined /> <span>{note.title || '无标题'}</span></span>
               <span className="tree-file-actions" onClick={e => e.stopPropagation()}>
@@ -122,6 +147,8 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   const [transferMode, setTransferMode] = useState('copy');
   const [transferNote, setTransferNote] = useState(null);
   const [transferTargetNb, setTransferTargetNb] = useState(null);
+  const [draggedNoteId, setDraggedNoteId] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
   const pendingSaves = useRef(new Map());
   const noteRequestRef = useRef(0);
@@ -391,8 +418,10 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
         setActiveNote(created.data);
         message.success('复制成功');
       } else {
-        const updated = await noteApi.update(transferNote.id, {
-          notebook_id: transferTargetNb,
+        const updated = await noteApi.reorder({
+          note_id: transferNote.id,
+          target_notebook_id: transferTargetNb,
+          placement: 'end',
         });
         if (activeNote?.id === transferNote.id) setActiveNote(updated.data);
         message.success('移动成功');
@@ -403,6 +432,74 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
     } catch (e) {
       message.error(e.response?.data?.detail || '操作失败');
     }
+  };
+
+  const handleDragStart = (event, note) => {
+    setDraggedNoteId(note.id);
+    setDropTarget(null);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(note.id));
+  };
+
+  const handleDragEnd = () => {
+    setDraggedNoteId(null);
+    setDropTarget(null);
+  };
+
+  const handleDragOverFolder = (event, notebookId) => {
+    if (!draggedNoteId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    setDropTarget({ type: 'folder', id: notebookId });
+  };
+
+  const handleDragOverNote = (event, note) => {
+    if (!draggedNoteId || draggedNoteId === note.id) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const placement = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    setDropTarget({ type: 'note', id: note.id, placement });
+  };
+
+  const submitDragMove = async (targetNotebookId, targetNoteId = null, placement = 'end') => {
+    if (!draggedNoteId) return;
+    try {
+      const res = await noteApi.reorder({
+        note_id: draggedNoteId,
+        target_notebook_id: targetNotebookId,
+        target_note_id: targetNoteId,
+        placement,
+      });
+      if (activeNote?.id === draggedNoteId) setActiveNote(res.data);
+      setExpandedFolders(prev => ({ ...prev, [targetNotebookId]: true }));
+      await loadNotes();
+      message.success('文档位置已更新');
+    } catch (error) {
+      message.error(error.response?.data?.detail || '移动失败');
+    } finally {
+      handleDragEnd();
+    }
+  };
+
+  const handleDropOnFolder = (event, notebookId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    submitDragMove(notebookId);
+  };
+
+  const handleDropOnNote = (event, note) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!draggedNoteId || draggedNoteId === note.id) {
+      handleDragEnd();
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const placement = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    submitDragMove(note.notebook_id, note.id, placement);
   };
 
   const notesByNb = {};
@@ -512,6 +609,14 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
                 onCreateSubfolder={openCreateSubfolder}
                 onCopyNote={(note) => openTransfer(note, 'copy')}
                 onMoveNote={(note) => openTransfer(note, 'move')}
+                draggedNoteId={draggedNoteId}
+                dropTarget={dropTarget}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOverFolder={handleDragOverFolder}
+                onDropOnFolder={handleDropOnFolder}
+                onDragOverNote={handleDragOverNote}
+                onDropOnNote={handleDropOnNote}
               />
             )) : (
               <button className="doc-tree-empty" onClick={openCreateRootFolder}>

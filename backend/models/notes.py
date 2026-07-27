@@ -38,6 +38,7 @@ class Note(Base):
     tags = Column(Text)
     is_pinned = Column(Boolean, default=False)
     word_count = Column(Integer, default=0)
+    sort_order = Column(Integer, default=0)
     module_scope = Column(String(30), default="notes", index=True)
     owner_role = Column(String(20), default="admin", index=True)
     is_deleted = Column(Boolean, default=False)

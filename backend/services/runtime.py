@@ -170,9 +170,18 @@ def _migrate_legacy_schema():
             db.execute(text("ALTER TABLE notes ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
         if "deleted_at" not in note_cols:
             db.execute(text("ALTER TABLE notes ADD COLUMN deleted_at DATETIME"))
+        if "sort_order" not in note_cols:
+            db.execute(text("ALTER TABLE notes ADD COLUMN sort_order INTEGER DEFAULT 0"))
+            db.execute(text("UPDATE notes SET sort_order=id"))
         _ensure_sqlite_column(db, "notes", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
         _ensure_sqlite_column(db, "notes", "module_scope", "VARCHAR(30) DEFAULT 'notes'")
         db.execute(text("UPDATE notes SET module_scope='notes' WHERE module_scope IS NULL OR module_scope=''"))
+
+        if _table_exists(db, "trading_research_documents"):
+            research_document_cols = _column_names(db, "trading_research_documents")
+            if "sort_order" not in research_document_cols:
+                db.execute(text("ALTER TABLE trading_research_documents ADD COLUMN sort_order INTEGER DEFAULT 0"))
+                db.execute(text("UPDATE trading_research_documents SET sort_order=id"))
 
         todo_cols = _column_names(db, "todo_items")
         if "source_anchor_text" not in todo_cols:

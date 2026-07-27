@@ -7,14 +7,14 @@ from typing import List, Optional
 
 from bs4 import BeautifulSoup
 from fastapi import Depends, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from core import context
 from core.db import SessionLocal, get_db
 from core.security import normalize_owner_role
 from models import Note, NoteLink, Notebook, TodoItem
-from schemas.notes import NoteCreate, NoteUpdate, NotebookCreate, NotebookUpdate, TodoCreate, TodoUpdate
+from schemas.notes import NoteCreate, NoteReorder, NoteUpdate, NotebookCreate, NotebookUpdate, TodoCreate, TodoUpdate
 
 
 TODO_PRIORITIES = {"low", "medium", "high"}
@@ -154,7 +154,11 @@ def list_notes(
         q = q.filter(Note.tags.contains(tag))
     if is_pinned is not None:
         q = q.filter(Note.is_pinned == is_pinned)
-    return q.order_by(Note.is_pinned.desc(), Note.updated_at.desc()).offset((page - 1) * size).limit(size).all()
+    if note_type == "doc":
+        q = q.order_by(Note.sort_order.asc(), Note.id.asc())
+    else:
+        q = q.order_by(Note.is_pinned.desc(), Note.updated_at.desc())
+    return q.offset((page - 1) * size).limit(size).all()
 
 
 def note_stats(module_scope: Optional[str] = None, db: Session = Depends(get_db)):
@@ -469,6 +473,17 @@ def create_note(data: NoteCreate, db: Session = Depends(get_db)):
     if nb.module_scope != requested_scope:
         raise HTTPException(400, "notebook scope mismatch")
     payload["module_scope"] = nb.module_scope
+    if payload.get("sort_order") is None:
+        current_max = (
+            db.query(func.max(Note.sort_order))
+            .filter(
+                Note.notebook_id == data.notebook_id,
+                Note.note_type == data.note_type,
+                Note.is_deleted == False,  # noqa: E712
+            )
+            .scalar()
+        )
+        payload["sort_order"] = (current_max if current_max is not None else -1) + 1
     obj = Note(**payload, owner_role=nb.owner_role or _owner_role_value_for_create())
     db.add(obj)
     db.commit()
@@ -503,6 +518,73 @@ def update_note(note_id: int, module_scope: Optional[str] = None, data: NoteUpda
     db.commit()
     db.refresh(n)
     return n
+
+
+def reorder_note(data: NoteReorder, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
+    note = db.query(Note).filter(
+        Note.id == data.note_id,
+        Note.note_type == "doc",
+        Note.is_deleted == False,  # noqa: E712
+        Note.module_scope == scope,
+    ).first()
+    if not note:
+        raise HTTPException(404, "Note not found")
+
+    target_notebook = db.query(Notebook).filter(
+        Notebook.id == data.target_notebook_id,
+        Notebook.module_scope == scope,
+    ).first()
+    if not target_notebook:
+        raise HTTPException(404, "Notebook not found")
+
+    target_note = None
+    if data.target_note_id is not None:
+        target_note = db.query(Note).filter(
+            Note.id == data.target_note_id,
+            Note.notebook_id == target_notebook.id,
+            Note.note_type == "doc",
+            Note.is_deleted == False,  # noqa: E712
+            Note.module_scope == scope,
+        ).first()
+        if not target_note:
+            raise HTTPException(404, "Target note not found")
+        if target_note.id == note.id:
+            return note
+
+    source_notebook_id = note.notebook_id
+    target_notes = db.query(Note).filter(
+        Note.notebook_id == target_notebook.id,
+        Note.note_type == "doc",
+        Note.is_deleted == False,  # noqa: E712
+        Note.module_scope == scope,
+        Note.id != note.id,
+    ).order_by(Note.sort_order.asc(), Note.id.asc()).all()
+
+    insert_at = len(target_notes)
+    if target_note is not None and data.placement != "end":
+        target_index = next(index for index, row in enumerate(target_notes) if row.id == target_note.id)
+        insert_at = target_index + (1 if data.placement == "after" else 0)
+    target_notes.insert(insert_at, note)
+    note.notebook_id = target_notebook.id
+    note.module_scope = target_notebook.module_scope
+    for index, row in enumerate(target_notes):
+        row.sort_order = index
+
+    if source_notebook_id != target_notebook.id:
+        source_notes = db.query(Note).filter(
+            Note.notebook_id == source_notebook_id,
+            Note.note_type == "doc",
+            Note.is_deleted == False,  # noqa: E712
+            Note.module_scope == scope,
+            Note.id != note.id,
+        ).order_by(Note.sort_order.asc(), Note.id.asc()).all()
+        for index, row in enumerate(source_notes):
+            row.sort_order = index
+
+    db.commit()
+    db.refresh(note)
+    return note
 
 
 def delete_note(note_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):

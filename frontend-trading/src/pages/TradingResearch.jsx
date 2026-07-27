@@ -42,13 +42,23 @@ function extractWikiLinks(content) {
   return Array.from(new Set(matches.map((item) => item[1].trim()).filter(Boolean)));
 }
 
-function ResearchTreeNode({ folder, folders, documentsByFolder, expanded, activeId, onToggle, onSelect, onCreate, onEditFolder, onDeleteFolder, onDeleteDocument }) {
+function ResearchTreeNode({
+  folder, folders, documentsByFolder, expanded, activeId, onToggle, onSelect, onCreate,
+  onEditFolder, onDeleteFolder, onDeleteDocument, draggedDocumentId, dropTarget,
+  onDragStart, onDragEnd, onDragOverFolder, onDropOnFolder, onDragOverDocument,
+  onDropOnDocument,
+}) {
   const children = folders.filter((item) => item.parent_id === folder.id);
   const documents = documentsByFolder[folder.id] || [];
   const isExpanded = expanded[folder.id];
   return (
     <div className="research-tree-node">
-      <div className="research-tree-folder" onClick={() => onToggle(folder.id)}>
+      <div
+        className={`research-tree-folder${dropTarget?.type === 'folder' && dropTarget.id === folder.id ? ' drag-over' : ''}`}
+        onClick={() => onToggle(folder.id)}
+        onDragOver={(event) => onDragOverFolder(event, folder.id)}
+        onDrop={(event) => onDropOnFolder(event, folder.id)}
+      >
         <span className="research-tree-label">
           <span className="research-tree-arrow">{children.length || documents.length ? (isExpanded ? '▾' : '▸') : '　'}</span>
           <FolderOutlined /> {folder.name}
@@ -78,10 +88,33 @@ function ResearchTreeNode({ folder, folders, documentsByFolder, expanded, active
               onEditFolder={onEditFolder}
               onDeleteFolder={onDeleteFolder}
               onDeleteDocument={onDeleteDocument}
+              draggedDocumentId={draggedDocumentId}
+              dropTarget={dropTarget}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              onDragOverFolder={onDragOverFolder}
+              onDropOnFolder={onDropOnFolder}
+              onDragOverDocument={onDragOverDocument}
+              onDropOnDocument={onDropOnDocument}
             />
           ))}
           {documents.map((document) => (
-            <div key={document.id} className={`research-tree-file${activeId === document.id ? ' active' : ''}`} onClick={() => onSelect(document.id)}>
+            <div
+              key={document.id}
+              className={[
+                'research-tree-file',
+                activeId === document.id ? 'active' : '',
+                draggedDocumentId === document.id ? 'dragging' : '',
+                dropTarget?.type === 'document' && dropTarget.id === document.id ? `drag-${dropTarget.placement}` : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => onSelect(document.id)}
+              title="拖拽可移动或排序"
+              draggable
+              onDragStart={(event) => onDragStart(event, document)}
+              onDragEnd={onDragEnd}
+              onDragOver={(event) => onDragOverDocument(event, document)}
+              onDrop={(event) => onDropOnDocument(event, document)}
+            >
               <span className="research-tree-file-name">
                 {document.is_pinned ? <PushpinFilled /> : <FileTextOutlined />}
                 <span>{document.title || '无标题'}</span>
@@ -114,6 +147,8 @@ export default function TradingResearch() {
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [expanded, setExpanded] = useState({});
   const [folderModal, setFolderModal] = useState({ open: false, id: null, name: '', parent_id: null });
+  const [draggedDocumentId, setDraggedDocumentId] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
   const selectedIdRef = useRef(null);
@@ -162,7 +197,11 @@ export default function TradingResearch() {
     try {
       const list = requestedMode === 'recycle'
         ? ((await researchApi.recycle.list()).data || [])
-        : ((await researchApi.documents.list({ size: 300, ...(requestedKeyword.trim() ? { keyword: requestedKeyword.trim() } : {}) })).data?.items || []);
+        : ((await researchApi.documents.list({
+          size: 300,
+          order: 'manual',
+          ...(requestedKeyword.trim() ? { keyword: requestedKeyword.trim() } : {}),
+        })).data?.items || []);
       if (requestId !== listRequestRef.current) return;
       setDocuments(list);
       const currentSelectedId = selectedIdRef.current;
@@ -339,6 +378,74 @@ export default function TradingResearch() {
     }
   };
 
+  const handleDragStart = (event, document) => {
+    setDraggedDocumentId(document.id);
+    setDropTarget(null);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(document.id));
+  };
+
+  const handleDragEnd = () => {
+    setDraggedDocumentId(null);
+    setDropTarget(null);
+  };
+
+  const handleDragOverFolder = (event, folderId) => {
+    if (!draggedDocumentId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    setDropTarget({ type: 'folder', id: folderId });
+  };
+
+  const handleDragOverDocument = (event, document) => {
+    if (!draggedDocumentId || draggedDocumentId === document.id) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const placement = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    setDropTarget({ type: 'document', id: document.id, placement });
+  };
+
+  const submitDragMove = async (targetFolderId, targetDocumentId = null, placement = 'end') => {
+    if (!draggedDocumentId) return;
+    try {
+      const moved = (await researchApi.documents.reorder({
+        document_id: draggedDocumentId,
+        target_folder_id: targetFolderId,
+        target_document_id: targetDocumentId,
+        placement,
+      })).data;
+      if (selectedIdRef.current === moved.id) setSelectedDocument(moved);
+      setExpanded((current) => ({ ...current, [targetFolderId]: true }));
+      await Promise.all([loadFolders(), loadDocuments('active', '', moved.id)]);
+      message.success('研究位置已更新');
+    } catch (error) {
+      message.error(error.response?.data?.detail || '移动失败');
+    } finally {
+      handleDragEnd();
+    }
+  };
+
+  const handleDropOnFolder = (event, folderId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    submitDragMove(folderId);
+  };
+
+  const handleDropOnDocument = (event, document) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!draggedDocumentId || draggedDocumentId === document.id) {
+      handleDragEnd();
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const placement = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    submitDragMove(document.folder_id, document.id, placement);
+  };
+
   const openDocumentById = async (documentId) => {
     selectionRevisionRef.current += 1;
     setMode('active');
@@ -431,6 +538,14 @@ export default function TradingResearch() {
                       onEditFolder={openFolderModal}
                       onDeleteFolder={deleteFolder}
                       onDeleteDocument={deleteDocument}
+                      draggedDocumentId={draggedDocumentId}
+                      dropTarget={dropTarget}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDragOverFolder={handleDragOverFolder}
+                      onDropOnFolder={handleDropOnFolder}
+                      onDragOverDocument={handleDragOverDocument}
+                      onDropOnDocument={handleDropOnDocument}
                     />
                   ))}
                 </div>

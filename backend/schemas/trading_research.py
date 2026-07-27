@@ -31,6 +31,7 @@ class TradingResearchDocumentCreate(BaseModel):
     content: str = ""
     tags: Optional[Union[List[str], str]] = None
     is_pinned: bool = False
+    sort_order: Optional[int] = None
 
 
 class TradingResearchDocumentUpdate(BaseModel):
@@ -39,6 +40,14 @@ class TradingResearchDocumentUpdate(BaseModel):
     content: Optional[str] = None
     tags: Optional[Union[List[str], str]] = None
     is_pinned: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class TradingResearchDocumentReorder(BaseModel):
+    document_id: int
+    target_folder_id: int
+    target_document_id: Optional[int] = None
+    placement: str = Field(default="end", pattern="^(before|after|end)$")
 
 
 class TradingResearchDocumentResponse(TradingResearchDocumentCreate):
