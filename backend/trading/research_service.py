@@ -432,9 +432,6 @@ def migrate_legacy_trading_research() -> None:
     try:
         legacy_folders = db.query(Notebook).filter(Notebook.module_scope == "trading").order_by(Notebook.id).all()
         if not legacy_folders:
-            if db.query(TradingResearchFolder).count() == 0:
-                db.add(TradingResearchFolder(name="研究资料", sort_order=0, owner_role="admin"))
-                db.commit()
             return
 
         folder_map: dict[int, TradingResearchFolder] = {}
@@ -482,6 +479,8 @@ def migrate_legacy_trading_research() -> None:
                 db.flush()
                 _index_document_links(db, target)
         _refresh_link_targets(db)
+        for legacy in legacy_folders:
+            legacy.module_scope = "trading_migrated"
         db.commit()
     finally:
         db.close()

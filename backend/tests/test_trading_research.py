@@ -99,6 +99,19 @@ def test_legacy_trading_notes_are_migrated_idempotently(admin_login):
         migrated = db.query(TradingResearchDocument).filter_by(legacy_note_id=legacy_document_id).one()
         assert migrated.title == "旧研究内容"
         assert migrated.content == "<p>需要迁移</p>"
+        assert db.query(Notebook).filter_by(id=legacy_folder_id).one().module_scope == "trading_migrated"
+
+        db.delete(migrated.folder)
+        db.commit()
+    finally:
+        db.close()
+
+    migrate_legacy_trading_research()
+
+    db = core_db.SessionLocal()
+    try:
+        assert db.query(TradingResearchFolder).filter_by(legacy_notebook_id=legacy_folder_id).count() == 0
+        assert db.query(TradingResearchDocument).filter_by(legacy_note_id=legacy_document_id).count() == 0
     finally:
         db.close()
 
