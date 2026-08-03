@@ -1,5 +1,5 @@
 ﻿import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router';
 import { ConfigProvider, Dropdown, theme as antdTheme } from 'antd';
 import {
   CheckOutlined,

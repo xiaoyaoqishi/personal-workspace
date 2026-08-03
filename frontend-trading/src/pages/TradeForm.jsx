@@ -4,7 +4,7 @@ import {
   Tabs, message, Space, Row, Col, Divider, Collapse, Timeline, Typography,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { tradeApi, tradeReviewApi } from '../api';
 import { taxonomyCanonicalValues, taxonomyOptionsWithZh } from '../features/trading/localization';
 import { formatChinaDateTime, normalizeTagList } from '../features/trading/display';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Checkbox, Drawer, Dropdown, Input, Modal, Progress, Segmented, Space, Table, Tag, Upload, message } from 'antd'
 import { FilterOutlined, QuestionCircleOutlined, ReloadOutlined, TableOutlined, AppstoreOutlined, UploadOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import dayjs from 'dayjs'
 import {
   classifyImportBatch,

@@ -4,6 +4,7 @@ cd /opt/tradingRecords
 VENV_DIR="/opt/tradingRecordsData/venv"
 PYTHON_BIN="$VENV_DIR/bin/python"
 PIP_BIN="$VENV_DIR/bin/pip"
+NODE_MIN_VERSION="22.22.0"
 
 run_privileged() {
   if [ "$(id -u)" -eq 0 ]; then
@@ -19,6 +20,23 @@ run_privileged() {
 
   echo "缺少管理员权限: 请使用 root 执行，或为当前用户配置 sudo。"
   exit 1
+}
+
+ensure_node_runtime() {
+  local current_version=""
+  if command -v node >/dev/null 2>&1; then
+    current_version="$(node --version | sed 's/^v//')"
+  fi
+  if [ -n "$current_version" ] && [ "$(printf '%s\n%s\n' "$NODE_MIN_VERSION" "$current_version" | sort -V | head -n 1)" = "$NODE_MIN_VERSION" ]; then
+    echo "Node.js 运行时符合要求: v$current_version"
+    return
+  fi
+
+  echo "=== 升级 Node.js 至 v$NODE_MIN_VERSION ==="
+  run_privileged npm install --global n@10.2.0
+  run_privileged n "$NODE_MIN_VERSION"
+  hash -r
+  node --version
 }
 
 clean_frontend_dist() {
@@ -37,6 +55,8 @@ migrate_upload_dir() {
 
 echo "=== 拉取最新代码 ==="
 git pull
+
+ensure_node_runtime
 
 echo "=== 安装后端依赖 ==="
 run_privileged mkdir -p /opt/tradingRecordsData /opt/tradingRecordsData/uploads /opt/tradingRecordsData/venv

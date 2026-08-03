@@ -15,7 +15,7 @@ import {
   message,
 } from 'antd'
 import { QuestionCircleOutlined } from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router'
 import {
   commitImportBatch,
   getImportBatch,

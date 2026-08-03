@@ -5,7 +5,7 @@ function manualChunks(id) {
   const path = id.replace(/\\/g, '/')
   if (!path.includes('/node_modules/')) return
 
-  if (path.includes('/react-router-dom/')) return 'router-vendor'
+  if (path.includes('/react-router/')) return 'router-vendor'
   if (path.includes('/react-dom/') || path.includes('/react/') || path.includes('/scheduler/')) return 'react-vendor'
   if (path.includes('/@tiptap/')) return 'tiptap-vendor'
   if (path.includes('/prosemirror-')) return 'prosemirror-vendor'

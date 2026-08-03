@@ -3,6 +3,10 @@ set -e
 
 echo "=== 1. 系统依赖 ==="
 apt update && apt install -y python3 python3-pip nginx nodejs npm certbot python3-certbot-nginx
+npm install --global n@10.2.0
+n 22.22.0
+hash -r
+node --version
 
 echo "=== 2. 拉取代码 ==="
 cd /opt

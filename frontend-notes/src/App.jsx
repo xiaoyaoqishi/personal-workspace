@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useContext, useCallback, useState, useEffect } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import IconSidebar from './components/IconSidebar';
 import useTheme from './hooks/useTheme';
 import { antdThemeToken, darkThemeToken, inkThemeToken, techThemeToken } from './styles/theme';

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import './TradeList.css';
 import TradeWorkspaceFilterBar from '../features/trading/workspace/TradeWorkspaceFilterBar';
 import TradeFillsTable from '../features/trading/workspace/TradeFillsTable';

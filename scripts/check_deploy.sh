@@ -71,6 +71,8 @@ done
 check_file_contains "deploy/nginx.conf" "location /ledger/" "nginx serves /ledger/"
 check_file_contains "deploy/nginx.conf" "location = /ledger" "nginx defines /ledger redirect location"
 check_file_contains "deploy/nginx.conf" "return 301 /ledger/;" "nginx redirects /ledger to /ledger/"
+check_file_contains "deploy/setup.sh" "n 22.22.0" "setup.sh installs the required Node.js runtime"
+check_file_contains "deploy/update.sh" "NODE_MIN_VERSION=\"22.22.0\"" "update.sh enforces the required Node.js runtime"
 
 if [[ "$status" -ne 0 ]]; then
   echo "[check_deploy] result: FAILED"

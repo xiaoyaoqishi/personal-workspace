@@ -16,7 +16,7 @@ export default defineConfig({
             if (seg) return `antd-${seg}`
           }
           if (id.includes('@ant-design/icons')) return 'antd-icons'
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('react-router-dom')) return 'react-vendor'
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router/')) return 'react-vendor'
         },
       },
     },

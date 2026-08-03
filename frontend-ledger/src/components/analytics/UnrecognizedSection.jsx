@@ -1,5 +1,5 @@
 import { Button, Space, Table, Tag } from 'antd'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 function fmtMoney(v) {
   return `¥${Number(v || 0).toFixed(2)}`

@@ -98,7 +98,7 @@
 ## Quick Start
 ### Prerequisites
 - Python 3
-- Node.js
+- Node.js 22.22.0 or newer
 - npm
 - Optional: `tmux`
 - For production deployment: Linux, `systemd`, and Nginx
@@ -203,10 +203,10 @@ bash deploy/setup.sh
 bash deploy/update.sh
 ```
 
-- `deploy/setup.sh`: first-time server bootstrap. Installs runtime dependencies, creates the production virtualenv under `/opt/tradingRecordsData/venv`, builds all frontend apps, installs Nginx config, and enables the `trading` systemd service.
+- `deploy/setup.sh`: first-time server bootstrap. Installs runtime dependencies (including Node.js 22.22.0), creates the production virtualenv under `/opt/tradingRecordsData/venv`, builds all frontend apps, installs Nginx config, and enables the `trading` systemd service.
 - `deploy/cert-renew.sh`: runs `certbot renew` and reloads Nginx after a successful renewal.
 - `deploy/trading-cert-renew.service` + `deploy/trading-cert-renew.timer`: twice-daily renewal check through `systemd timer`; `deploy/setup.sh` installs and enables them automatically.
-- `deploy/update.sh`: routine server update. Pulls the latest code, refreshes backend dependencies in `/opt/tradingRecordsData/venv`, rebuilds all frontend apps, syncs portal files, reloads Nginx, and restarts the `trading` service.
+- `deploy/update.sh`: routine server update. Pulls the latest code, ensures Node.js 22.22.0 or newer, refreshes backend dependencies in `/opt/tradingRecordsData/venv`, rebuilds all frontend apps, syncs portal files, reloads Nginx, and restarts the `trading` service.
 - `deploy/trading.service`: systemd unit that runs `uvicorn` from `/opt/tradingRecordsData/venv` and keeps uploads outside the repo through `UPLOAD_DIR=/opt/tradingRecordsData/uploads`.
 - `deploy/nginx.conf`: host-level Nginx config that serves `/`, `/trading/`, `/notes/`, `/monitor/`, `/ledger/`, and proxies `/api/*` to `127.0.0.1:8000`.
 

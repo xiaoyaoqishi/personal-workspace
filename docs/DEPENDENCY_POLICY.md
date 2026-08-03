@@ -12,10 +12,11 @@
 ### 前端
 
 - 所有前端模块保留各自 `package-lock.json` 作为锁定源，安装使用 `npm ci`。
-- `trading` (`frontend-trading`)：`React 19`、`antd 6`、`vite 8`。
-- `notes` (`frontend-notes`)：`React 19`、`antd 6`、`vite 8`。
-- `ledger` (`frontend-ledger`)：`React 19`、`antd 6`、`vite 8`。
-- `monitor` (`frontend-monitor`)：`React 19`、`antd 6`、`vite 8`。
+- `trading` (`frontend-trading`)：`React 19.2.8`、`React Router 8.3.0`、`antd 6`、`vite 8.2.0`。
+- `notes` (`frontend-notes`)：`React 19.2.8`、`React Router 8.3.0`、`antd 6`、`vite 8.2.0`。
+- `ledger` (`frontend-ledger`)：`React 19.2.8`、`React Router 8.3.0`、`antd 6`、`vite 8.2.0`。
+- `monitor` (`frontend-monitor`)：`React 19.2.8`、`React Router 8.3.0`、`antd 6`、`vite 8.2.0`。
+- 本地与生产前端构建要求 `Node.js >= 22.22.0`；`deploy/setup.sh` 与 `deploy/update.sh` 会安装或补齐该版本。
 
 当前四个前端模块已统一为同代核心栈；后续升级仍需按模块说明原因与影响范围。
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Dropdown } from 'antd';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router';
 import {
   ImportOutlined,
   BarChartOutlined,

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import dayjs from 'dayjs';
 import { Alert, Badge, Button, Card, ConfigProvider, DatePicker, Dropdown, Empty, Form, Input, InputNumber, message, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tabs, Tag, theme as antdTheme, Tooltip as AntTooltip, Typography } from 'antd';
 import {
