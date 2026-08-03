@@ -14,7 +14,16 @@ from core import context
 from core.db import SessionLocal, get_db
 from core.security import normalize_owner_role
 from models import Note, NoteLink, Notebook, TodoItem
-from schemas.notes import NoteCreate, NoteReorder, NoteUpdate, NotebookCreate, NotebookUpdate, TodoCreate, TodoUpdate
+from schemas.notes import (
+    NoteCreate,
+    NoteReorder,
+    NoteUpdate,
+    NotebookCreate,
+    NotebookReorder,
+    NotebookUpdate,
+    TodoCreate,
+    TodoUpdate,
+)
 
 
 TODO_PRIORITIES = {"low", "medium", "high"}
@@ -110,6 +119,81 @@ def update_notebook(nb_id: int, module_scope: Optional[str] = None, data: Notebo
     db.commit()
     db.refresh(nb)
     return nb
+
+
+def reorder_notebook(data: NotebookReorder, module_scope: Optional[str] = None, db: Session = Depends(get_db)):
+    scope = _normalize_module_scope(module_scope)
+    notebook = db.query(Notebook).filter(Notebook.id == data.notebook_id, Notebook.module_scope == scope).first()
+    if not notebook:
+        raise HTTPException(404, "Notebook not found")
+
+    target_parent = None
+    if data.target_parent_id is not None:
+        target_parent = db.query(Notebook).filter(
+            Notebook.id == data.target_parent_id,
+            Notebook.module_scope == scope,
+        ).first()
+        if not target_parent:
+            raise HTTPException(404, "Target parent notebook not found")
+
+    target_notebook = None
+    if data.target_notebook_id is not None:
+        target_notebook = db.query(Notebook).filter(
+            Notebook.id == data.target_notebook_id,
+            Notebook.module_scope == scope,
+        ).first()
+        if not target_notebook:
+            raise HTTPException(404, "Target notebook not found")
+
+    if target_parent and target_parent.id == notebook.id:
+        raise HTTPException(400, "Notebook cannot be its own parent")
+    if target_notebook:
+        if target_notebook.id == notebook.id:
+            return notebook
+        if target_notebook.parent_id != data.target_parent_id:
+            raise HTTPException(400, "Target notebook is not in the requested parent")
+
+    ancestor = target_parent
+    while ancestor:
+        if ancestor.id == notebook.id:
+            raise HTTPException(400, "Notebook hierarchy cannot contain a cycle")
+        ancestor = db.query(Notebook).filter(
+            Notebook.id == ancestor.parent_id,
+            Notebook.module_scope == scope,
+        ).first() if ancestor.parent_id else None
+
+    source_parent_id = notebook.parent_id
+    target_siblings = db.query(Notebook).filter(
+        Notebook.module_scope == scope,
+        Notebook.parent_id.is_(None)
+        if data.target_parent_id is None
+        else Notebook.parent_id == data.target_parent_id,
+        Notebook.id != notebook.id,
+    ).order_by(Notebook.sort_order.asc(), Notebook.id.asc()).all()
+
+    insert_at = len(target_siblings)
+    if target_notebook is not None and data.placement != "end":
+        target_index = next(index for index, row in enumerate(target_siblings) if row.id == target_notebook.id)
+        insert_at = target_index + (1 if data.placement == "after" else 0)
+    target_siblings.insert(insert_at, notebook)
+    notebook.parent_id = data.target_parent_id
+    for index, row in enumerate(target_siblings):
+        row.sort_order = index
+
+    if source_parent_id != data.target_parent_id:
+        source_siblings = db.query(Notebook).filter(
+            Notebook.module_scope == scope,
+            Notebook.parent_id.is_(None)
+            if source_parent_id is None
+            else Notebook.parent_id == source_parent_id,
+            Notebook.id != notebook.id,
+        ).order_by(Notebook.sort_order.asc(), Notebook.id.asc()).all()
+        for index, row in enumerate(source_siblings):
+            row.sort_order = index
+
+    db.commit()
+    db.refresh(notebook)
+    return notebook
 
 
 def delete_notebook(nb_id: int, module_scope: Optional[str] = None, db: Session = Depends(get_db)):

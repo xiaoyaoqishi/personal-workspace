@@ -3,6 +3,7 @@ from services import notes_runtime
 list_notebooks = notes_runtime.list_notebooks
 create_notebook = notes_runtime.create_notebook
 update_notebook = notes_runtime.update_notebook
+reorder_notebook = notes_runtime.reorder_notebook
 delete_notebook = notes_runtime.delete_notebook
 
 list_notes = notes_runtime.list_notes

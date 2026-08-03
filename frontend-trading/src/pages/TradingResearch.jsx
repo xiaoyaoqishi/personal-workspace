@@ -45,8 +45,8 @@ function extractWikiLinks(content) {
 
 function ResearchTreeNode({
   folder, folders, documentsByFolder, expanded, activeId, onToggle, onSelect, onCreate,
-  onEditFolder, onDeleteFolder, onDeleteDocument, draggedDocumentId, dropTarget,
-  onDragStart, onDragEnd, onDragOverFolder, onDropOnFolder, onDragOverDocument,
+  onEditFolder, onDeleteFolder, onDeleteDocument, draggedDocumentId, draggedFolderId, dropTarget,
+  onDragStart, onFolderDragStart, onDragEnd, onDragOverFolder, onDropOnFolder, onDragOverDocument,
   onDropOnDocument,
 }) {
   const children = folders.filter((item) => item.parent_id === folder.id);
@@ -55,10 +55,18 @@ function ResearchTreeNode({
   return (
     <div className="research-tree-node">
       <div
-        className={`research-tree-folder${dropTarget?.type === 'folder' && dropTarget.id === folder.id ? ' drag-over' : ''}`}
+        className={[
+          'research-tree-folder',
+          draggedFolderId === folder.id ? 'dragging' : '',
+          dropTarget?.type === 'folder' && dropTarget.id === folder.id ? `drag-${dropTarget.placement || 'inside'}` : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => onToggle(folder.id)}
-        onDragOver={(event) => onDragOverFolder(event, folder.id)}
-        onDrop={(event) => onDropOnFolder(event, folder.id)}
+        title="拖拽可移动资料夹或调整顺序"
+        draggable
+        onDragStart={(event) => onFolderDragStart(event, folder)}
+        onDragEnd={onDragEnd}
+        onDragOver={(event) => onDragOverFolder(event, folder)}
+        onDrop={(event) => onDropOnFolder(event, folder)}
       >
         <span className="research-tree-label">
           <span className="research-tree-arrow">{children.length || documents.length ? (isExpanded ? '▾' : '▸') : '　'}</span>
@@ -90,8 +98,10 @@ function ResearchTreeNode({
               onDeleteFolder={onDeleteFolder}
               onDeleteDocument={onDeleteDocument}
               draggedDocumentId={draggedDocumentId}
+              draggedFolderId={draggedFolderId}
               dropTarget={dropTarget}
               onDragStart={onDragStart}
+              onFolderDragStart={onFolderDragStart}
               onDragEnd={onDragEnd}
               onDragOverFolder={onDragOverFolder}
               onDropOnFolder={onDropOnFolder}
@@ -149,6 +159,7 @@ export default function TradingResearch() {
   const [expanded, setExpanded] = useState({});
   const [folderModal, setFolderModal] = useState({ open: false, id: null, name: '', parent_id: null });
   const [draggedDocumentId, setDraggedDocumentId] = useState(null);
+  const [draggedFolderId, setDraggedFolderId] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
   const listRequestRef = useRef(0);
@@ -381,23 +392,41 @@ export default function TradingResearch() {
   };
 
   const handleDragStart = (event, document) => {
+    setDraggedFolderId(null);
     setDraggedDocumentId(document.id);
     setDropTarget(null);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(document.id));
   };
 
+  const handleFolderDragStart = (event, folder) => {
+    setDraggedDocumentId(null);
+    setDraggedFolderId(folder.id);
+    setDropTarget(null);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `folder:${folder.id}`);
+  };
+
   const handleDragEnd = () => {
     setDraggedDocumentId(null);
+    setDraggedFolderId(null);
     setDropTarget(null);
   };
 
-  const handleDragOverFolder = (event, folderId) => {
-    if (!draggedDocumentId) return;
+  const handleDragOverFolder = (event, folder) => {
+    if (!draggedDocumentId && !draggedFolderId) return;
+    if (draggedFolderId === folder.id) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = 'move';
-    setDropTarget({ type: 'folder', id: folderId });
+    if (draggedDocumentId) {
+      setDropTarget({ type: 'folder', id: folder.id, placement: 'inside' });
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = (event.clientY - bounds.top) / bounds.height;
+    const placement = position < 0.28 ? 'before' : position > 0.72 ? 'after' : 'inside';
+    setDropTarget({ type: 'folder', id: folder.id, placement });
   };
 
   const handleDragOverDocument = (event, document) => {
@@ -430,10 +459,38 @@ export default function TradingResearch() {
     }
   };
 
-  const handleDropOnFolder = (event, folderId) => {
+  const submitFolderDragMove = async (targetFolder, placement) => {
+    if (!draggedFolderId) return;
+    const movingInside = placement === 'inside';
+    try {
+      const moved = (await researchApi.folders.reorder({
+        folder_id: draggedFolderId,
+        target_parent_id: movingInside ? targetFolder.id : (targetFolder.parent_id || null),
+        target_folder_id: movingInside ? null : targetFolder.id,
+        placement: movingInside ? 'end' : placement,
+      })).data;
+      await loadFolders();
+      setExpanded((current) => ({
+        ...current,
+        [moved.id]: true,
+        ...(moved.parent_id ? { [moved.parent_id]: true } : {}),
+      }));
+      message.success('资料夹位置已更新');
+    } catch (error) {
+      message.error(error.response?.data?.detail || '资料夹移动失败');
+    } finally {
+      handleDragEnd();
+    }
+  };
+
+  const handleDropOnFolder = (event, folder) => {
     event.preventDefault();
     event.stopPropagation();
-    submitDragMove(folderId);
+    if (draggedFolderId) {
+      submitFolderDragMove(folder, dropTarget?.id === folder.id ? dropTarget.placement : 'inside');
+    } else {
+      submitDragMove(folder.id);
+    }
   };
 
   const handleDropOnDocument = (event, document) => {
@@ -546,8 +603,10 @@ export default function TradingResearch() {
                       onDeleteFolder={deleteFolder}
                       onDeleteDocument={deleteDocument}
                       draggedDocumentId={draggedDocumentId}
+                      draggedFolderId={draggedFolderId}
                       dropTarget={dropTarget}
                       onDragStart={handleDragStart}
+                      onFolderDragStart={handleFolderDragStart}
                       onDragEnd={handleDragEnd}
                       onDragOverFolder={handleDragOverFolder}
                       onDropOnFolder={handleDropOnFolder}

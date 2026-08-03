@@ -168,3 +168,53 @@ def test_trading_research_documents_can_be_reordered_and_moved(admin_login):
         params={"folder_id": target_id, "order": "manual"},
     )
     assert [row["id"] for row in target_listing.json()["items"]] == [target["id"], first["id"]]
+
+
+def test_trading_research_folders_can_be_reordered_and_moved(admin_login):
+    client = admin_login
+    first = client.post("/api/trades/research/folders", json={"name": "一级"}).json()
+    second = client.post("/api/trades/research/folders", json={"name": "二级"}).json()
+    third = client.post("/api/trades/research/folders", json={"name": "三级"}).json()
+    created_ids = {first["id"], second["id"], third["id"]}
+
+    reordered = client.post(
+        "/api/trades/research/folders/reorder",
+        json={
+            "folder_id": third["id"],
+            "target_parent_id": None,
+            "target_folder_id": first["id"],
+            "placement": "before",
+        },
+    )
+    assert reordered.status_code == 200
+    roots = [
+        row
+        for row in client.get("/api/trades/research/folders").json()
+        if row["parent_id"] is None and row["id"] in created_ids
+    ]
+    assert [row["id"] for row in roots] == [third["id"], first["id"], second["id"]]
+
+    moved = client.post(
+        "/api/trades/research/folders/reorder",
+        json={"folder_id": second["id"], "target_parent_id": first["id"], "placement": "end"},
+    )
+    assert moved.status_code == 200
+    assert moved.json()["parent_id"] == first["id"]
+
+    cycle = client.post(
+        "/api/trades/research/folders/reorder",
+        json={"folder_id": first["id"], "target_parent_id": second["id"], "placement": "end"},
+    )
+    assert cycle.status_code == 400
+
+    moved_to_root = client.post(
+        "/api/trades/research/folders/reorder",
+        json={
+            "folder_id": second["id"],
+            "target_parent_id": None,
+            "target_folder_id": first["id"],
+            "placement": "before",
+        },
+    )
+    assert moved_to_root.status_code == 200
+    assert moved_to_root.json()["parent_id"] is None

@@ -7,7 +7,7 @@ import NoteEditor from './NoteEditor';
 function FolderNode({
   nb, allNotebooks, notesByNb, activeNote, expandedFolders, onToggle, onSelectNote,
   onDeleteNote, onDeleteFolder, onCreateDoc, onCreateSubfolder, onCopyNote, onMoveNote,
-  draggedNoteId, dropTarget, onDragStart, onDragEnd, onDragOverFolder, onDropOnFolder,
+  draggedNoteId, draggedNotebookId, dropTarget, onDragStart, onNotebookDragStart, onDragEnd, onDragOverFolder, onDropOnFolder,
   onDragOverNote, onDropOnNote,
 }) {
   const children = allNotebooks.filter(c => c.parent_id === nb.id);
@@ -17,10 +17,18 @@ function FolderNode({
   return (
     <div>
       <div
-        className={`tree-folder ${dropTarget?.type === 'folder' && dropTarget.id === nb.id ? 'drag-over' : ''}`}
+        className={[
+          'tree-folder',
+          draggedNotebookId === nb.id ? 'dragging' : '',
+          dropTarget?.type === 'folder' && dropTarget.id === nb.id ? `drag-${dropTarget.placement || 'inside'}` : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => onToggle(nb.id)}
-        onDragOver={(event) => onDragOverFolder(event, nb.id)}
-        onDrop={(event) => onDropOnFolder(event, nb.id)}
+        title="拖拽可移动文件夹或调整顺序"
+        draggable
+        onDragStart={(event) => onNotebookDragStart(event, nb)}
+        onDragEnd={onDragEnd}
+        onDragOver={(event) => onDragOverFolder(event, nb)}
+        onDrop={(event) => onDropOnFolder(event, nb)}
       >
         <span className="tree-folder-main">
           <span className="tree-chevron">
@@ -68,8 +76,10 @@ function FolderNode({
               onCopyNote={onCopyNote}
               onMoveNote={onMoveNote}
               draggedNoteId={draggedNoteId}
+              draggedNotebookId={draggedNotebookId}
               dropTarget={dropTarget}
               onDragStart={onDragStart}
+              onNotebookDragStart={onNotebookDragStart}
               onDragEnd={onDragEnd}
               onDragOverFolder={onDragOverFolder}
               onDropOnFolder={onDropOnFolder}
@@ -148,6 +158,7 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   const [transferNote, setTransferNote] = useState(null);
   const [transferTargetNb, setTransferTargetNb] = useState(null);
   const [draggedNoteId, setDraggedNoteId] = useState(null);
+  const [draggedNotebookId, setDraggedNotebookId] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [jumpAnchor, setJumpAnchor] = useState(initialAnchor || '');
   const pendingSaves = useRef(new Map());
@@ -435,23 +446,41 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
   };
 
   const handleDragStart = (event, note) => {
+    setDraggedNotebookId(null);
     setDraggedNoteId(note.id);
     setDropTarget(null);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(note.id));
   };
 
+  const handleNotebookDragStart = (event, notebook) => {
+    setDraggedNoteId(null);
+    setDraggedNotebookId(notebook.id);
+    setDropTarget(null);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `notebook:${notebook.id}`);
+  };
+
   const handleDragEnd = () => {
     setDraggedNoteId(null);
+    setDraggedNotebookId(null);
     setDropTarget(null);
   };
 
-  const handleDragOverFolder = (event, notebookId) => {
-    if (!draggedNoteId) return;
+  const handleDragOverFolder = (event, notebook) => {
+    if (!draggedNoteId && !draggedNotebookId) return;
+    if (draggedNotebookId === notebook.id) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = 'move';
-    setDropTarget({ type: 'folder', id: notebookId });
+    if (draggedNoteId) {
+      setDropTarget({ type: 'folder', id: notebook.id, placement: 'inside' });
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = (event.clientY - bounds.top) / bounds.height;
+    const placement = position < 0.28 ? 'before' : position > 0.72 ? 'after' : 'inside';
+    setDropTarget({ type: 'folder', id: notebook.id, placement });
   };
 
   const handleDragOverNote = (event, note) => {
@@ -484,10 +513,38 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
     }
   };
 
-  const handleDropOnFolder = (event, notebookId) => {
+  const submitNotebookDragMove = async (targetNotebook, placement) => {
+    if (!draggedNotebookId) return;
+    const movingInside = placement === 'inside';
+    try {
+      const res = await notebookApi.reorder({
+        notebook_id: draggedNotebookId,
+        target_parent_id: movingInside ? targetNotebook.id : (targetNotebook.parent_id || null),
+        target_notebook_id: movingInside ? null : targetNotebook.id,
+        placement: movingInside ? 'end' : placement,
+      });
+      await onReloadNotebooks();
+      setExpandedFolders(prev => ({
+        ...prev,
+        [res.data.id]: true,
+        ...(res.data.parent_id ? { [res.data.parent_id]: true } : {}),
+      }));
+      message.success('文件夹位置已更新');
+    } catch (error) {
+      message.error(error.response?.data?.detail || '文件夹移动失败');
+    } finally {
+      handleDragEnd();
+    }
+  };
+
+  const handleDropOnFolder = (event, notebook) => {
     event.preventDefault();
     event.stopPropagation();
-    submitDragMove(notebookId);
+    if (draggedNotebookId) {
+      submitNotebookDragMove(notebook, dropTarget?.id === notebook.id ? dropTarget.placement : 'inside');
+    } else {
+      submitDragMove(notebook.id);
+    }
   };
 
   const handleDropOnNote = (event, note) => {
@@ -610,8 +667,10 @@ export default function DocView({ initialNoteId, initialAnchor, notebooks, onRel
                 onCopyNote={(note) => openTransfer(note, 'copy')}
                 onMoveNote={(note) => openTransfer(note, 'move')}
                 draggedNoteId={draggedNoteId}
+                draggedNotebookId={draggedNotebookId}
                 dropTarget={dropTarget}
                 onDragStart={handleDragStart}
+                onNotebookDragStart={handleNotebookDragStart}
                 onDragEnd={handleDragEnd}
                 onDragOverFolder={handleDragOverFolder}
                 onDropOnFolder={handleDropOnFolder}

@@ -107,3 +107,53 @@ def test_documents_can_be_reordered_and_moved_between_notebooks(admin_login):
 
     target_listing = client.get("/api/notes", params={"notebook_id": target_id, "note_type": "doc"})
     assert [row["id"] for row in target_listing.json()] == [target["id"], first["id"]]
+
+
+def test_notebooks_can_be_reordered_and_moved(admin_login):
+    client = admin_login
+    first = client.post("/api/notebooks", json={"name": "Folder One"}).json()
+    second = client.post("/api/notebooks", json={"name": "Folder Two"}).json()
+    third = client.post("/api/notebooks", json={"name": "Folder Three"}).json()
+    created_ids = {first["id"], second["id"], third["id"]}
+
+    reordered = client.post(
+        "/api/notebooks/reorder",
+        json={
+            "notebook_id": third["id"],
+            "target_parent_id": None,
+            "target_notebook_id": first["id"],
+            "placement": "before",
+        },
+    )
+    assert reordered.status_code == 200
+    roots = [
+        row
+        for row in client.get("/api/notebooks").json()
+        if row["parent_id"] is None and row["id"] in created_ids
+    ]
+    assert [row["id"] for row in roots] == [third["id"], first["id"], second["id"]]
+
+    moved = client.post(
+        "/api/notebooks/reorder",
+        json={"notebook_id": second["id"], "target_parent_id": first["id"], "placement": "end"},
+    )
+    assert moved.status_code == 200
+    assert moved.json()["parent_id"] == first["id"]
+
+    cycle = client.post(
+        "/api/notebooks/reorder",
+        json={"notebook_id": first["id"], "target_parent_id": second["id"], "placement": "end"},
+    )
+    assert cycle.status_code == 400
+
+    moved_to_root = client.post(
+        "/api/notebooks/reorder",
+        json={
+            "notebook_id": second["id"],
+            "target_parent_id": None,
+            "target_notebook_id": first["id"],
+            "placement": "before",
+        },
+    )
+    assert moved_to_root.status_code == 200
+    assert moved_to_root.json()["parent_id"] is None

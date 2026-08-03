@@ -24,6 +24,13 @@ class NotebookUpdate(BaseModel):
     module_scope: Optional[str] = None
 
 
+class NotebookReorder(BaseModel):
+    notebook_id: int
+    target_parent_id: Optional[int] = None
+    target_notebook_id: Optional[int] = None
+    placement: str = Field(default="end", pattern="^(before|after|end)$")
+
+
 class NotebookResponse(NotebookCreate):
     model_config = ConfigDict(from_attributes=True)
 

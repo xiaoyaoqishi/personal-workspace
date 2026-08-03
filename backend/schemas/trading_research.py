@@ -16,6 +16,13 @@ class TradingResearchFolderUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
+class TradingResearchFolderReorder(BaseModel):
+    folder_id: int
+    target_parent_id: Optional[int] = None
+    target_folder_id: Optional[int] = None
+    placement: str = Field(default="end", pattern="^(before|after|end)$")
+
+
 class TradingResearchFolderResponse(TradingResearchFolderCreate):
     model_config = ConfigDict(from_attributes=True)
 

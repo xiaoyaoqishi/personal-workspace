@@ -87,6 +87,7 @@ export const researchApi = {
   folders: {
     list: () => api.get('/trades/research/folders'),
     create: (data) => api.post('/trades/research/folders', data),
+    reorder: (data) => api.post('/trades/research/folders/reorder', data),
     update: (id, data) => api.put(`/trades/research/folders/${id}`, data),
     delete: (id) => api.delete(`/trades/research/folders/${id}`),
   },

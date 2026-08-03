@@ -15,6 +15,7 @@ api.interceptors.response.use(
 export const notebookApi = {
   list: () => api.get('/notebooks'),
   create: (data) => api.post('/notebooks', data),
+  reorder: (data) => api.post('/notebooks/reorder', data),
   update: (id, data) => api.put(`/notebooks/${id}`, data),
   delete: (id) => api.delete(`/notebooks/${id}`),
 };

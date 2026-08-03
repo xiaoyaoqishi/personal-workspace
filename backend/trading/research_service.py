@@ -22,6 +22,7 @@ from schemas.trading_research import (
     TradingResearchDocumentReorder,
     TradingResearchDocumentUpdate,
     TradingResearchFolderCreate,
+    TradingResearchFolderReorder,
     TradingResearchFolderUpdate,
 )
 from services import runtime as legacy_runtime
@@ -167,6 +168,57 @@ def update_research_folder(folder_id: int, data: TradingResearchFolderUpdate, db
     db.commit()
     db.refresh(row)
     return _attach_folder_fields(db, [row])[0]
+
+
+def reorder_research_folder(data: TradingResearchFolderReorder, db: Session = Depends(get_db)):
+    folder = _folder_or_404(db, data.folder_id)
+    target_parent = _folder_or_404(db, data.target_parent_id) if data.target_parent_id is not None else None
+    target_folder = _folder_or_404(db, data.target_folder_id) if data.target_folder_id is not None else None
+
+    if target_parent and target_parent.id == folder.id:
+        raise HTTPException(400, "Folder cannot be its own parent")
+    if target_folder:
+        if target_folder.id == folder.id:
+            return _attach_folder_fields(db, [folder])[0]
+        if target_folder.parent_id != data.target_parent_id:
+            raise HTTPException(400, "Target folder is not in the requested parent")
+
+    ancestor = target_parent
+    while ancestor:
+        if ancestor.id == folder.id:
+            raise HTTPException(400, "Folder hierarchy cannot contain a cycle")
+        ancestor = _folder_or_404(db, ancestor.parent_id) if ancestor.parent_id else None
+
+    source_parent_id = folder.parent_id
+    target_siblings = db.query(TradingResearchFolder).filter(
+        TradingResearchFolder.parent_id.is_(None)
+        if data.target_parent_id is None
+        else TradingResearchFolder.parent_id == data.target_parent_id,
+        TradingResearchFolder.id != folder.id,
+    ).order_by(TradingResearchFolder.sort_order.asc(), TradingResearchFolder.id.asc()).all()
+
+    insert_at = len(target_siblings)
+    if target_folder is not None and data.placement != "end":
+        target_index = next(index for index, row in enumerate(target_siblings) if row.id == target_folder.id)
+        insert_at = target_index + (1 if data.placement == "after" else 0)
+    target_siblings.insert(insert_at, folder)
+    folder.parent_id = data.target_parent_id
+    for index, row in enumerate(target_siblings):
+        row.sort_order = index
+
+    if source_parent_id != data.target_parent_id:
+        source_siblings = db.query(TradingResearchFolder).filter(
+            TradingResearchFolder.parent_id.is_(None)
+            if source_parent_id is None
+            else TradingResearchFolder.parent_id == source_parent_id,
+            TradingResearchFolder.id != folder.id,
+        ).order_by(TradingResearchFolder.sort_order.asc(), TradingResearchFolder.id.asc()).all()
+        for index, row in enumerate(source_siblings):
+            row.sort_order = index
+
+    db.commit()
+    db.refresh(folder)
+    return _attach_folder_fields(db, [folder])[0]
 
 
 def delete_research_folder(folder_id: int, db: Session = Depends(get_db)):
