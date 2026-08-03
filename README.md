@@ -35,12 +35,13 @@
 - Trade plans with linked trades.
 - The former grouped review-session workbench and its plan follow-up flow have been removed; structured per-trade reviews remain available.
 - Trading subpages use consistent compact action bars without standalone title-and-description headers; primary actions stay on the right, and the trade-record filters, view switch, and create action share one control row.
-- Trading now includes an independent `Research` submodule with a document-style folder tree and single reading/editing area, plus folder hierarchy, drag-and-drop moves and ordering, search, tags, pinning, wiki links/backlinks, and recycle flow. Its rich-text toolbar matches the Notes document editor while its code, APIs, and tables remain trading-owned; legacy trading-scoped Notes data is copied into the research domain during runtime migration.
+- Trading now includes an independent `Research` submodule with a document-style folder tree and single reading/editing area, plus folder hierarchy, drag-and-drop moves and ordering, search, tags, pinning, wiki links/backlinks, and recycle flow. Images in the research reader support repeated proportional zooming, zooming out, reset, and drag-to-pan when enlarged. Its rich-text toolbar matches the Notes document editor while its code, APIs, and tables remain trading-owned; legacy trading-scoped Notes data is copied into the research domain during runtime migration.
 - Trading recycle bin for trades, brokers, and plans.
 
 ### Notes
 - Notebook management for diary and document collections.
 - Diary and document note CRUD with shared editor flow.
+- Images in reading mode support repeated proportional zooming, zooming out, reset, and drag-to-pan when enlarged.
 - Document files can be dragged between folders or reordered within the same folder; the existing move action remains available.
 - Search, calendar, diary tree, and "history today" style browsing.
 - Action-oriented Notes home with unified search, quick capture shortcuts, recent documents, actionable todos, and a compact writing rhythm overview.

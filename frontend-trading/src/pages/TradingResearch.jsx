@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { researchApi } from '../api';
 import { backendTimeInChina } from '../utils/datetime';
 import ResearchEditor, { renderResearchContent } from '../components/ResearchEditor';
+import ImageLightbox from '../components/ImageLightbox';
 import './TradingResearch.css';
 
 const EMPTY_DRAFT = { title: '', folder_id: null, tags: [], content: '', is_pinned: false };
@@ -149,6 +150,7 @@ export default function TradingResearch() {
   const [folderModal, setFolderModal] = useState({ open: false, id: null, name: '', parent_id: null });
   const [draggedDocumentId, setDraggedDocumentId] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
   const selectedIdRef = useRef(null);
@@ -494,6 +496,11 @@ export default function TradingResearch() {
 
   const wikiLinks = extractWikiLinks(selectedDocument?.content);
   const readHtml = selectedDocument ? sanitizeResearchHtml(renderResearchContent(selectedDocument.content || '')) : '';
+  const openReaderImage = (event) => {
+    if (event.target.tagName === 'IMG') {
+      setLightboxImage({ src: event.target.src, alt: event.target.alt || '' });
+    }
+  };
 
   return (
     <div className="research-page">
@@ -612,7 +619,7 @@ export default function TradingResearch() {
                 <h1>{selectedDocument.title}</h1>
                 {(selectedDocument.tags || []).length ? <div className="research-reader-tags">{selectedDocument.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}</div> : null}
               </div>
-              <article className="research-reader-content tiptap" dangerouslySetInnerHTML={{ __html: readHtml }} />
+              <article className="research-reader-content tiptap" onClick={openReaderImage} dangerouslySetInnerHTML={{ __html: readHtml }} />
               {mode === 'active' && (wikiLinks.length || backlinks.length) ? (
                 <div className="research-relations">
                   {wikiLinks.length ? <div><strong>引用的研究</strong><Space wrap>{wikiLinks.map((name) => <Button key={name} type="link" size="small" icon={<LinkOutlined />} onClick={() => openWikiLink(name)}>{name}</Button>)}</Space></div> : null}
@@ -625,6 +632,8 @@ export default function TradingResearch() {
           )}
         </main>
       </div>
+
+      {lightboxImage ? <ImageLightbox {...lightboxImage} onClose={() => setLightboxImage(null)} /> : null}
 
       <Modal title={folderModal.id ? '编辑资料夹' : '新建资料夹'} open={folderModal.open} onOk={saveFolder} onCancel={() => setFolderModal({ open: false, id: null, name: '', parent_id: null })} okText="保存" cancelText="取消">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>

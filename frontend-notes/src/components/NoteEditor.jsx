@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { message } from 'antd';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -7,6 +6,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import ResizableImage from './ResizableImage';
+import ImageLightbox from './ImageLightbox';
 import Link from '@tiptap/extension-link';
 import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -412,7 +412,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
   const [title, setTitle] = useState(note?.title || '');
   const [mode, setMode] = useState(defaultEditing ? 'edit' : 'read');
   const [mdSource, setMdSource] = useState('');
-  const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
   const contentRef = useRef(null);
   const readViewRef = useRef(null);
   const noteRef = useRef(note);
@@ -540,7 +540,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
 
   const handleReadViewClick = useCallback((e) => {
     if (e.target.tagName === 'IMG') {
-      setLightboxSrc(e.target.src);
+      setLightboxImage({ src: e.target.src, alt: e.target.alt || '' });
       return;
     }
     const link = e.target.closest?.('.wiki-link');
@@ -623,12 +623,7 @@ export default function NoteEditor({ note, onUpdate, defaultEditing = false, onO
         <span>{note.word_count || 0} 字</span>
         <span>最后编辑: {backendTimeInChina(note.updated_at).format('YYYY-MM-DD HH:mm')}</span>
       </div>
-      {lightboxSrc && createPortal(
-        <div className="image-lightbox" onClick={() => setLightboxSrc(null)}>
-          <img src={lightboxSrc} alt="" onClick={e => e.stopPropagation()} />
-        </div>,
-        document.body
-      )}
+      {lightboxImage ? <ImageLightbox {...lightboxImage} onClose={() => setLightboxImage(null)} /> : null}
     </div>
   );
 }

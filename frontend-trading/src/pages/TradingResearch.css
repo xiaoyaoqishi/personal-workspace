@@ -326,6 +326,7 @@
 .research-reader-content th { background: var(--td-color-surface-muted); }
 .research-rich-content img,
 .research-reader-content img { max-width: 100%; height: auto; }
+.research-reader-content img { cursor: zoom-in; }
 .research-rich-content ul[data-type='taskList'],
 .research-reader-content ul[data-type='taskList'] { padding-left: 0; list-style: none; }
 .research-rich-content li[data-type='taskItem'],
@@ -338,6 +339,59 @@
 .research-resize-handle { position: absolute; top: 50%; width: 9px; height: 28px; transform: translateY(-50%); border-radius: 4px; background: var(--td-color-primary); cursor: ew-resize; }
 .research-resize-handle.left { left: -5px; }
 .research-resize-handle.right { right: -5px; }
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: rgba(0, 0, 0, 0.82);
+}
+.image-lightbox-toolbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+}
+.image-lightbox-toolbar button {
+  min-width: 38px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 7px;
+  background: rgba(20, 20, 20, 0.82);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+.image-lightbox-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+.image-lightbox-toolbar .image-lightbox-scale { min-width: 72px; font-size: 13px; }
+.image-lightbox-toolbar .image-lightbox-close { margin-left: 8px; }
+.image-lightbox-stage {
+  min-width: 0;
+  min-height: 0;
+  padding: 24px;
+  overflow: auto;
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  cursor: zoom-out;
+}
+.image-lightbox-stage img {
+  max-width: 90vw;
+  max-height: calc(100vh - 124px);
+  object-fit: contain;
+  border-radius: 5px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.48);
+  cursor: default;
+  user-select: none;
+  transition: width 0.18s ease;
+}
+.image-lightbox-stage.can-pan img { cursor: grab; touch-action: none; }
+.image-lightbox-stage.is-dragging img { cursor: grabbing; }
 
 .research-relations {
   width: auto;
