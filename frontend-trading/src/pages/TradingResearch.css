@@ -272,9 +272,9 @@
 
 .research-rich-content .tiptap,
 .research-reader-content {
-  max-width: 980px;
+  width: 100%;
   min-height: 420px;
-  margin: 0 auto;
+  box-sizing: border-box;
   outline: none;
   color: var(--td-color-text);
   line-height: 1.8;
@@ -293,7 +293,7 @@
 .research-reader-header h1 { margin: 6px 0 0; color: var(--td-color-text); font-size: 26px; }
 .research-reader-meta { color: var(--td-color-text-secondary); font-size: 12px; }
 .research-reader-tags { margin-top: 8px; }
-.research-reader-content { width: min(980px, calc(100% - 56px)); padding: 18px 0 50px; font-size: 18px; font-family: STKaiti, KaiTi, serif; }
+.research-reader-content { padding: 18px 28px 50px; font-size: 18px; font-family: STKaiti, KaiTi, serif; }
 .research-reader-content:empty::before { content: '暂无正文'; color: var(--td-color-text-secondary); }
 
 .research-rich-content .tiptap h1,
@@ -340,8 +340,8 @@
 .research-resize-handle.right { right: -5px; }
 
 .research-relations {
-  width: min(980px, calc(100% - 56px));
-  margin: 0 auto 32px;
+  width: auto;
+  margin: 0 28px 32px;
   padding-top: 14px;
   border-top: 1px solid var(--td-color-border-light);
   display: grid;
@@ -359,5 +359,7 @@
   .research-editor-header,
   .research-reader-header,
   .research-rich-toolbar,
-  .research-rich-content { padding-inline: 16px; }
+  .research-rich-content,
+  .research-reader-content { padding-inline: 16px; }
+  .research-relations { margin-inline: 16px; }
 }
