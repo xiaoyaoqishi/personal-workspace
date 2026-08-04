@@ -124,6 +124,20 @@ class TradeBroker(Base):
     deleted_at = Column(DateTime, nullable=True)
 
 
+class TradeInstrument(Base):
+    __tablename__ = "trade_instruments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    code = Column(String(50), nullable=False, unique=True, index=True)
+    name = Column(String(100), nullable=False)
+    instrument_type = Column(String(20), nullable=False)
+    category = Column(String(50), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+
 class TagTerm(Base):
     __tablename__ = "tag_terms"
 

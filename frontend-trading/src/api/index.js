@@ -37,6 +37,13 @@ export const brokerApi = {
   delete: (id) => api.delete(`/trade-brokers/${id}`),
 };
 
+export const instrumentApi = {
+  list: () => api.get('/trade-instruments'),
+  create: (data) => api.post('/trade-instruments', data),
+  update: (id, data) => api.put(`/trade-instruments/${id}`, data),
+  delete: (id) => api.delete(`/trade-instruments/${id}`),
+};
+
 export const tradePlanApi = {
   list: (params) => api.get('/trade-plans', { params }),
   get: (id) => api.get(`/trade-plans/${id}`),

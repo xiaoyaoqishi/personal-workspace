@@ -13,6 +13,7 @@
   - `/api/trades/{trade_id}/risk-point-history`
   - `/api/trades/research/*`
   - `/api/trade-brokers`
+  - `/api/trade-instruments`
   - `/api/trade-review-taxonomy`
 - 禁止在普通重构中新增独立的 trading 模块级 API 前缀。
 - 独立研究能力沿用现有 `/api/trades` 前缀，收敛在 `/api/trades/research/*`，不复用 Notes API。

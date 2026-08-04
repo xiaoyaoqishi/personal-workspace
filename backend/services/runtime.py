@@ -260,6 +260,10 @@ def _migrate_legacy_schema():
             _ensure_sqlite_column(db, "trade_brokers", "is_deleted", "BOOLEAN DEFAULT 0")
             _ensure_sqlite_column(db, "trade_brokers", "deleted_at", "DATETIME")
             _ensure_sqlite_column(db, "trade_brokers", "owner_role", "VARCHAR(20) DEFAULT 'admin'")
+        if _table_exists(db, "trade_instruments"):
+            from services.trade_instrument_runtime import seed_default_trade_instruments
+
+            seed_default_trade_instruments(db)
         # 知识库功能已下线，历史数据按产品要求不保留。
         if _table_exists(db, "knowledge_items") and "content" in _column_names(db, "knowledge_items"):
             removed_knowledge_contents = [row[0] for row in db.execute(text("SELECT content FROM knowledge_items")).fetchall()]

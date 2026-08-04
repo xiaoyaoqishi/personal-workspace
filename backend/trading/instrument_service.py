@@ -1,0 +1,6 @@
+from services import trade_instrument_runtime
+
+list_trade_instruments = trade_instrument_runtime.list_trade_instruments
+create_trade_instrument = trade_instrument_runtime.create_trade_instrument
+update_trade_instrument = trade_instrument_runtime.update_trade_instrument
+delete_trade_instrument = trade_instrument_runtime.delete_trade_instrument

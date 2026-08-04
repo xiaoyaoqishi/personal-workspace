@@ -12,6 +12,7 @@ def test_trading_routes_still_registered(app):
     assert "/api/trades/import-paste" in paths
     assert "/api/trades/search-options" in paths
     assert "/api/trade-brokers" in paths
+    assert "/api/trade-instruments" in paths
     assert "/api/trade-review-taxonomy" in paths
 
 

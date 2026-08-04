@@ -217,6 +217,28 @@ class TradeBrokerResponse(TradeBrokerCreate):
     deleted_at: Optional[datetime] = None
 
 
+class TradeInstrumentCreate(BaseModel):
+    code: str
+    name: str
+    instrument_type: str
+    category: Optional[str] = None
+
+
+class TradeInstrumentUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    instrument_type: Optional[str] = None
+    category: Optional[str] = None
+
+
+class TradeInstrumentResponse(TradeInstrumentCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 class TradeSummaryResponse(BaseModel):
     trade_id: int
     trade_date: Optional[date] = None

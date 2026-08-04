@@ -60,6 +60,7 @@ def _api_module_from_path(path: str):
         "/api/trades",
         "/api/trade-plans",
         "/api/trade-brokers",
+        "/api/trade-instruments",
         "/api/trade-review-taxonomy",
         "/api/recycle",
     )

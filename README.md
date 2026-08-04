@@ -16,6 +16,7 @@
 ## Current Capabilities
 ### Trading
 - Trade CRUD, filters, search options, position views, and opening/closing timestamps in the trade table.
+- New and edited trades select instruments from a searchable canonical catalog instead of free text. The Maintenance page provides instrument and broker tabs, with instrument create/edit/delete support; editing an instrument code also updates existing trades and plans.
 - Trade-record favorite/rating controls and their favorite, rating, and custom-sort filters have been removed.
 - Trade behavior-discipline fields, violation markers, and related analytics have been removed without retaining historical values.
 - Trade size fields and displays have been removed from create/edit, tables, details, linked summaries, position views, and APIs without retaining historical values.

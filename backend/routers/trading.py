@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from trading import broker_service, research_service, trade_service
+from trading import broker_service, instrument_service, research_service, trade_service
 
 router = APIRouter(prefix="/api", tags=["trading"])
 
@@ -46,3 +46,7 @@ router.get("/trade-brokers")(broker_service.list_trade_brokers)
 router.post("/trade-brokers")(broker_service.create_trade_broker)
 router.put("/trade-brokers/{broker_id}")(broker_service.update_trade_broker)
 router.delete("/trade-brokers/{broker_id}")(broker_service.delete_trade_broker)
+router.get("/trade-instruments")(instrument_service.list_trade_instruments)
+router.post("/trade-instruments")(instrument_service.create_trade_instrument)
+router.put("/trade-instruments/{instrument_id:int}")(instrument_service.update_trade_instrument)
+router.delete("/trade-instruments/{instrument_id:int}")(instrument_service.delete_trade_instrument)

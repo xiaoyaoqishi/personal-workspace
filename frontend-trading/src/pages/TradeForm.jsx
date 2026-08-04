@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
-import { tradeApi, tradeReviewApi } from '../api';
+import { instrumentApi, tradeApi, tradeReviewApi } from '../api';
 import { taxonomyCanonicalValues, taxonomyOptionsWithZh } from '../features/trading/localization';
 import { formatChinaDateTime, normalizeTagList } from '../features/trading/display';
 import ResearchContentPanel from '../features/trading/components/ResearchContentPanel';
@@ -44,9 +44,47 @@ export default function TradeForm() {
   const [reviewExists, setReviewExists] = useState(false);
   const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
   const [riskPointHistory, setRiskPointHistory] = useState([]);
+  const [instruments, setInstruments] = useState([]);
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+
+  const instrumentOptions = instruments.map((item) => ({
+    label: `${item.name}（${item.code}）`,
+    value: item.code,
+    searchText: [item.name, item.code, item.instrument_type, item.category].filter(Boolean).join(' ').toLowerCase(),
+  }));
+
+  const instrumentSelect = (
+    <Select
+      showSearch
+      allowClear
+      placeholder="输入品种名称或代码搜索"
+      options={instrumentOptions}
+      filterOption={(input, option) => option.searchText.includes(input.trim().toLowerCase())}
+      onChange={(code) => {
+        const selected = instruments.find((item) => item.code === code);
+        if (selected) {
+          form.setFieldsValue({
+            instrument_type: selected.instrument_type,
+            category: selected.category || undefined,
+          });
+        }
+      }}
+    />
+  );
+
+  useEffect(() => {
+    let alive = true;
+    instrumentApi.list()
+      .then((res) => {
+        if (alive) setInstruments(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (alive) message.error('品种列表加载失败');
+      });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -190,7 +228,7 @@ export default function TradeForm() {
               <Select options={opt(['期货', '加密货币', '股票', '外汇'])} />
             </Form.Item>
           </Col>
-          <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true }]}><Input /></Form.Item></Col>
+          <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true, message: '请选择品种' }]}>{instrumentSelect}</Form.Item></Col>
           <Col span={8}>
             <Form.Item label="品种分类" name="category">
               <Select allowClear options={opt(['黑色', '能化', '有色', '农产品', '股指', '国债', '加密货币', '外汇', '其他'])} />
@@ -255,7 +293,7 @@ export default function TradeForm() {
               <Select options={opt(['期货', '加密货币', '股票', '外汇'])} />
             </Form.Item>
           </Col>
-          <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true }]}><Input /></Form.Item></Col>
+          <Col span={8}><Form.Item label="品种" name="symbol" rules={[{ required: true, message: '请选择品种' }]}>{instrumentSelect}</Form.Item></Col>
           <Col span={8}>
             <Form.Item label="方向" name="direction" rules={[{ required: true }]}>
               <Select options={[{ label: '做多', value: '做多' }, { label: '做空', value: '做空' }]} />
