@@ -1,5 +1,10 @@
 import axios from 'axios'
-import { message } from 'antd'
+
+let notifyError = () => {}
+
+export const setApiErrorNotifier = (notifier) => {
+  notifyError = typeof notifier === 'function' ? notifier : () => {}
+}
 
 const extractErrorMessage = (error) => {
   const data = error?.response?.data
@@ -29,16 +34,10 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    if (!silentError) {
-      if (status === 403) {
-        message.error('无权限访问')
-      } else {
-        const userMsg = extractErrorMessage(error)
-        if (userMsg) {
-          message.error(userMsg)
-          error.userMessage = userMsg
-        }
-      }
+    const userMsg = status === 403 ? '无权限访问' : extractErrorMessage(error)
+    if (userMsg) {
+      error.userMessage = userMsg
+      if (!silentError) notifyError(userMsg)
     }
 
     return Promise.reject(error)
