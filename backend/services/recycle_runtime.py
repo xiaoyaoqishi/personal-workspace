@@ -13,6 +13,7 @@ from models import (
     TradeBroker,
     TradePlan,
     TradePlanTradeLink,
+    TradingResearchTradeLink,
 )
 from services import notes_runtime
 from trading.source_service import attach_trade_view_fields as _attach_trade_view_fields
@@ -52,6 +53,7 @@ def purge_recycle_trade(trade_id: int, db: Session = Depends(get_db)):
     db.query(ReviewSessionTradeLink).filter(ReviewSessionTradeLink.trade_id == trade_id).delete(synchronize_session=False)
     db.query(TradePlanTradeLink).filter(TradePlanTradeLink.trade_id == trade_id).delete(synchronize_session=False)
     db.query(ReviewTradeLink).filter(ReviewTradeLink.trade_id == trade_id).delete(synchronize_session=False)
+    db.query(TradingResearchTradeLink).filter(TradingResearchTradeLink.trade_id == trade_id).delete(synchronize_session=False)
     db.delete(row)
     db.commit()
     return {"ok": True}
@@ -140,6 +142,7 @@ def clear_recycle_trades(db: Session = Depends(get_db)):
     db.query(ReviewSessionTradeLink).filter(ReviewSessionTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
     db.query(TradePlanTradeLink).filter(TradePlanTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
     db.query(ReviewTradeLink).filter(ReviewTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
+    db.query(TradingResearchTradeLink).filter(TradingResearchTradeLink.trade_id.in_(trade_ids)).delete(synchronize_session=False)
     for row in rows:
         db.delete(row)
     db.commit()

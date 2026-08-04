@@ -5,9 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>账务管理</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%232c3e50'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='34' fill='white'%3E账%3C/text%3E%3C/svg%3E" />
+    <style>
+      .ledger-boot {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f5f7fa;
+        color: #64748b;
+        font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .ledger-boot-inner { display: flex; align-items: center; gap: 10px; }
+      .ledger-boot-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #cbd5e1;
+        border-top-color: #1677ff;
+        border-radius: 50%;
+        animation: ledger-boot-spin .8s linear infinite;
+      }
+      @keyframes ledger-boot-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="ledger-boot">
+        <div class="ledger-boot-inner"><span class="ledger-boot-spinner"></span><span>账务页面加载中...</span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

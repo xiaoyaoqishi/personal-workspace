@@ -65,6 +65,67 @@ def test_trading_research_crud_links_and_recycle(admin_login):
     assert client.get(f"/api/trades/research/documents/{alpha_id}").status_code == 200
 
 
+def test_trading_research_document_can_reference_multiple_trades(admin_login):
+    client = admin_login
+    folder_id = client.post("/api/trades/research/folders", json={"name": "交易样本"}).json()["id"]
+
+    def create_trade(symbol, open_time, direction, open_price):
+        response = client.post(
+            "/api/trades",
+            json={
+                "instrument_type": "futures",
+                "symbol": symbol,
+                "direction": direction,
+                "open_time": open_time,
+                "open_price": open_price,
+                "stop_loss_point": open_price - 10,
+                "target_point": open_price + 20,
+                "capital_percentage": 10,
+            },
+        )
+        assert response.status_code == 200
+        return response.json()["id"]
+
+    first_trade_id = create_trade("IF", "2026-07-01T09:30:00", "long", 3500)
+    second_trade_id = create_trade("AU", "2026-07-02T09:30:00", "short", 780)
+
+    created = client.post(
+        "/api/trades/research/documents",
+        json={
+            "folder_id": folder_id,
+            "title": "多交易样本复盘",
+            "trade_ids": [first_trade_id, second_trade_id, first_trade_id],
+        },
+    )
+    assert created.status_code == 200
+    document_id = created.json()["id"]
+    assert created.json()["trade_ids"] == [first_trade_id, second_trade_id]
+    assert [item["trade_id"] for item in created.json()["related_trades"]] == [first_trade_id, second_trade_id]
+
+    updated = client.put(
+        f"/api/trades/research/documents/{document_id}",
+        json={"trade_ids": [second_trade_id]},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["trade_ids"] == [second_trade_id]
+    assert updated.json()["related_trades"][0]["symbol"] == "AU"
+
+    rejected = client.put(
+        f"/api/trades/research/documents/{document_id}",
+        json={"trade_ids": [999999]},
+    )
+    assert rejected.status_code == 400
+    assert client.get(f"/api/trades/research/documents/{document_id}").json()["trade_ids"] == [second_trade_id]
+
+    assert client.delete(f"/api/trades/{second_trade_id}").status_code == 200
+    assert client.get(f"/api/trades/research/documents/{document_id}").json()["trade_ids"] == []
+    assert client.post(f"/api/recycle/trades/{second_trade_id}/restore").status_code == 200
+    assert client.get(f"/api/trades/research/documents/{document_id}").json()["trade_ids"] == [second_trade_id]
+    assert client.delete(f"/api/trades/{second_trade_id}").status_code == 200
+    assert client.delete(f"/api/recycle/trades/{second_trade_id}/purge").status_code == 200
+    assert client.get(f"/api/trades/research/documents/{document_id}").json()["trade_ids"] == []
+
+
 def test_legacy_trading_notes_are_migrated_idempotently(admin_login):
     import core.db as core_db
     from models import Note, Notebook, TradingResearchDocument, TradingResearchFolder

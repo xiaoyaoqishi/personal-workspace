@@ -14,13 +14,25 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { researchApi } from '../api';
+import { researchApi, tradeApi, tradeLinkedPlanApi, tradeReviewApi } from '../api';
 import { backendTimeInChina } from '../utils/datetime';
 import ResearchEditor, { renderResearchContent } from '../components/ResearchEditor';
 import ImageLightbox from '../components/ImageLightbox';
+import TradeDetailDrawer from '../features/trading/workspace/TradeDetailDrawer';
 import './TradingResearch.css';
 
-const EMPTY_DRAFT = { title: '', folder_id: null, tags: [], content: '', is_pinned: false };
+const EMPTY_DRAFT = { title: '', folder_id: null, tags: [], content: '', is_pinned: false, trade_ids: [] };
+
+function tradeReferenceLabel(trade) {
+  const instrument = [trade.symbol, trade.contract].filter(Boolean).join(' · ') || '未知品种';
+  const direction = trade.direction === 'long' ? '多' : trade.direction === 'short' ? '空' : trade.direction || '—';
+  const price = trade.open_price == null
+    ? ''
+    : ` · ${trade.open_price}${trade.close_price == null ? '' : ` → ${trade.close_price}`}`;
+  const pnl = trade.pnl == null ? '' : ` · 盈亏 ${Number(trade.pnl).toLocaleString()}`;
+  const status = trade.status === 'open' ? '持仓' : trade.status === 'closed' ? '已平仓' : trade.status || '状态未知';
+  return `#${trade.trade_id} · ${trade.trade_date || '日期未知'} · ${instrument} · ${direction}${price}${pnl} · ${status}`;
+}
 
 function sanitizeResearchHtml(raw) {
   if (typeof window === 'undefined') return raw || '';
@@ -162,10 +174,23 @@ export default function TradingResearch() {
   const [draggedFolderId, setDraggedFolderId] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [tradeSearch, setTradeSearch] = useState('');
+  const [tradeOptions, setTradeOptions] = useState([]);
+  const [tradeOptionsLoading, setTradeOptionsLoading] = useState(false);
+  const [tradeDrawer, setTradeDrawer] = useState({
+    open: false,
+    tradeId: null,
+    loading: false,
+    trade: null,
+    riskPointHistory: [],
+    review: null,
+    linkedPlans: [],
+  });
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
   const selectedIdRef = useRef(null);
   const selectionRevisionRef = useRef(0);
+  const tradeDrawerRequestRef = useRef(0);
 
   const updateSelectedId = (documentId) => {
     selectedIdRef.current = documentId;
@@ -262,6 +287,25 @@ export default function TradingResearch() {
     return () => window.clearTimeout(timer);
   }, [mode, keyword]);
   useEffect(() => { loadDocument(selectedId, mode); }, [selectedId, mode, documents]);
+  useEffect(() => {
+    if (!editing) return undefined;
+    const timer = window.setTimeout(async () => {
+      setTradeOptionsLoading(true);
+      try {
+        const result = await tradeApi.searchOptions({
+          limit: 50,
+          ...(tradeSearch.trim() ? { q: tradeSearch.trim() } : {}),
+          ...(draft.trade_ids?.length ? { include_ids: draft.trade_ids.join(',') } : {}),
+        });
+        setTradeOptions(result.data?.items || []);
+      } catch (error) {
+        message.error(error.response?.data?.detail || '交易记录加载失败');
+      } finally {
+        setTradeOptionsLoading(false);
+      }
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [editing, tradeSearch, draft.trade_ids]);
 
   const changeMode = (nextMode) => {
     selectionRevisionRef.current += 1;
@@ -290,6 +334,8 @@ export default function TradingResearch() {
     setBacklinks([]);
     setIsNew(true);
     setEditing(true);
+    setTradeSearch('');
+    setTradeOptions([]);
     setDraft({ ...EMPTY_DRAFT, folder_id: targetFolderId });
   };
 
@@ -297,12 +343,15 @@ export default function TradingResearch() {
     if (!selectedDocument) return;
     setIsNew(false);
     setEditing(true);
+    setTradeSearch('');
+    setTradeOptions(selectedDocument.related_trades || []);
     setDraft({
       title: selectedDocument.title || '',
       folder_id: selectedDocument.folder_id,
       tags: selectedDocument.tags || [],
       content: renderResearchContent(selectedDocument.content || ''),
       is_pinned: Boolean(selectedDocument.is_pinned),
+      trade_ids: selectedDocument.trade_ids || [],
     });
   };
 
@@ -530,6 +579,33 @@ export default function TradingResearch() {
     }
   };
 
+  const loadTradeDrawer = async (tradeId) => {
+    const requestId = ++tradeDrawerRequestRef.current;
+    setTradeDrawer((current) => ({ ...current, open: true, tradeId, loading: true }));
+    try {
+      const [tradeResult, reviewResult, linkedPlansResult, riskPointHistoryResult] = await Promise.all([
+        tradeApi.get(tradeId),
+        tradeReviewApi.get(tradeId).catch((error) => (error.response?.status === 404 ? { data: null } : Promise.reject(error))),
+        tradeLinkedPlanApi.get(tradeId).catch(() => ({ data: [] })),
+        tradeApi.riskPointHistory(tradeId).catch(() => ({ data: [] })),
+      ]);
+      if (requestId !== tradeDrawerRequestRef.current) return;
+      setTradeDrawer({
+        open: true,
+        tradeId,
+        loading: false,
+        trade: tradeResult.data || null,
+        riskPointHistory: Array.isArray(riskPointHistoryResult.data) ? riskPointHistoryResult.data : [],
+        review: reviewResult.data || null,
+        linkedPlans: Array.isArray(linkedPlansResult.data) ? linkedPlansResult.data : [],
+      });
+    } catch (error) {
+      if (requestId !== tradeDrawerRequestRef.current) return;
+      setTradeDrawer((current) => ({ ...current, loading: false, trade: null }));
+      message.error(error.response?.data?.detail || '交易详情加载失败');
+    }
+  };
+
   const restoreDocument = async () => {
     const restored = (await researchApi.recycle.restore(selectedDocument.id)).data;
     message.success('研究已恢复');
@@ -653,6 +729,20 @@ export default function TradingResearch() {
                 <div className="research-editor-fields">
                   <Select value={draft.folder_id} onChange={(value) => setDraft((current) => ({ ...current, folder_id: value }))} options={folderOptions} placeholder="选择资料夹" />
                   <Select mode="tags" value={draft.tags} onChange={(value) => setDraft((current) => ({ ...current, tags: value }))} placeholder="输入标签后回车" />
+                  <Select
+                    className="research-trade-selector"
+                    mode="multiple"
+                    allowClear
+                    showSearch
+                    filterOption={false}
+                    loading={tradeOptionsLoading}
+                    value={draft.trade_ids}
+                    onSearch={setTradeSearch}
+                    onChange={(value) => setDraft((current) => ({ ...current, trade_ids: value }))}
+                    options={tradeOptions.map((trade) => ({ value: trade.trade_id, label: tradeReferenceLabel(trade) }))}
+                    placeholder="搜索并引用交易记录（支持多选）"
+                    notFoundContent={tradeOptionsLoading ? <Spin size="small" /> : '没有匹配的交易'}
+                  />
                 </div>
               </div>
               <ResearchEditor key={isNew ? 'new' : selectedDocument?.id} content={draft.content} onChange={(content) => setDraft((current) => ({ ...current, content }))} />
@@ -678,6 +768,19 @@ export default function TradingResearch() {
                 <h1>{selectedDocument.title}</h1>
                 {(selectedDocument.tags || []).length ? <div className="research-reader-tags">{selectedDocument.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}</div> : null}
               </div>
+              {mode === 'active' && selectedDocument.related_trades?.length ? (
+                <div className="research-pinned-trades">
+                  <strong>引用的交易</strong>
+                  <div className="research-trade-reference-list">
+                    {selectedDocument.related_trades.map((trade) => (
+                      <div className="research-trade-reference" key={trade.trade_id}>
+                        <span>{tradeReferenceLabel(trade)}</span>
+                        <Button type="link" size="small" onClick={() => loadTradeDrawer(trade.trade_id)}>查看交易</Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <article className="research-reader-content tiptap" onClick={openReaderImage} dangerouslySetInnerHTML={{ __html: readHtml }} />
               {mode === 'active' && (wikiLinks.length || backlinks.length) ? (
                 <div className="research-relations">
@@ -693,6 +796,19 @@ export default function TradingResearch() {
       </div>
 
       {lightboxImage ? <ImageLightbox {...lightboxImage} onClose={() => setLightboxImage(null)} /> : null}
+
+      <TradeDetailDrawer
+        open={tradeDrawer.open}
+        tradeId={tradeDrawer.tradeId}
+        loading={tradeDrawer.loading}
+        trade={tradeDrawer.trade}
+        riskPointHistory={tradeDrawer.riskPointHistory}
+        review={tradeDrawer.review}
+        reviewExists={Boolean(tradeDrawer.review)}
+        linkedPlans={tradeDrawer.linkedPlans}
+        onClose={() => setTradeDrawer((current) => ({ ...current, open: false }))}
+        onReload={() => tradeDrawer.tradeId && loadTradeDrawer(tradeDrawer.tradeId)}
+      />
 
       <Modal title={folderModal.id ? '编辑资料夹' : '新建资料夹'} open={folderModal.open} onOk={saveFolder} onCancel={() => setFolderModal({ open: false, id: null, name: '', parent_id: null })} okText="保存" cancelText="取消">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>

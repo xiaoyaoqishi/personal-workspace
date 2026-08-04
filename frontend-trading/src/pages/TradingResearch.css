@@ -197,6 +197,7 @@
   gap: 8px;
   margin-top: 6px;
 }
+.research-trade-selector { grid-column: 1 / -1; }
 
 .research-rich-editor {
   flex: 1;
@@ -297,6 +298,18 @@
 .research-reader-header h1 { margin: 6px 0 0; color: var(--td-color-text); font-size: 26px; }
 .research-reader-meta { color: var(--td-color-text-secondary); font-size: 12px; }
 .research-reader-tags { margin-top: 8px; }
+.research-pinned-trades {
+  margin: 8px 28px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--td-color-border-light);
+  border-radius: 8px;
+  background: var(--td-color-surface-muted);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.research-pinned-trades > strong { padding-top: 7px; color: var(--td-color-text-secondary); font-size: 12px; }
 .research-reader-content { padding: 18px 28px 50px; font-size: 18px; font-family: STKaiti, KaiTi, serif; }
 .research-reader-content:empty::before { content: '暂无正文'; color: var(--td-color-text-secondary); }
 
@@ -407,6 +420,21 @@
 }
 .research-relations > div { display: flex; align-items: center; gap: 8px; }
 .research-relations strong { color: var(--td-color-text-secondary); font-size: 12px; }
+.research-trade-reference-list { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.research-trade-reference {
+  min-width: 0;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--td-color-border-light);
+  border-radius: 7px;
+  background: var(--td-color-surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--td-color-text);
+  font-size: 13px;
+}
+.research-trade-reference > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 900px) {
   .research-page { height: auto; min-height: 720px; }
@@ -419,5 +447,7 @@
   .research-rich-toolbar,
   .research-rich-content,
   .research-reader-content { padding-inline: 16px; }
+  .research-pinned-trades { margin-inline: 16px; grid-template-columns: 1fr; }
+  .research-pinned-trades > strong { padding-top: 0; }
   .research-relations { margin-inline: 16px; }
 }

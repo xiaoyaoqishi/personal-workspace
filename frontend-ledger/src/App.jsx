@@ -1,5 +1,5 @@
-import { createContext, lazy, Suspense, useContext } from 'react'
-import { Alert, ConfigProvider, theme as antdTheme } from 'antd'
+import { Component, createContext, lazy, Suspense, useContext } from 'react'
+import { Alert, Button, ConfigProvider, Result, Space, theme as antdTheme } from 'antd'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import IconSidebar from './components/IconSidebar'
 import LoadingBlock from './components/LoadingBlock'
@@ -29,6 +29,38 @@ const MerchantDictionaryPage = lazy(() => import('./pages/MerchantDictionaryPage
 const RulesPage = lazy(() => import('./pages/Rules'))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 const AssetsPage = lazy(() => import('./pages/AssetsPage'))
+
+class LedgerErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error('[ledger] page render failed', error, info)
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <Result
+        status="error"
+        title="账务页面加载失败"
+        subTitle="页面资源可能刚刚更新，请重新加载后再试。"
+        extra={(
+          <Space>
+            <Button type="primary" onClick={() => window.location.reload()}>重新加载</Button>
+            <Button href="/">返回首页</Button>
+          </Space>
+        )}
+      />
+    )
+  }
+}
 
 function AppLayout() {
   useAuditPageView()
@@ -84,9 +116,11 @@ export default function App() {
   return (
     <ThemeContext.Provider value={{ theme, isDark, cycleTheme, setTheme, compact, toggleCompact }}>
       <ConfigProvider theme={themeConfig}>
-        <BrowserRouter basename="/ledger">
-          <AppLayout />
-        </BrowserRouter>
+        <LedgerErrorBoundary>
+          <BrowserRouter basename="/ledger">
+            <AppLayout />
+          </BrowserRouter>
+        </LedgerErrorBoundary>
       </ConfigProvider>
     </ThemeContext.Provider>
   )

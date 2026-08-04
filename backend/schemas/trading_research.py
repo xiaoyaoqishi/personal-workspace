@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -39,6 +39,7 @@ class TradingResearchDocumentCreate(BaseModel):
     tags: Optional[Union[List[str], str]] = None
     is_pinned: bool = False
     sort_order: Optional[int] = None
+    trade_ids: List[int] = Field(default_factory=list)
 
 
 class TradingResearchDocumentUpdate(BaseModel):
@@ -48,6 +49,7 @@ class TradingResearchDocumentUpdate(BaseModel):
     tags: Optional[Union[List[str], str]] = None
     is_pinned: Optional[bool] = None
     sort_order: Optional[int] = None
+    trade_ids: Optional[List[int]] = None
 
 
 class TradingResearchDocumentReorder(BaseModel):
@@ -55,6 +57,18 @@ class TradingResearchDocumentReorder(BaseModel):
     target_folder_id: int
     target_document_id: Optional[int] = None
     placement: str = Field(default="end", pattern="^(before|after|end)$")
+
+
+class TradingResearchTradeReferenceResponse(BaseModel):
+    trade_id: int
+    trade_date: Optional[date] = None
+    symbol: Optional[str] = None
+    contract: Optional[str] = None
+    direction: Optional[str] = None
+    open_price: Optional[float] = None
+    close_price: Optional[float] = None
+    status: Optional[str] = None
+    pnl: Optional[float] = None
 
 
 class TradingResearchDocumentResponse(TradingResearchDocumentCreate):
@@ -67,6 +81,7 @@ class TradingResearchDocumentResponse(TradingResearchDocumentCreate):
     tags: List[str] = []
     tags_text: Optional[str] = None
     word_count: int = 0
+    related_trades: List[TradingResearchTradeReferenceResponse] = Field(default_factory=list)
 
 
 class TradingResearchLinkResponse(BaseModel):

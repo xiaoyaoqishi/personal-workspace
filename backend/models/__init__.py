@@ -31,7 +31,12 @@ from models.trading import (
     TradeRiskPointHistory,
     TradeSourceMetadata,
 )
-from models.trading_research import TradingResearchDocument, TradingResearchFolder, TradingResearchLink
+from models.trading_research import (
+    TradingResearchDocument,
+    TradingResearchFolder,
+    TradingResearchLink,
+    TradingResearchTradeLink,
+)
 
 __all__ = [
     "BrowseLog",
@@ -69,5 +74,6 @@ __all__ = [
     "TradingResearchDocument",
     "TradingResearchFolder",
     "TradingResearchLink",
+    "TradingResearchTradeLink",
     "User",
 ]

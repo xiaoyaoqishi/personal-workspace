@@ -13,9 +13,11 @@ from core.db import get_db
 from models import (
     Note,
     Notebook,
+    Trade,
     TradingResearchDocument,
     TradingResearchFolder,
     TradingResearchLink,
+    TradingResearchTradeLink,
 )
 from schemas.trading_research import (
     TradingResearchDocumentCreate,
@@ -78,10 +80,81 @@ def _attach_folder_fields(db: Session, rows: list[TradingResearchFolder]):
     return rows
 
 
-def _attach_document_fields(rows: list[TradingResearchDocument]):
+def _attach_document_fields(db: Session, rows: list[TradingResearchDocument]):
+    trade_rows_by_document: dict[int, list[dict]] = {row.id: [] for row in rows}
+    if trade_rows_by_document:
+        linked_rows = (
+            db.query(TradingResearchTradeLink, Trade)
+            .join(Trade, Trade.id == TradingResearchTradeLink.trade_id)
+            .filter(
+                TradingResearchTradeLink.document_id.in_(trade_rows_by_document),
+                Trade.is_deleted == False,  # noqa: E712
+            )
+            .order_by(TradingResearchTradeLink.document_id, TradingResearchTradeLink.sort_order)
+            .all()
+        )
+        for link, trade in linked_rows:
+            trade_rows_by_document[link.document_id].append(
+                {
+                    "trade_id": trade.id,
+                    "trade_date": trade.trade_date,
+                    "symbol": trade.symbol,
+                    "contract": trade.contract,
+                    "direction": trade.direction,
+                    "open_price": trade.open_price,
+                    "close_price": trade.close_price,
+                    "status": trade.status,
+                    "pnl": trade.pnl,
+                }
+            )
     for row in rows:
         setattr(row, "tags", normalize_tag_list(row.tags_text))
+        related_trades = trade_rows_by_document.get(row.id, [])
+        setattr(row, "related_trades", related_trades)
+        setattr(row, "trade_ids", [item["trade_id"] for item in related_trades])
     return rows
+
+
+def _normalize_trade_ids(trade_ids: list[int]) -> list[int]:
+    normalized: list[int] = []
+    seen = set()
+    for trade_id in trade_ids:
+        if trade_id > 0 and trade_id not in seen:
+            seen.add(trade_id)
+            normalized.append(trade_id)
+    return normalized
+
+
+def _sync_document_trades(
+    db: Session,
+    document: TradingResearchDocument,
+    trade_ids: list[int],
+) -> None:
+    normalized_ids = _normalize_trade_ids(trade_ids)
+    if normalized_ids:
+        accessible_ids = {
+            row[0]
+            for row in db.query(Trade.id)
+            .filter(
+                Trade.id.in_(normalized_ids),
+                Trade.is_deleted == False,  # noqa: E712
+                Trade.owner_role == document.owner_role,
+            )
+            .all()
+        }
+        if len(accessible_ids) != len(normalized_ids):
+            raise HTTPException(400, "One or more linked trades are unavailable")
+    db.query(TradingResearchTradeLink).filter(
+        TradingResearchTradeLink.document_id == document.id
+    ).delete(synchronize_session=False)
+    for sort_order, trade_id in enumerate(normalized_ids):
+        db.add(
+            TradingResearchTradeLink(
+                document_id=document.id,
+                trade_id=trade_id,
+                sort_order=sort_order,
+            )
+        )
 
 
 def _resolve_target_id(db: Session, name: str) -> Optional[int]:
@@ -263,13 +336,14 @@ def list_research_documents(
             TradingResearchDocument.id.desc(),
         )
     rows = q.offset((page - 1) * size).limit(size).all()
-    return {"items": _attach_document_fields(rows), "total": total}
+    return {"items": _attach_document_fields(db, rows), "total": total}
 
 
 def create_research_document(data: TradingResearchDocumentCreate, db: Session = Depends(get_db)):
     folder = _folder_or_404(db, data.folder_id)
     payload = data.model_dump()
     tags = payload.pop("tags", None)
+    trade_ids = payload.pop("trade_ids", [])
     payload["title"] = payload["title"].strip()
     if not payload["title"]:
         raise HTTPException(400, "Document title is required")
@@ -288,21 +362,23 @@ def create_research_document(data: TradingResearchDocumentCreate, db: Session = 
     row.tags_text = serialize_legacy_tags(normalize_tag_list(tags))
     db.add(row)
     db.flush()
+    _sync_document_trades(db, row, trade_ids)
     _index_document_links(db, row)
     _refresh_link_targets(db)
     db.commit()
     db.refresh(row)
-    return _attach_document_fields([row])[0]
+    return _attach_document_fields(db, [row])[0]
 
 
 def get_research_document(document_id: int, db: Session = Depends(get_db)):
-    return _attach_document_fields([_document_or_404(db, document_id)])[0]
+    return _attach_document_fields(db, [_document_or_404(db, document_id)])[0]
 
 
 def update_research_document(document_id: int, data: TradingResearchDocumentUpdate, db: Session = Depends(get_db)):
     row = _document_or_404(db, document_id)
     updates = data.model_dump(exclude_unset=True)
     tags = updates.pop("tags", None) if "tags" in updates else None
+    trade_ids = updates.pop("trade_ids", None) if "trade_ids" in updates else None
     old_title = row.title
     if "folder_id" in updates:
         _folder_or_404(db, updates["folder_id"])
@@ -345,12 +421,14 @@ def update_research_document(document_id: int, data: TradingResearchDocumentUpda
         setattr(row, key, value)
     if tags is not None:
         row.tags_text = serialize_legacy_tags(normalize_tag_list(tags))
+    if trade_ids is not None:
+        _sync_document_trades(db, row, trade_ids)
     _index_document_links(db, row)
     if row.title != old_title:
         _refresh_link_targets(db)
     db.commit()
     db.refresh(row)
-    return _attach_document_fields([row])[0]
+    return _attach_document_fields(db, [row])[0]
 
 
 def reorder_research_document(data: TradingResearchDocumentReorder, db: Session = Depends(get_db)):
@@ -367,7 +445,7 @@ def reorder_research_document(data: TradingResearchDocumentReorder, db: Session 
         if not target_document:
             raise HTTPException(404, "Target research document not found")
         if target_document.id == document.id:
-            return _attach_document_fields([document])[0]
+            return _attach_document_fields(db, [document])[0]
 
     source_folder_id = document.folder_id
     target_documents = db.query(TradingResearchDocument).filter(
@@ -396,7 +474,7 @@ def reorder_research_document(data: TradingResearchDocumentReorder, db: Session 
 
     db.commit()
     db.refresh(document)
-    return _attach_document_fields([document])[0]
+    return _attach_document_fields(db, [document])[0]
 
 
 def delete_research_document(document_id: int, db: Session = Depends(get_db)):
@@ -416,7 +494,7 @@ def list_research_recycle(db: Session = Depends(get_db)):
         .order_by(TradingResearchDocument.deleted_at.desc(), TradingResearchDocument.id.desc())
         .all()
     )
-    return _attach_document_fields(rows)
+    return _attach_document_fields(db, rows)
 
 
 def restore_research_document(document_id: int, db: Session = Depends(get_db)):
@@ -428,11 +506,12 @@ def restore_research_document(document_id: int, db: Session = Depends(get_db)):
     _index_document_links(db, row)
     db.commit()
     db.refresh(row)
-    return _attach_document_fields([row])[0]
+    return _attach_document_fields(db, [row])[0]
 
 
 def purge_research_document(document_id: int, db: Session = Depends(get_db)):
     row = _document_or_404(db, document_id, include_deleted=True)
+    db.query(TradingResearchTradeLink).filter(TradingResearchTradeLink.document_id == row.id).delete()
     db.query(TradingResearchLink).filter(
         or_(TradingResearchLink.source_document_id == row.id, TradingResearchLink.target_document_id == row.id)
     ).delete(synchronize_session=False)
@@ -444,6 +523,7 @@ def purge_research_document(document_id: int, db: Session = Depends(get_db)):
 def clear_research_recycle(db: Session = Depends(get_db)):
     rows = db.query(TradingResearchDocument).filter(TradingResearchDocument.is_deleted == True).all()  # noqa: E712
     for row in rows:
+        db.query(TradingResearchTradeLink).filter(TradingResearchTradeLink.document_id == row.id).delete()
         db.query(TradingResearchLink).filter(
             or_(TradingResearchLink.source_document_id == row.id, TradingResearchLink.target_document_id == row.id)
         ).delete(synchronize_session=False)

@@ -39,6 +39,12 @@ class TradingResearchDocument(Base):
     legacy_note_id = Column(Integer, nullable=True, unique=True, index=True)
 
     folder = relationship("TradingResearchFolder", back_populates="documents")
+    trade_links = relationship(
+        "TradingResearchTradeLink",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="TradingResearchTradeLink.sort_order",
+    )
 
 
 class TradingResearchLink(Base):
@@ -53,3 +59,18 @@ class TradingResearchLink(Base):
     target_document_id = Column(Integer, ForeignKey("trading_research_documents.id"), nullable=True, index=True)
     target_name = Column(String(200), nullable=False)
     target_heading = Column(String(200), nullable=True)
+
+
+class TradingResearchTradeLink(Base):
+    __tablename__ = "trading_research_trade_links"
+    __table_args__ = (
+        UniqueConstraint("document_id", "trade_id", name="uq_trading_research_trade_link"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    document_id = Column(Integer, ForeignKey("trading_research_documents.id"), nullable=False, index=True)
+    trade_id = Column(Integer, ForeignKey("trades.id"), nullable=False, index=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+
+    document = relationship("TradingResearchDocument", back_populates="trade_links")

@@ -68,7 +68,7 @@ export default function TradeDetailDrawer({
           <Button size="small" icon={<ReloadOutlined />} onClick={onReload} disabled={!tradeId}>
             刷新
           </Button>
-          {tradeId ? (
+          {tradeId && onOpenEdit ? (
             <Button size="small" type="primary" onClick={onOpenEdit}>
               编辑
             </Button>
