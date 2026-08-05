@@ -2,6 +2,7 @@ from services import trade_analytics_runtime
 from services import trade_import_runtime
 from services import trading_runtime
 from trading import risk_point_service
+from trading.currency_service import get_usd_cny_exchange_rate
 
 import_trades_from_paste = trade_import_runtime.import_trades_from_paste
 list_trade_positions = trading_runtime.list_trade_positions

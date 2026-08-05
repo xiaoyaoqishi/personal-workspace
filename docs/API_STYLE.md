@@ -11,6 +11,7 @@
 - 当前 trading 对外 API 继续使用：
   - `/api/trades`
   - `/api/trades/{trade_id}/risk-point-history`
+  - `/api/trades/exchange-rate/usd-cny`
   - `/api/trades/research/*`
   - `/api/trade-brokers`
   - `/api/trade-instruments`

@@ -99,3 +99,66 @@ def test_trade_requires_initial_risk_points(admin_login):
         },
     )
     assert invalid_percentage.status_code == 422
+
+
+def test_crypto_trade_stores_usdt_and_uses_cny_for_analytics(admin_login):
+    created = admin_login.post(
+        "/api/trades",
+        json={
+            "instrument_type": "加密货币",
+            "symbol": "BTCUSDT",
+            "direction": "做多",
+            "open_time": "2026-08-05T09:30:00",
+            "close_time": "2026-08-05T10:30:00",
+            "open_price": 115000,
+            "close_price": 116000,
+            "stop_loss_point": 114000,
+            "target_point": 117000,
+            "capital_percentage": 10,
+            "commission_usdt": 2.5,
+            "pnl_usdt": 100,
+            "usd_cny_rate": 7.2,
+            "status": "closed",
+        },
+    )
+    assert created.status_code == 200
+    payload = created.json()
+    assert payload["commission_usdt"] == 2.5
+    assert payload["commission"] == 18.0
+    assert payload["pnl_usdt"] == 100
+    assert payload["pnl"] == 720.0
+    assert payload["usd_cny_rate"] == 7.2
+
+    analytics = admin_login.get("/api/trades/analytics", params={"instrument_type": "加密货币"})
+    assert analytics.status_code == 200
+    overview = analytics.json()["overview"]
+    assert overview["total_pnl"] == 720.0
+    assert overview["total_commission"] == 18.0
+
+    updated = admin_login.put(
+        f"/api/trades/{payload['id']}",
+        json={"pnl_usdt": -10, "usd_cny_rate": 7.1},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["pnl_usdt"] == -10
+    assert updated.json()["pnl"] == -71.0
+    assert updated.json()["commission"] == 17.75
+
+
+def test_crypto_trade_rejects_usdt_without_exchange_rate(admin_login):
+    response = admin_login.post(
+        "/api/trades",
+        json={
+            "instrument_type": "加密货币",
+            "symbol": "ETHUSDT",
+            "direction": "做多",
+            "open_time": "2026-08-05T09:30:00",
+            "open_price": 3600,
+            "stop_loss_point": 3500,
+            "target_point": 3800,
+            "capital_percentage": 8,
+            "pnl_usdt": 10,
+        },
+    )
+    assert response.status_code == 400
+    assert "汇率" in response.json()["error"]["message"]

@@ -16,6 +16,7 @@
 ## Current Capabilities
 ### Trading
 - Trade CRUD, filters, search options, position views, and opening/closing timestamps in the trade table.
+- Crypto trade fees and P&L are entered in USDT. The form automatically loads an editable USD/CNY rate and stores the USDT source amount, applied rate, and converted CNY value; records show CNY with USDT in parentheses, while dashboards and analytics consistently aggregate CNY.
 - New and edited trades select instruments from a searchable canonical catalog instead of free text. The Maintenance page provides instrument and broker tabs, with instrument create/edit/delete support; editing an instrument code also updates existing trades and plans.
 - Trade-record favorite/rating controls and their favorite, rating, and custom-sort filters have been removed.
 - Trade behavior-discipline fields, violation markers, and related analytics have been removed without retaining historical values.
@@ -27,7 +28,7 @@
 - New trades require current stop-loss, target points, and capital allocation percentage; later edits append timestamped snapshots of all three values so pyramiding changes remain traceable.
 - Trade date is derived from the single user-facing open-time field, and risk-point history timestamps are displayed in China Standard Time.
 - The trade records page uses single-record operations and no longer provides multi-select or filter-based bulk actions.
-- Statistics and analytics endpoints for trading records.
+- Statistics and analytics endpoints for trading records, with dashboard filters for date, instrument type, symbol, and broker source.
 - Trading opens on an action-oriented home workspace that summarizes current positions, monthly PnL, recent trades, active plans, review/source reminders, and recent research; the full dashboard remains dedicated to deep analytics.
 - Trading frontend now includes four switchable themes (`ink` / `light` / `tech` / `dark`) through a sidebar dropdown selector, with `ink` preserved as the default paper-style theme and the selected theme persisted locally.
 - Paste-based trade import implementation is retained, but its trade-records-page entry is temporarily offline.

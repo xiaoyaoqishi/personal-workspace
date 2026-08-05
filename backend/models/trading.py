@@ -27,8 +27,11 @@ class Trade(Base):
     target_point = Column(Float)
     capital_percentage = Column(Float)
     commission = Column(Float, default=0)
+    commission_usdt = Column(Float)
     leverage = Column(Float)
     pnl = Column(Float)
+    pnl_usdt = Column(Float)
+    usd_cny_rate = Column(Float)
     status = Column(String(10), default="open")
 
     # --- 交易决策层 ---

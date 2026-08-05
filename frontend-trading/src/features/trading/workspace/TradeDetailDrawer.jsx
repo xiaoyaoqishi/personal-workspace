@@ -13,7 +13,7 @@ import {
 } from 'antd';
 import InkSection from '../../../components/InkSection';
 import { ReloadOutlined } from '@ant-design/icons';
-import { formatChinaDateTime, formatInstrumentDisplay, normalizeTagList } from '../display';
+import { formatChinaDateTime, formatCnyUsdt, formatInstrumentDisplay, normalizeTagList } from '../display';
 import { getTaxonomyLabel } from '../localization';
 import ResearchContentPanel from '../components/ResearchContentPanel';
 
@@ -89,6 +89,7 @@ export default function TradeDetailDrawer({
             <Descriptions size="small" column={2}>
               <Descriptions.Item label="交易日期">{trade.trade_date || '-'}</Descriptions.Item>
               <Descriptions.Item label="品种">{formatInstrumentDisplay(trade.symbol, trade.contract)}</Descriptions.Item>
+              <Descriptions.Item label="交易类型">{trade.instrument_type || '-'}</Descriptions.Item>
               <Descriptions.Item label="方向">
                 <Tag color={trade.direction === '做多' ? 'red' : 'green'}>{trade.direction || '-'}</Tag>
               </Descriptions.Item>
@@ -102,7 +103,9 @@ export default function TradeDetailDrawer({
               <Descriptions.Item label="当前止损点">{trade.stop_loss_point ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="当前目标点">{trade.target_point ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="占本金百分比">{trade.capital_percentage != null ? `${trade.capital_percentage}%` : '-'}</Descriptions.Item>
-              <Descriptions.Item label="盈亏">{trade.pnl ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="手续费">{formatCnyUsdt(trade.commission, trade.commission_usdt)}</Descriptions.Item>
+              <Descriptions.Item label="盈亏">{formatCnyUsdt(trade.pnl, trade.pnl_usdt)}</Descriptions.Item>
+              {trade.usd_cny_rate != null ? <Descriptions.Item label="美元兑人民币汇率">{trade.usd_cny_rate}</Descriptions.Item> : null}
               <Descriptions.Item label="来源">{trade.source_display || '-'}</Descriptions.Item>
               <Descriptions.Item label="复盘">
                 {reviewExists ? <Tag color="green">已建立</Tag> : <Tag>未建立</Tag>}

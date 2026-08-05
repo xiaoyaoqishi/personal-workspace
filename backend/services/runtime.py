@@ -222,6 +222,9 @@ def _migrate_legacy_schema():
         _ensure_sqlite_column(db, "trades", "stop_loss_point", "FLOAT")
         _ensure_sqlite_column(db, "trades", "target_point", "FLOAT")
         _ensure_sqlite_column(db, "trades", "capital_percentage", "FLOAT")
+        _ensure_sqlite_column(db, "trades", "commission_usdt", "FLOAT")
+        _ensure_sqlite_column(db, "trades", "pnl_usdt", "FLOAT")
+        _ensure_sqlite_column(db, "trades", "usd_cny_rate", "FLOAT")
         if _table_exists(db, "trade_risk_point_history"):
             _ensure_sqlite_column(db, "trade_risk_point_history", "capital_percentage", "FLOAT")
         for column in (

@@ -40,7 +40,12 @@ const opt = (arr) => arr.map(v => ({ label: v, value: v }));
 
 export default function TradeForm() {
   const [form] = Form.useForm();
+  const instrumentType = Form.useWatch('instrument_type', form);
+  const commissionUsdt = Form.useWatch('commission_usdt', form);
+  const pnlUsdt = Form.useWatch('pnl_usdt', form);
+  const usdCnyRate = Form.useWatch('usd_cny_rate', form);
   const [loading, setLoading] = useState(false);
+  const [exchangeRateMeta, setExchangeRateMeta] = useState(null);
   const [reviewExists, setReviewExists] = useState(false);
   const [reviewTaxonomy, setReviewTaxonomy] = useState(EMPTY_REVIEW_TAXONOMY);
   const [riskPointHistory, setRiskPointHistory] = useState([]);
@@ -73,6 +78,21 @@ export default function TradeForm() {
       }}
     />
   );
+
+  useEffect(() => {
+    if (instrumentType !== '加密货币' || form.getFieldValue('usd_cny_rate')) return undefined;
+    let alive = true;
+    tradeApi.usdCnyRate()
+      .then((res) => {
+        if (!alive || form.getFieldValue('usd_cny_rate')) return;
+        form.setFieldValue('usd_cny_rate', res.data?.rate);
+        setExchangeRateMeta(res.data || null);
+      })
+      .catch(() => {
+        if (alive) message.warning('自动获取美元人民币汇率失败，请手动填写汇率');
+      });
+    return () => { alive = false; };
+  }, [form, instrumentType]);
 
   useEffect(() => {
     let alive = true;
@@ -216,6 +236,41 @@ export default function TradeForm() {
     setLoading(false);
   };
 
+  const renderCurrencyFields = () => {
+    if (instrumentType !== '加密货币') {
+      return (
+        <>
+          <Col span={8}><Form.Item label="手续费（人民币）" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="盈亏金额（人民币）" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+        </>
+      );
+    }
+
+    const convertedCommission = commissionUsdt == null || !usdCnyRate ? null : Number(commissionUsdt) * Number(usdCnyRate);
+    const convertedPnl = pnlUsdt == null || !usdCnyRate ? null : Number(pnlUsdt) * Number(usdCnyRate);
+    return (
+      <>
+        <Col span={8}><Form.Item label="手续费（USDT）" name="commission_usdt"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+        <Col span={8}><Form.Item label="盈亏金额（USDT）" name="pnl_usdt"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+        <Col span={8}>
+          <Form.Item
+            label="美元兑人民币汇率"
+            name="usd_cny_rate"
+            rules={[{ required: commissionUsdt != null || pnlUsdt != null, message: '请填写换算汇率' }]}
+            extra={exchangeRateMeta?.rate_date ? `自动获取：${exchangeRateMeta.rate_date}` : '可手动调整为成交时汇率'}
+          >
+            <InputNumber style={{ width: '100%' }} min={0.000001} precision={6} addonAfter="CNY/USD" />
+          </Form.Item>
+        </Col>
+        <Col span={24} style={{ marginTop: -8, marginBottom: 12 }}>
+          <Typography.Text type="secondary">
+            自动换算人民币：手续费 {convertedCommission == null ? '-' : convertedCommission.toFixed(2)} 元；盈亏 {convertedPnl == null ? '-' : convertedPnl.toFixed(2)} 元
+          </Typography.Text>
+        </Col>
+      </>
+    );
+  };
+
   const tabItems = [
     {
       key: '1', label: '成交流水',
@@ -261,8 +316,7 @@ export default function TradeForm() {
               return null;
             }}
           </Form.Item>
-          <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          {renderCurrencyFields()}
 
           <Col span={24} style={{ marginTop: 8 }}>
             <Collapse ghost>
@@ -322,8 +376,7 @@ export default function TradeForm() {
           </Col>
           <Col span={8}><Form.Item label="平仓时间" name="close_time"><DatePicker showTime style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={8}><Form.Item label="平仓价" name="close_price"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="手续费" name="commission"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="盈亏金额" name="pnl"><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          {renderCurrencyFields()}
         </Row>
       ),
     },

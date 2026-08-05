@@ -54,6 +54,7 @@ export default function Dashboard() {
     const hasDate = filters.date_from && filters.date_to;
     return {
       dateRange: hasDate ? [dayjs(filters.date_from), dayjs(filters.date_to)] : null,
+      instrumentType: filters.instrument_type,
       symbols: parseCsv(filters.symbol),
       sources: parseCsv(filters.source_keyword),
     };
@@ -87,6 +88,16 @@ export default function Dashboard() {
         return rest;
       }
       return { ...prev, symbol: values.join(',') };
+    });
+  };
+
+  const setInstrumentType = (value) => {
+    setFilters((prev) => {
+      if (!value) {
+        const { instrument_type, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, instrument_type: value };
     });
   };
 
@@ -195,6 +206,7 @@ export default function Dashboard() {
         sourceOptions={sourceOptions}
         filterValues={filterValues}
         onSetDateRange={setDateRange}
+        onSetInstrumentType={setInstrumentType}
         onSetSymbol={setSymbol}
         onSetSource={setSource}
       />

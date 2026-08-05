@@ -21,8 +21,11 @@ class TradeCreate(BaseModel):
     target_point: float
     capital_percentage: float = Field(ge=0, le=100)
     commission: Optional[float] = 0
+    commission_usdt: Optional[float] = Field(default=None, ge=0)
     leverage: Optional[float] = None
     pnl: Optional[float] = None
+    pnl_usdt: Optional[float] = None
+    usd_cny_rate: Optional[float] = Field(default=None, gt=0)
     status: Optional[str] = "open"
 
     entry_logic: Optional[str] = None
@@ -51,8 +54,11 @@ class TradeUpdate(BaseModel):
     target_point: Optional[float] = None
     capital_percentage: Optional[float] = Field(default=None, ge=0, le=100)
     commission: Optional[float] = None
+    commission_usdt: Optional[float] = Field(default=None, ge=0)
     leverage: Optional[float] = None
     pnl: Optional[float] = None
+    pnl_usdt: Optional[float] = None
+    usd_cny_rate: Optional[float] = Field(default=None, gt=0)
     status: Optional[str] = None
 
     entry_logic: Optional[str] = None

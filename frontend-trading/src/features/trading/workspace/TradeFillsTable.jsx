@@ -1,7 +1,7 @@
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { formatInstrumentDisplay } from '../display';
+import { formatCnyUsdt, formatInstrumentDisplay } from '../display';
 
 export default function TradeFillsTable({
   rows,
@@ -16,7 +16,7 @@ export default function TradeFillsTable({
     {
       title: '开仓时间',
       dataIndex: 'open_time',
-      width: 145,
+      width: 96,
       render: (v, r) => {
         const d = v || r.trade_date;
         return d ? dayjs(d).format('YYYY-MM-DD HH:mm') : '-';
@@ -26,7 +26,7 @@ export default function TradeFillsTable({
     {
       title: '平仓时间',
       dataIndex: 'close_time',
-      width: 145,
+      width: 96,
       render: (v) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
       sorter: (a, b) => new Date(a.close_time || 0).getTime() - new Date(b.close_time || 0).getTime(),
     },
@@ -43,6 +43,7 @@ export default function TradeFillsTable({
         );
       },
     },
+    { title: '交易类型', dataIndex: 'instrument_type', width: 86 },
     {
       title: '方向',
       dataIndex: 'direction',
@@ -50,17 +51,17 @@ export default function TradeFillsTable({
       render: (v) => <Tag color={v === '做多' ? 'red' : 'green'}>{v}</Tag>,
     },
     { title: '开仓价', dataIndex: 'open_price', width: 85 },
+    { title: '平仓价', dataIndex: 'close_price', width: 85 },
     { title: '止损点', dataIndex: 'stop_loss_point', width: 85 },
     { title: '目标点', dataIndex: 'target_point', width: 85 },
     { title: '本金占比', dataIndex: 'capital_percentage', width: 90, render: (v) => v != null ? `${v}%` : '-' },
-    { title: '平仓价', dataIndex: 'close_price', width: 85 },
     {
       title: '盈亏',
       dataIndex: 'pnl',
-      width: 90,
-      render: (v) =>
+      width: 155,
+      render: (v, r) =>
         v != null ? (
-          <span style={{ color: v >= 0 ? '#cf1322' : '#3f8600', fontWeight: 'bold' }}>{v.toFixed(2)}</span>
+          <span style={{ color: v >= 0 ? '#cf1322' : '#3f8600', fontWeight: 'bold' }}>{formatCnyUsdt(v, r.pnl_usdt)}</span>
         ) : (
           '-'
         ),
@@ -106,7 +107,7 @@ export default function TradeFillsTable({
       columns={columns}
       dataSource={rows}
       loading={loading}
-      scroll={{ x: 1300 }}
+      scroll={{ x: 1320 }}
       pagination={{
         ...pagination,
         showSizeChanger: true,

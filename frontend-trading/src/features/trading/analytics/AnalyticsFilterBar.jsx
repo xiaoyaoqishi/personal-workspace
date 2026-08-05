@@ -7,6 +7,7 @@ export default function AnalyticsFilterBar({
   sourceOptions,
   filterValues,
   onSetDateRange,
+  onSetInstrumentType,
   onSetSymbol,
   onSetSource,
 }) {
@@ -16,6 +17,14 @@ export default function AnalyticsFilterBar({
         <Col>
           <Space wrap>
             <RangePicker value={filterValues.dateRange} onChange={onSetDateRange} />
+            <Select
+              placeholder="交易类型"
+              allowClear
+              style={{ width: 130 }}
+              options={['期货', '加密货币', '股票', '外汇'].map((value) => ({ label: value, value }))}
+              value={filterValues.instrumentType}
+              onChange={onSetInstrumentType}
+            />
             <Select
               placeholder="品种"
               mode="multiple"

@@ -61,6 +61,12 @@ export function formatChinaDateTime(value) {
   return date.isValid() ? date.format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
+export function formatCnyUsdt(cnyValue, usdtValue) {
+  if (cnyValue == null) return '-';
+  const cny = Number(cnyValue).toFixed(2);
+  return usdtValue == null ? cny : `${cny}（${Number(usdtValue).toFixed(2)} USDT）`;
+}
+
 export function formatSymbolDimensionKey(value) {
   const key = String(value || '').trim();
   if (!key || key === '未分类') return key || '未分类';

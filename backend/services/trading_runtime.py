@@ -31,6 +31,7 @@ from trading.source_service import (
     upsert_trade_source_metadata_for_import as _source_upsert_trade_source_metadata_for_import,
 )
 from trading.risk_point_service import add_risk_point_snapshot, tracked_trade_values_changed
+from trading.currency_service import normalize_trade_currency_values
 from trading.tag_service import (
     attach_trade_review_tags as _attach_trade_review_tags,
     normalize_tag_list as _normalize_tag_list,
@@ -360,7 +361,8 @@ def list_trade_search_options(
 
 
 def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
-    obj = Trade(**trade.model_dump(), owner_role=legacy_runtime._owner_role_value_for_create())
+    values = normalize_trade_currency_values(trade.model_dump())
+    obj = Trade(**values, owner_role=legacy_runtime._owner_role_value_for_create())
     db.add(obj)
     db.flush()
     add_risk_point_snapshot(db, obj)
@@ -380,7 +382,7 @@ def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)
     row = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
     if not row:
         raise HTTPException(404, "Trade not found")
-    updates = data.model_dump(exclude_unset=True)
+    updates = normalize_trade_currency_values(data.model_dump(exclude_unset=True), current=row)
     if updates.get("open_time") is not None:
         updates["trade_date"] = updates["open_time"].date()
     tracked_fields = ("stop_loss_point", "target_point", "capital_percentage")
