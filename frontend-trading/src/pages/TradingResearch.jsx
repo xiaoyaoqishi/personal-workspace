@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Button, Empty, Input, Modal, Popconfirm, Segmented, Select, Space, Spin, Tag, Tooltip, message } from 'antd';
 import {
   DeleteOutlined,
@@ -156,6 +157,8 @@ function ResearchTreeNode({
 }
 
 export default function TradingResearch() {
+  const [searchParams] = useSearchParams();
+  const requestedDocumentId = Number(searchParams.get('document')) || null;
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -185,6 +188,7 @@ export default function TradingResearch() {
     riskPointHistory: [],
     review: null,
     linkedPlans: [],
+    linkedResearch: [],
   });
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
@@ -286,6 +290,12 @@ export default function TradingResearch() {
     const timer = window.setTimeout(() => loadDocuments(mode, keyword), 220);
     return () => window.clearTimeout(timer);
   }, [mode, keyword]);
+  useEffect(() => {
+    if (mode !== 'active' || !requestedDocumentId) return;
+    if (documents.some((document) => document.id === requestedDocumentId)) {
+      updateSelectedId(requestedDocumentId);
+    }
+  }, [documents, mode, requestedDocumentId]);
   useEffect(() => { loadDocument(selectedId, mode); }, [selectedId, mode, documents]);
   useEffect(() => {
     if (!editing) return undefined;
@@ -583,11 +593,12 @@ export default function TradingResearch() {
     const requestId = ++tradeDrawerRequestRef.current;
     setTradeDrawer((current) => ({ ...current, open: true, tradeId, loading: true }));
     try {
-      const [tradeResult, reviewResult, linkedPlansResult, riskPointHistoryResult] = await Promise.all([
+      const [tradeResult, reviewResult, linkedPlansResult, riskPointHistoryResult, linkedResearchResult] = await Promise.all([
         tradeApi.get(tradeId),
         tradeReviewApi.get(tradeId).catch((error) => (error.response?.status === 404 ? { data: null } : Promise.reject(error))),
         tradeLinkedPlanApi.get(tradeId).catch(() => ({ data: [] })),
         tradeApi.riskPointHistory(tradeId).catch(() => ({ data: [] })),
+        researchApi.documents.forTrade(tradeId).catch(() => ({ data: [] })),
       ]);
       if (requestId !== tradeDrawerRequestRef.current) return;
       setTradeDrawer({
@@ -598,6 +609,7 @@ export default function TradingResearch() {
         riskPointHistory: Array.isArray(riskPointHistoryResult.data) ? riskPointHistoryResult.data : [],
         review: reviewResult.data || null,
         linkedPlans: Array.isArray(linkedPlansResult.data) ? linkedPlansResult.data : [],
+        linkedResearch: Array.isArray(linkedResearchResult.data) ? linkedResearchResult.data : [],
       });
     } catch (error) {
       if (requestId !== tradeDrawerRequestRef.current) return;
@@ -806,6 +818,7 @@ export default function TradingResearch() {
         review={tradeDrawer.review}
         reviewExists={Boolean(tradeDrawer.review)}
         linkedPlans={tradeDrawer.linkedPlans}
+        linkedResearch={tradeDrawer.linkedResearch}
         onClose={() => setTradeDrawer((current) => ({ ...current, open: false }))}
         onReload={() => tradeDrawer.tradeId && loadTradeDrawer(tradeDrawer.tradeId)}
       />

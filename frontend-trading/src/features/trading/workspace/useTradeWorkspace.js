@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { message } from 'antd';
-import { tradeApi, tradeLinkedPlanApi, tradeReviewApi } from '../../../api';
+import { researchApi, tradeApi, tradeLinkedPlanApi, tradeReviewApi } from '../../../api';
 import {
   EMPTY_REVIEW,
   REVIEW_FIELD_KEYS,
@@ -33,6 +33,7 @@ export function useTradeWorkspace() {
   const [detailReview, setDetailReview] = useState(EMPTY_REVIEW);
   const [detailReviewExists, setDetailReviewExists] = useState(false);
   const [detailLinkedPlans, setDetailLinkedPlans] = useState([]);
+  const [detailLinkedResearch, setDetailLinkedResearch] = useState([]);
   const detailRequestRef = useRef(0);
 
   useEffect(() => {
@@ -136,15 +137,17 @@ export function useTradeWorkspace() {
     const requestId = ++detailRequestRef.current;
     setDetailLoading(true);
     try {
-      const [tradeRes, reviewRes, linkedPlansRes, riskPointHistoryRes] = await Promise.all([
+      const [tradeRes, reviewRes, linkedPlansRes, riskPointHistoryRes, linkedResearchRes] = await Promise.all([
         tradeApi.get(tradeId),
         tradeReviewApi.get(tradeId).catch((e) => (e.response?.status === 404 ? { data: null } : Promise.reject(e))),
         tradeLinkedPlanApi.get(tradeId).catch(() => ({ data: [] })),
         tradeApi.riskPointHistory(tradeId).catch(() => ({ data: [] })),
+        researchApi.documents.forTrade(tradeId).catch(() => ({ data: [] })),
       ]);
       if (requestId !== detailRequestRef.current) return;
       setDetailLinkedPlans(Array.isArray(linkedPlansRes.data) ? linkedPlansRes.data : []);
       setDetailRiskPointHistory(Array.isArray(riskPointHistoryRes.data) ? riskPointHistoryRes.data : []);
+      setDetailLinkedResearch(Array.isArray(linkedResearchRes.data) ? linkedResearchRes.data : []);
       const tradeData = tradeRes.data || null;
       setDetailTrade(tradeData);
       const reviewData = reviewRes.data || {};
@@ -230,6 +233,7 @@ export function useTradeWorkspace() {
     detailReview,
     detailReviewExists,
     detailLinkedPlans,
+    detailLinkedResearch,
     // setters for UI wiring
     setViewMode,
     setPagination,

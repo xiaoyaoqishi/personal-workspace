@@ -374,6 +374,33 @@ def get_research_document(document_id: int, db: Session = Depends(get_db)):
     return _attach_document_fields(db, [_document_or_404(db, document_id)])[0]
 
 
+def list_trade_research_documents(
+    trade_id: int,
+    owner_role: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    trade = db.query(Trade).filter(Trade.id == trade_id, Trade.is_deleted == False).first()  # noqa: E712
+    if not trade:
+        raise HTTPException(404, "Trade not found")
+
+    q = (
+        db.query(TradingResearchDocument)
+        .join(
+            TradingResearchTradeLink,
+            TradingResearchTradeLink.document_id == TradingResearchDocument.id,
+        )
+        .filter(
+            TradingResearchTradeLink.trade_id == trade_id,
+            TradingResearchDocument.is_deleted == False,  # noqa: E712
+        )
+    )
+    role_filter = legacy_runtime._owner_role_filter_for_admin(TradingResearchDocument, owner_role)
+    if role_filter is not None:
+        q = q.filter(role_filter)
+    rows = q.order_by(TradingResearchDocument.updated_at.desc(), TradingResearchDocument.id.desc()).all()
+    return [{"document_id": row.id, "title": row.title} for row in rows]
+
+
 def update_research_document(document_id: int, data: TradingResearchDocumentUpdate, db: Session = Depends(get_db)):
     row = _document_or_404(db, document_id)
     updates = data.model_dump(exclude_unset=True)

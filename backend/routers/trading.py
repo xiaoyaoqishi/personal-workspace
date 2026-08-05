@@ -26,6 +26,7 @@ router.delete("/trades/{trade_id:int}/review")(trade_service.delete_trade_review
 router.get("/trades/{trade_id:int}/source-metadata")(trade_service.get_trade_source_metadata)
 router.put("/trades/{trade_id:int}/source-metadata")(trade_service.upsert_trade_source_metadata)
 router.get("/trades/{trade_id:int}/linked-plans")(trade_service.get_trade_linked_plans)
+router.get("/trades/{trade_id:int}/research-documents")(research_service.list_trade_research_documents)
 router.get("/trades/research/folders")(research_service.list_research_folders)
 router.post("/trades/research/folders")(research_service.create_research_folder)
 router.post("/trades/research/folders/reorder")(research_service.reorder_research_folder)

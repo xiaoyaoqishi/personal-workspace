@@ -28,12 +28,12 @@
 - New trades require current stop-loss, target points, and capital allocation percentage; later edits append timestamped snapshots of all three values so pyramiding changes remain traceable.
 - Trade date is derived from the single user-facing open-time field, and risk-point history timestamps are displayed in China Standard Time.
 - The trade records page uses single-record operations and no longer provides multi-select or filter-based bulk actions.
-- Statistics and analytics endpoints for trading records, with dashboard filters for date, instrument type, symbol, and broker source.
+- Statistics and analytics endpoints for trading records, with dashboard filters for date, instrument type, and symbol.
 - Trading opens on an action-oriented home workspace that summarizes current positions, monthly PnL, recent trades, active plans, review/source reminders, and recent research; the full dashboard remains dedicated to deep analytics.
 - Trading frontend now includes four switchable themes (`ink` / `light` / `tech` / `dark`) through a sidebar dropdown selector, with `ink` preserved as the default paper-style theme and the selected theme persisted locally.
 - Paste-based trade import implementation is retained, but its trade-records-page entry is temporarily offline.
 - Structured per-trade review data and review taxonomy support.
-- Trade details display structured reviews in read-only mode; review maintenance is available only from the trade edit page.
+- Trade details display structured reviews in read-only mode, include leverage for crypto trades, and list every research document that references the trade as a title link; review maintenance is available only from the trade edit page.
 - Trade plans with linked trades.
 - The former grouped review-session workbench and its plan follow-up flow have been removed; structured per-trade reviews remain available.
 - Trading subpages use consistent compact action bars without standalone title-and-description headers; primary actions stay on the right, and the trade-record filters, view switch, and create action share one control row.

@@ -4,12 +4,10 @@ const { RangePicker } = DatePicker;
 
 export default function AnalyticsFilterBar({
   symbolOptions,
-  sourceOptions,
   filterValues,
   onSetDateRange,
   onSetInstrumentType,
   onSetSymbol,
-  onSetSource,
 }) {
   return (
     <div className="ink-filter-bar">
@@ -35,17 +33,6 @@ export default function AnalyticsFilterBar({
               options={symbolOptions}
               value={filterValues.symbols}
               onChange={onSetSymbol}
-            />
-            <Select
-              placeholder="券商来源"
-              mode="multiple"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              style={{ width: 220 }}
-              options={sourceOptions}
-              value={filterValues.sources}
-              onChange={onSetSource}
             />
           </Space>
         </Col>

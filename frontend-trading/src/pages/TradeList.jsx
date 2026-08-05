@@ -50,6 +50,7 @@ export default function TradeList() {
         review={ws.detailReview}
         reviewExists={ws.detailReviewExists}
         linkedPlans={ws.detailLinkedPlans}
+        linkedResearch={ws.detailLinkedResearch}
         onClose={() => ws.setDetailOpen(false)}
         onReload={() => ws.activeTradeId && ws.loadTradeDetail(ws.activeTradeId)}
         onOpenEdit={() => ws.activeTradeId && navigate(`/trades/${ws.activeTradeId}/edit`)}

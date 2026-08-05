@@ -29,7 +29,6 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({});
-  const [sourceOptions, setSourceOptions] = useState([]);
 
   useEffect(() => {
     setLoading(true);
@@ -38,12 +37,6 @@ export default function Dashboard() {
       .catch(() => setAnalytics(null))
       .finally(() => setLoading(false));
   }, [filters]);
-
-  useEffect(() => {
-    tradeApi.sources()
-      .then((res) => setSourceOptions((res.data?.items || []).map((v) => ({ label: v, value: v }))))
-      .catch(() => setSourceOptions([]));
-  }, []);
 
   const parseCsv = (v) => String(v || '')
     .split(',')
@@ -56,7 +49,6 @@ export default function Dashboard() {
       dateRange: hasDate ? [dayjs(filters.date_from), dayjs(filters.date_to)] : null,
       instrumentType: filters.instrument_type,
       symbols: parseCsv(filters.symbol),
-      sources: parseCsv(filters.source_keyword),
     };
   }, [filters]);
 
@@ -98,16 +90,6 @@ export default function Dashboard() {
         return rest;
       }
       return { ...prev, instrument_type: value };
-    });
-  };
-
-  const setSource = (values) => {
-    setFilters((prev) => {
-      if (!values || values.length === 0) {
-        const { source_keyword, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, source_keyword: values.join(',') };
     });
   };
 
@@ -203,12 +185,10 @@ export default function Dashboard() {
     <div className="analytics-workspace">
       <AnalyticsFilterBar
         symbolOptions={symbolOptions}
-        sourceOptions={sourceOptions}
         filterValues={filterValues}
         onSetDateRange={setDateRange}
         onSetInstrumentType={setInstrumentType}
         onSetSymbol={setSymbol}
-        onSetSource={setSource}
       />
 
       <Tabs

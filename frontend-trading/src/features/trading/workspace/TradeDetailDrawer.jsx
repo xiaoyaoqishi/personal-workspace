@@ -16,6 +16,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { formatChinaDateTime, formatCnyUsdt, formatInstrumentDisplay, normalizeTagList } from '../display';
 import { getTaxonomyLabel } from '../localization';
 import ResearchContentPanel from '../components/ResearchContentPanel';
+import { Link } from 'react-router';
 
 export default function TradeDetailDrawer({
   open,
@@ -26,6 +27,7 @@ export default function TradeDetailDrawer({
   review,
   reviewExists,
   linkedPlans,
+  linkedResearch,
   onClose,
   onReload,
   onOpenEdit,
@@ -90,6 +92,9 @@ export default function TradeDetailDrawer({
               <Descriptions.Item label="交易日期">{trade.trade_date || '-'}</Descriptions.Item>
               <Descriptions.Item label="品种">{formatInstrumentDisplay(trade.symbol, trade.contract)}</Descriptions.Item>
               <Descriptions.Item label="交易类型">{trade.instrument_type || '-'}</Descriptions.Item>
+              {trade.instrument_type === '加密货币' ? (
+                <Descriptions.Item label="杠杆倍数">{trade.leverage != null ? `${trade.leverage}x` : '-'}</Descriptions.Item>
+              ) : null}
               <Descriptions.Item label="方向">
                 <Tag color={trade.direction === '做多' ? 'red' : 'green'}>{trade.direction || '-'}</Tag>
               </Descriptions.Item>
@@ -113,18 +118,16 @@ export default function TradeDetailDrawer({
             </Descriptions>
           </InkSection>
 
-          <InkSection size="small" title="交易决策">
-            {hasDecisionContent ? (
+          {hasDecisionContent ? (
+            <InkSection size="small" title="交易决策">
               <Descriptions size="small" column={2}>
                 <Descriptions.Item label="策略类型">{trade.strategy_type || '-'}</Descriptions.Item>
                 <Descriptions.Item label="核心信号">{trade.core_signal || '-'}</Descriptions.Item>
                 <Descriptions.Item label="入场逻辑" span={2}>{trade.entry_logic || '-'}</Descriptions.Item>
                 <Descriptions.Item label="出场逻辑" span={2}>{trade.exit_logic || '-'}</Descriptions.Item>
               </Descriptions>
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无交易决策内容" />
-            )}
-          </InkSection>
+            </InkSection>
+          ) : null}
 
           <InkSection size="small" title="止损/目标/本金占比调整历史">
             {(riskPointHistory || []).length > 0 ? (
@@ -170,10 +173,8 @@ export default function TradeDetailDrawer({
           ) : null}
 
           {/* 结构化复盘 */}
-          <InkSection size="small" title="结构化复盘">
-            {!hasReviewContent ? (
-              <Empty description="暂无结构化复盘内容" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
+          {hasReviewContent ? (
+            <InkSection size="small" title="结构化复盘">
               <div>
                 <Space wrap size={[4, 4]} style={{ marginBottom: 8 }}>
                   {review.opportunity_structure ? <Tag color="blue">机会结构：{getTaxonomyLabel('opportunity_structure', review.opportunity_structure)}</Tag> : null}
@@ -189,14 +190,30 @@ export default function TradeDetailDrawer({
                     </div>
                   </div>
                 ) : null}
-                <ResearchContentPanel
-                  showStandardFields={false}
-                  value={review.research_notes}
-                  title="图文研究"
-                />
+                {review?.research_notes ? (
+                  <ResearchContentPanel
+                    showStandardFields={false}
+                    value={review.research_notes}
+                    title="图文研究"
+                  />
+                ) : null}
               </div>
-            )}
-          </InkSection>
+            </InkSection>
+          ) : null}
+
+          {(linkedResearch || []).length > 0 ? (
+            <InkSection size="small" title="引用研究">
+              <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+                {linkedResearch.map((document) => (
+                  <li key={document.document_id}>
+                    <Link to={`/research?document=${document.document_id}`} onClick={onClose}>
+                      {document.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </InkSection>
+          ) : null}
 
         </Space>
       )}

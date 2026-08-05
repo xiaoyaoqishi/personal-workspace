@@ -102,6 +102,19 @@ def test_trading_research_document_can_reference_multiple_trades(admin_login):
     assert created.json()["trade_ids"] == [first_trade_id, second_trade_id]
     assert [item["trade_id"] for item in created.json()["related_trades"]] == [first_trade_id, second_trade_id]
 
+    second_document = client.post(
+        "/api/trades/research/documents",
+        json={
+            "folder_id": folder_id,
+            "title": "第二篇交易复盘",
+            "trade_ids": [first_trade_id],
+        },
+    )
+    assert second_document.status_code == 200
+    linked_research = client.get(f"/api/trades/{first_trade_id}/research-documents")
+    assert linked_research.status_code == 200
+    assert {item["title"] for item in linked_research.json()} == {"多交易样本复盘", "第二篇交易复盘"}
+
     updated = client.put(
         f"/api/trades/research/documents/{document_id}",
         json={"trade_ids": [second_trade_id]},
@@ -109,6 +122,9 @@ def test_trading_research_document_can_reference_multiple_trades(admin_login):
     assert updated.status_code == 200
     assert updated.json()["trade_ids"] == [second_trade_id]
     assert updated.json()["related_trades"][0]["symbol"] == "AU"
+    assert client.get(f"/api/trades/{first_trade_id}/research-documents").json() == [
+        {"document_id": second_document.json()["id"], "title": "第二篇交易复盘"}
+    ]
 
     rejected = client.put(
         f"/api/trades/research/documents/{document_id}",

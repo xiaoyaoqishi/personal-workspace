@@ -101,6 +101,7 @@ export const researchApi = {
   },
   documents: {
     list: (params) => api.get('/trades/research/documents', { params }),
+    forTrade: (tradeId) => api.get(`/trades/${tradeId}/research-documents`),
     get: (id) => api.get(`/trades/research/documents/${id}`),
     create: (data) => api.post('/trades/research/documents', data),
     update: (id, data) => api.put(`/trades/research/documents/${id}`, data),
