@@ -32,6 +32,7 @@ from trading.source_service import (
 )
 from trading.risk_point_service import add_risk_point_snapshot, tracked_trade_values_changed
 from trading.currency_service import normalize_trade_currency_values
+from trading.pnl_service import normalize_trade_pnl_values
 from trading.tag_service import (
     attach_trade_review_tags as _attach_trade_review_tags,
     normalize_tag_list as _normalize_tag_list,
@@ -381,6 +382,7 @@ def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
         )
         if any(field not in trade.model_fields_set or values.get(field) is None for field in amount_fields):
             raise HTTPException(400, "已平仓交易必须填写手续费和盈亏金额")
+    values = normalize_trade_pnl_values(values)
     values = normalize_trade_currency_values(values)
     obj = Trade(**values, owner_role=legacy_runtime._owner_role_value_for_create())
     db.add(obj)
@@ -411,7 +413,6 @@ def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)
     next_instrument_type = updates.get("instrument_type", row.instrument_type)
     if instrument and next_instrument_type != instrument.instrument_type:
         raise HTTPException(400, "所选品种不属于当前交易类型")
-    updates = normalize_trade_currency_values(updates, current=row)
     if updates.get("open_time") is not None:
         updates["trade_date"] = updates["open_time"].date()
     next_close_time = updates.get("close_time", row.close_time)
@@ -432,6 +433,8 @@ def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)
             )
         if any(value is None for value in amount_values):
             raise HTTPException(400, "已平仓交易必须填写手续费和盈亏金额")
+    updates = normalize_trade_pnl_values(updates, current=row)
+    updates = normalize_trade_currency_values(updates, current=row)
     tracked_fields = ("stop_loss_point", "target_point", "capital_percentage")
     for field in tracked_fields:
         if field in updates and updates[field] is None:

@@ -38,12 +38,27 @@ const EMPTY_REVIEW_TAXONOMY = {
 
 const opt = (arr) => arr.map(v => ({ label: v, value: v }));
 
+function inferSignedPnl(value, direction, openPrice, closePrice) {
+  if (value == null || openPrice == null || closePrice == null) return value;
+  const normalizedDirection = String(direction || '').trim().toLowerCase();
+  const directionMultiplier = ['做多', '多', 'long', 'buy', '买入'].includes(normalizedDirection)
+    ? 1
+    : ['做空', '空', 'short', 'sell', '卖出'].includes(normalizedDirection) ? -1 : null;
+  if (directionMultiplier == null) return value;
+  const priceMove = (Number(closePrice) - Number(openPrice)) * directionMultiplier;
+  if (priceMove === 0) return 0;
+  return Math.abs(Number(value)) * (priceMove > 0 ? 1 : -1);
+}
+
 export default function TradeForm() {
   const [form] = Form.useForm();
   const instrumentType = Form.useWatch('instrument_type', form);
   const commissionUsdt = Form.useWatch('commission_usdt', form);
+  const pnl = Form.useWatch('pnl', form);
   const pnlUsdt = Form.useWatch('pnl_usdt', form);
   const usdCnyRate = Form.useWatch('usd_cny_rate', form);
+  const direction = Form.useWatch('direction', form);
+  const openPrice = Form.useWatch('open_price', form);
   const closeTime = Form.useWatch('close_time', form);
   const closePrice = Form.useWatch('close_price', form);
   const [loading, setLoading] = useState(false);
@@ -56,6 +71,14 @@ export default function TradeForm() {
   const { id } = useParams();
   const isEdit = !!id;
   const isClosed = Boolean(closeTime && closePrice != null);
+  const signedPnl = inferSignedPnl(pnl, direction, openPrice, closePrice);
+  const signedPnlUsdt = inferSignedPnl(pnlUsdt, direction, openPrice, closePrice);
+
+  const pnlSignHint = (value, unit) => (
+    value == null || openPrice == null || closePrice == null || !direction
+      ? '可输入绝对值，保存时会根据方向及开/平仓价自动判断正负'
+      : `按当前方向与价格，保存后为 ${Number(value).toLocaleString()} ${unit}`
+  );
 
   const instrumentOptions = instruments
     .filter((item) => item.instrument_type === instrumentType)
@@ -251,17 +274,17 @@ export default function TradeForm() {
       return (
         <>
           <Col span={8}><Form.Item label="手续费（人民币）" name="commission" rules={[{ required: isClosed, message: '已平仓交易请填写手续费' }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-          <Col span={8}><Form.Item label="盈亏金额（人民币）" name="pnl" rules={[{ required: isClosed, message: '已平仓交易请填写盈亏金额' }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={8}><Form.Item label="盈亏金额（人民币）" name="pnl" rules={[{ required: isClosed, message: '已平仓交易请填写盈亏金额' }]} extra={pnlSignHint(signedPnl, '元')}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
         </>
       );
     }
 
     const convertedCommission = commissionUsdt == null || !usdCnyRate ? null : Number(commissionUsdt) * Number(usdCnyRate);
-    const convertedPnl = pnlUsdt == null || !usdCnyRate ? null : Number(pnlUsdt) * Number(usdCnyRate);
+    const convertedPnl = signedPnlUsdt == null || !usdCnyRate ? null : Number(signedPnlUsdt) * Number(usdCnyRate);
     return (
       <>
         <Col span={8}><Form.Item label="手续费（USDT）" name="commission_usdt" rules={[{ required: isClosed, message: '已平仓交易请填写手续费' }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-        <Col span={8}><Form.Item label="盈亏金额（USDT）" name="pnl_usdt" rules={[{ required: isClosed, message: '已平仓交易请填写盈亏金额' }]}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
+        <Col span={8}><Form.Item label="盈亏金额（USDT）" name="pnl_usdt" rules={[{ required: isClosed, message: '已平仓交易请填写盈亏金额' }]} extra={pnlSignHint(signedPnlUsdt, 'USDT')}><InputNumber style={{ width: '100%' }} /></Form.Item></Col>
         <Col span={8}>
           <Form.Item
             label="美元兑人民币汇率"

@@ -248,9 +248,48 @@ def test_crypto_trade_stores_usdt_and_uses_cny_for_analytics(admin_login):
         json={"pnl_usdt": -10, "usd_cny_rate": 7.1},
     )
     assert updated.status_code == 200
-    assert updated.json()["pnl_usdt"] == -10
-    assert updated.json()["pnl"] == -71.0
+    assert updated.json()["pnl_usdt"] == 10
+    assert updated.json()["pnl"] == 71.0
     assert updated.json()["commission"] == 17.75
+
+
+def test_trade_pnl_sign_follows_direction_and_price_movement(admin_login):
+    base_payload = {
+        "instrument_type": "期货",
+        "open_time": "2026-09-01T09:30:00",
+        "close_time": "2026-09-01T14:30:00",
+        "open_price": 100,
+        "stop_loss_point": 90,
+        "target_point": 110,
+        "capital_percentage": 10,
+        "commission": 0,
+    }
+    cases = [
+        ("做多", 110, -25, 25),
+        ("做多", 90, 25, -25),
+        ("做空", 90, -25, 25),
+        ("做空", 110, 25, -25),
+    ]
+
+    trade_ids = []
+    for index, (direction, close_price, submitted_pnl, expected_pnl) in enumerate(cases):
+        response = admin_login.post(
+            "/api/trades",
+            json={
+                **base_payload,
+                "symbol": f"PNL_SIGN_{index}",
+                "direction": direction,
+                "close_price": close_price,
+                "pnl": submitted_pnl,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["pnl"] == expected_pnl
+        trade_ids.append(response.json()["id"])
+
+    repriced = admin_login.put(f"/api/trades/{trade_ids[0]}", json={"close_price": 90})
+    assert repriced.status_code == 200
+    assert repriced.json()["pnl"] == -25
 
 
 def test_crypto_trade_rejects_usdt_without_exchange_rate(admin_login):

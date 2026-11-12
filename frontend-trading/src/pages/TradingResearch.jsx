@@ -227,10 +227,6 @@ export default function TradingResearch() {
   const loadFolders = async () => {
     const list = (await researchApi.folders.list()).data || [];
     setFolders(list);
-    setExpanded((current) => {
-      if (Object.keys(current).length) return current;
-      return Object.fromEntries(list.filter((folder) => !folder.parent_id).map((folder) => [folder.id, true]));
-    });
     return list;
   };
 
