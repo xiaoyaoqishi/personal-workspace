@@ -74,6 +74,7 @@
 
 - 创建凭证后仅显示一次；列表不包含密钥，撤销后上传失败。采集 Bearer 无法读取统计或其他模块。
 - 首次全量上传；同一批次重放新增为0，网络失败保留未确认队列，事件时间早于上次同步的迟到事件仍可入库。
-- Mac 安装应用与用户级 LaunchAgent，默认09:30，每日成功后跳过重复触发，登录／唤醒补跑。完全磁盘访问须按实际后台程序身份验证。
+- Mac 安装应用与用户级 LaunchAgent，默认08:00，每日成功后跳过重复触发，登录／唤醒补跑。完全磁盘访问须按实际后台程序身份验证。
+- 休眠主动采集可选安装独立系统唤醒工具；用户任务采集期间临时防休眠，断网短时有限重试。管理员工具只续订带独立 owner 的单次唤醒，不覆盖其他电源计划。`clients/macos-screen/sleep_test.py` 提供真实睡眠／定时唤醒／后台同步验收，只有系统日志与成功入库同时满足才记为通过；安装与恢复见采集器 README。此能力仅影响 Mac，不需要部署服务器。
 - 可读副本的首次上传不能替代真实Biome权限验收；未获得权限时不得宣称自动采集已经工作。
 - `python3 -m unittest discover -s clients/macos-screen/tests -v`；`python3 -m pytest -q backend/tests/test_screen_collectors.py`；`bash scripts/check_all.sh`。

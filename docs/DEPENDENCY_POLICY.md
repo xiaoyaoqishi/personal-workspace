@@ -24,7 +24,10 @@
 
 ## 新增依赖规则
 
+- AI 总结复用已锁定的 `httpx`、Pydantic、SQLAlchemy及现有前端组件；不新增 SDK、图表或 Markdown 渲染依赖。官方 DeepSeek 用 HTTP 调用，前端仅渲染经过校验的纯文本结构。
+
 - `clients/macos-screen` 不新增 Python 第三方依赖；SEGB/protobuf 离线解析代码固定为 SonyCore/biome-screentime-exporter 提交 `0f384a39110d40effb4ce6a444735bac311e923b` 并保留 MIT 许可。Mac 安装时使用已有 Xcode Command Line Tools 的 Swift 编译器及系统 AppKit/Security 框架生成启动器、使用 `/usr/bin/python3` 运行标准库代码；不影响 Linux 后端依赖、前端包或服务器构建步骤。
+- 休眠采集复用 macOS 自带 `caffeinate`、`pmset` 和 launchd，无新增包。可选 root 唤醒工具只安装于 Mac，不改变 Linux 的 nginx、systemd 或服务器部署依赖。
 
 - 新增后端或前端依赖时，必须说明：
   - 依赖加到哪个模块。

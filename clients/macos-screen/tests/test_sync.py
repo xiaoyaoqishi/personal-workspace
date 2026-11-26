@@ -41,11 +41,12 @@ def write_source(root,offsets):
 class SyncTests(unittest.TestCase):
     def test_daily_schedule_login_makeup_and_one_success_per_day(self):
         zone=ZoneInfo('Asia/Shanghai')
-        now=datetime(2026,11,26,8,tzinfo=zone)
-        self.assertFalse(sync.due(now,'2026-11-25T09:31:00+08:00'))
-        self.assertTrue(sync.due(now,'2026-11-24T09:31:00+08:00'))
-        self.assertTrue(sync.due(now.replace(hour=10),'2026-11-25T09:31:00+08:00'))
+        now=datetime(2026,11,26,7,59,tzinfo=zone)
+        self.assertFalse(sync.due(now,'2026-11-25T08:01:00+08:00'))
+        self.assertTrue(sync.due(now,'2026-11-24T08:01:00+08:00'))
+        self.assertTrue(sync.due(now.replace(hour=8,minute=0),'2026-11-25T08:01:00+08:00'))
         self.assertFalse(sync.due(now.replace(hour=10),'2026-11-26T07:00:00+08:00'))
+        self.assertFalse(sync.due(now.replace(hour=9,minute=0),'2026-11-25T09:31:00+08:00',9,30))
 
     def test_late_events_are_queued_even_when_file_mtime_does_not_change(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -27,6 +27,8 @@
 
 ## 新逻辑落点
 
+- AI 复盘使用 `models/discipline_ai.py`、`schemas/discipline_ai.py`、`routers/discipline_ai.py` 与 `services/discipline_ai/`。`snapshot.py` 复用既有统计生成依据，`provider.py` 处理官方模型调用与校验，`service.py` 管理用户偏好／任务／版本，`jobs.py` 处理领取、租约和自动任务；应用 lifespan 启停工作线程，不进入 runtime 领域逻辑。
+
 - 屏幕采集凭证位于 `services/discipline_screen/collectors.py` 与独立 `discipline_screen_collectors` 表；请求上下文 middleware 仅识别两个受限接口并调用 service，不把凭证加入匿名白名单。成功上传状态与原始事件入库共用事务，撤销和账户权限会再次校验。
 
 - 屏幕统计使用 `models/discipline_screen.py`、`schemas/discipline_screen.py`、`routers/discipline_screen.py` 与 `services/discipline_screen/`。`store.py` 负责用户隔离、事件去重和事务内时段重建；`analytics.py` 负责时区切分、重叠合并和查询；`catalog.py` 提供可由个人偏好覆盖的应用分类。独立表通过现有 `init_db` 创建，不改 runtime 顶层函数。

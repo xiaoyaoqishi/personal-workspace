@@ -17,7 +17,7 @@
 ## Notes
 
 - 当前普通用户数据模块为 `trading`、`notes`、`ledger`、`discipline`，与 middleware 权限集合保持一致。
-- Portal 首页以「自律养成」替代账务入口。每日计划按时间段主题评价，具体记录可选；屏幕统计位于 `/discipline/screen`，AI 总结仍为禁用侧栏入口。
+- Portal 首页以「自律养成」替代账务入口。每日计划按时间段主题评价，具体记录可选；屏幕统计位于 `/discipline/screen`，AI 总结位于 `/discipline/ai`，提供日／周复盘、依据详情、历史版本和自动生成设置。AI 的 model/schema/router/service 均位于 discipline 域，API 为 `/api/discipline/ai/*`。
 - 屏幕统计在 discipline 域内使用独立 model/schema/service/router，API 为 `/api/discipline/screen/*`。导入已解析的 Biome 前台事件，按当前用户长期保存并还原使用时段，支持日／周／月、设备、分类、应用与异常明细；`clients/macos-screen/` 提供用户级每日采集器，专用凭证仅允许上传与查看同步状态，不将个人数据或凭证打包进源码。
 - 自律养成使用独立表与 service；首页 `/discipline/` 彩色执行日历通过侧边抽屉只读查看任意日期，不跳转。`/discipline/plan` 固定展示北京时间当天并自动保存，无日期切换、调整当天或手动保存操作。默认作息保存后同步当天，保留已有评价和备注；历史只读，不依赖 Notes 数据。
 - 统计按选中时段等权计算 100/50/0，未评价计 0；75% 及以上良好、40% 至不足 75% 待改进、不足 40% 失败。仅周一至周五且非中国大陆假日的日期计入，周末调休上班日不计入。已维护 2026、2027 官方假期，其他年份暂停统计。

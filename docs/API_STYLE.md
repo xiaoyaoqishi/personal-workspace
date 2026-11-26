@@ -6,6 +6,8 @@
 
 ### Discipline 风格
 
+- AI 总结使用 `/api/discipline/ai` 前缀：`GET /overview?period=day|week&anchor=YYYY-MM-DD` 查询事实、最新成功报告、生成状态与过期标记；`POST /reports` 创建或复用生成任务；`GET /reports/{id}` 读取本人报告版本；`GET /history` 查询历史；`GET/PUT /settings` 读取或设置自动生成及备注使用偏好。GET 不调用模型、不创建任务、不产生费用。生成及设置要求 discipline 可写权限，采集凭证无权访问；密钥始终留在后端。
+
 - 屏幕统计独立 router 使用 `/api/discipline/screen` 前缀：`GET /overview?start=YYYY-MM-DD&end=YYYY-MM-DD&device=...` 获取不超过 366 天的统计；`GET /sessions` 使用同样范围及可选 `app`、`status=normal|anomaly`、`offset`、`limit` 分页读取时段；`GET /export` 导出所选范围正常时段 CSV；`POST /imports` 原子导入 version=1 的设备与前台事件 JSON；`PUT /devices/{device_key}` 修改设备名称；`PUT /apps` 保存个人应用名称和分类。所有接口使用现有登录和 discipline 数据权限，不开放匿名上传。GET 无写入副作用。
 - `GET/POST /collectors` 与 `DELETE /collectors/{key}` 为网页登录用户列出、创建和撤销本人采集凭证。`POST /collector/imports` 和 `GET /collector/status` 仅接受专用 Bearer 采集凭证（开发模式也不豁免），不接受网页登录替代。采集凭证访问任何其他路径一律 403，状态接口仅返回本凭证的状态和账户标识，不返回使用明细。token 只在创建响应中出现一次，其他响应不含 token 或 hash。
 

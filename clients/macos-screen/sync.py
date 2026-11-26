@@ -51,7 +51,7 @@ def read_config(state):
         config['server'] = server_origin(config['server'])
         if not re.fullmatch(r'[0-9a-f]{32}', config['collector_id']) or not config['account'].strip():
             raise ValueError('account')
-        if not 0 <= config.get('hour', 9) <= 23 or not 0 <= config.get('minute', 30) <= 59:
+        if not 0 <= config.get('hour', 8) <= 23 or not 0 <= config.get('minute', 0) <= 59:
             raise ValueError('schedule')
         ZoneInfo(config.get('timezone', 'Asia/Shanghai'))
         if 'token' in config:
@@ -61,7 +61,7 @@ def read_config(state):
         raise SyncError('configuration', '采集器尚未正确配置；凭证应存放在钥匙串') from exc
 
 
-def due(now, last_success, hour=9, minute=30):
+def due(now, last_success, hour=8, minute=0):
     if not last_success:
         return True
     previous = datetime.fromisoformat(last_success).astimezone(now.tzinfo)
@@ -227,7 +227,7 @@ def synchronize(state, config, token, force=False, source=None, replay=False):
     previous = read_status(state)
     now = utcnow()
     local = now.astimezone(ZoneInfo(config.get('timezone', 'Asia/Shanghai')))
-    if not force and not due(local, previous.get('last_success'), config.get('hour',9), config.get('minute',30)):
+    if not force and not due(local, previous.get('last_success'), config.get('hour',8), config.get('minute',0)):
         return {'status': 'skipped', 'message': '本日任务已完成或尚未到执行时间'}
     target = config['server'] + '\n' + config['account']
     outbox = Outbox(state / 'outbox.sqlite3', target)

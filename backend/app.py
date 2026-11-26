@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,7 +11,16 @@ from services.runtime import init_runtime
 
 def create_app() -> FastAPI:
     init_runtime()
-    app = FastAPI(title=settings.app_title, version=settings.app_version)
+    @asynccontextmanager
+    async def lifespan(app):
+        from services.discipline_ai import jobs
+        stop, wake, thread = jobs.start()
+        try:
+            yield
+        finally:
+            stop.set(); wake.set()
+            thread.join(timeout=2)
+    app = FastAPI(title=settings.app_title, version=settings.app_version, lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
