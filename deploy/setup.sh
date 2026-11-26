@@ -47,6 +47,10 @@ npm ci
 npm run build
 
 echo "=== 5. 配置 Nginx ==="
+cd ../frontend-discipline
+npm ci
+npm run build
+
 cp ../deploy/nginx.conf /etc/nginx/sites-available/trading
 ln -sf /etc/nginx/sites-available/trading /etc/nginx/sites-enabled/trading
 rm -f /etc/nginx/sites-enabled/default

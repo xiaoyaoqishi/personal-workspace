@@ -1,7 +1,7 @@
 import uuid
 import json
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -10,8 +10,9 @@ from core import context
 from core.config import settings
 from core.db import SessionLocal
 from models import User
+from services.discipline_screen import collectors
 
-ALL_USER_MODULES = {"trading", "notes", "ledger"}
+ALL_USER_MODULES = {"trading", "notes", "ledger", "discipline"}
 
 
 def _normalize_module_permissions(value):
@@ -52,6 +53,8 @@ def _extract_permissions(user: User):
 
 
 def _api_module_from_path(path: str):
+    if path == '/api/discipline' or path.startswith('/api/discipline/'):
+        return 'discipline'
     if path.startswith("/api/ledger"):
         return "ledger"
     if path.startswith("/api/notebooks") or path.startswith("/api/notes") or path.startswith("/api/todos"):
@@ -79,7 +82,23 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         module_permissions = sorted(ALL_USER_MODULES)
         data_permissions = {module: "read_write" for module in ALL_USER_MODULES}
 
-        if not settings.dev_mode and request.url.path.startswith("/api/"):
+        authorization = request.headers.get('authorization', '')
+        collector_path = request.url.path in collectors.COLLECTOR_ROUTES
+        if authorization.startswith('Bearer dsc_') and not collector_path:
+            return JSONResponse(status_code=403, content={'detail': '采集凭证仅允许屏幕记录上传和同步状态查询'})
+        if collector_path:
+            if request.method != collectors.COLLECTOR_ROUTES[request.url.path]:
+                return JSONResponse(status_code=405, content={'detail': '不支持的采集操作'})
+            try:
+                with SessionLocal() as db:
+                    identity = collectors.authenticate(db, authorization)
+            except HTTPException as exc:
+                return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
+            username = identity['username']
+            role, is_admin = 'user', False
+            module_permissions, data_permissions = ['discipline'], {'discipline': 'read_write'}
+            request.state.collector_id = identity['collector_id']
+        elif not settings.dev_mode and request.url.path.startswith("/api/"):
             token = request.cookies.get(settings.auth_cookie)
             parsed_username = verify_token(token) if token else None
             public_paths = set(settings.auth_whitelist) | {"/api/health"}

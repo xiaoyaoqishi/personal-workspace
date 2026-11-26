@@ -18,9 +18,13 @@
 - `monitor` (`frontend-monitor`)：`React 19.2.8`、`React Router 8.3.0`、`antd 6`、`vite 8.2.0`。
 - 本地与生产前端构建要求 `Node.js >= 22.22.0`；`deploy/setup.sh` 与 `deploy/update.sh` 会安装或补齐该版本。
 
-当前四个前端模块已统一为同代核心栈；后续升级仍需按模块说明原因与影响范围。
+当前五个前端模块统一为同代核心栈；后续升级仍需按模块说明原因与影响范围。
+- `discipline` 使用与 Notes 一致的 React、React Router、Ant Design、dayjs、Vite 和 icons 精确版本及独立 lockfile；复用现有技术栈，无新增第三方依赖种类，不引入富文本编辑器。新增独立构建步骤与本地端口 5177。
+- 屏幕统计复用上述前端依赖与后端 SQLAlchemy/Pydantic；图表使用本地组件和 CSS，不依赖远程图表服务、应用图标网络请求或新的图表包。Mac 每日采集器的独立运行依赖见下文。
 
 ## 新增依赖规则
+
+- `clients/macos-screen` 不新增 Python 第三方依赖；SEGB/protobuf 离线解析代码固定为 SonyCore/biome-screentime-exporter 提交 `0f384a39110d40effb4ce6a444735bac311e923b` 并保留 MIT 许可。Mac 安装时使用已有 Xcode Command Line Tools 的 Swift 编译器及系统 AppKit/Security 框架生成启动器、使用 `/usr/bin/python3` 运行标准库代码；不影响 Linux 后端依赖、前端包或服务器构建步骤。
 
 - 新增后端或前端依赖时，必须说明：
   - 依赖加到哪个模块。

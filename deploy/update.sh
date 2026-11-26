@@ -53,8 +53,32 @@ migrate_upload_dir() {
   fi
 }
 
-echo "=== 拉取最新代码 ==="
-git pull
+case "${DEPLOY_SOURCE_MODE:-git}" in
+  git)
+    echo "=== 拉取最新代码 ==="
+    git pull
+    ;;
+  snapshot)
+    echo "=== 校验直接上传的源码快照（不访问 Git 远端） ==="
+    test -n "${DEPLOY_SNAPSHOT_MANIFEST:-}" && test -f "$DEPLOY_SNAPSHOT_MANIFEST"
+    python3 - "$DEPLOY_SNAPSHOT_MANIFEST" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+root = Path('/opt/tradingRecords').resolve()
+manifest = json.loads(Path(sys.argv[1]).read_text())
+if not manifest.get('files'):
+    raise SystemExit('快照文件列表为空')
+for item in manifest['files']:
+    path = (root / item['path']).resolve()
+    if root not in path.parents or not path.is_file():
+        raise SystemExit('非法或缺失的快照文件: ' + item['path'])
+    if hashlib.sha256(path.read_bytes()).hexdigest() != item['sha256']:
+        raise SystemExit('源码哈希不匹配: ' + item['path'])
+print('源码快照校验通过: ' + manifest['snapshot_id'])
+PY
+    ;;
+  *) echo "不支持的 DEPLOY_SOURCE_MODE"; exit 1 ;;
+esac
 
 ensure_node_runtime
 
@@ -90,6 +114,12 @@ npm run build
 
 echo "=== 构建记账前端 ==="
 cd ../frontend-ledger
+npm ci
+clean_frontend_dist "$(pwd)"
+npm run build
+
+echo "=== 构建自律养成前端 ==="
+cd ../frontend-discipline
 npm ci
 clean_frontend_dist "$(pwd)"
 npm run build

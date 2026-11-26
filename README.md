@@ -10,6 +10,7 @@
 - `Notes`: Notebooks, diary and document notes, wiki-link navigation, todo, and recycle flow.
 - `Monitor`: Admin-side site checks, users, and audit logs.
 - `Ledger`: Standalone personal finance app centered on import batches, review workbench, rules, merchants, analytics, and an in-app asset library.
+- `Discipline`: An execution calendar, daily plans, and screen statistics. Users choose scored slots: aligned/partial/off-track earn 100/50/0, with pending earning 0. Good is >=75%, improve is >=40% and <75%, failed is <40%. Screen statistics include day/week/month trends, device totals and merged usage, app rankings and personal categories, nighttime usage, session details, and CSV export. All data is per-user; AI summary remains disabled.
 - `Portal`: Static home page and login entry for the workspace.
 - `Backend`: Shared FastAPI API, auth, data permissions, uploads, and SQLite-backed services.
 
@@ -59,7 +60,7 @@
 - Monitor frontend now includes four switchable themes (`light` / `ink` / `tech` / `dark`) through a sidebar dropdown selector, with theme choice persisted locally.
 - Site target CRUD and per-target result history.
 - User management with role and password operations.
-- Per-user module visibility for `trading`, `notes`, and `ledger`.
+- Per-user module visibility for `trading`, `notes`, `ledger`, and `discipline`.
 - Per-module data permissions with `read_write` and `read_only` modes.
 - Audit log collection, listing, filtering, and deletion.
 
@@ -135,16 +136,25 @@ Open the portal at `http://127.0.0.1:5172`.
 `dev.sh` automatically discovers `frontend*` directories that contain a `package.json` with a `dev` script, then starts them together with the FastAPI backend and the local portal gateway.
 
 ## Routes & Entry Points
-- `/`: Portal home page for the workspace.
+
+Production updates normally pull Git through the server-side `deploy/update.sh`. When explicitly deploying without a Git push, back up and upload a verified source snapshot, then run the same script on the server with `DEPLOY_SOURCE_MODE=snapshot` and `DEPLOY_SNAPSHOT_MANIFEST` (a JSON manifest containing snapshot_id and each source path/SHA-256). This skips Git pull but keeps dependency installation, five frontend builds, Nginx validation, and service restarts. The deployment entry must also verify source hashes, API/database health, and public routes. Snapshot deployment does not change Git HEAD; the server retains working-tree differences that must be reconciled before a later Git-based deployment.
+- `/`: Portal home page for the workspace; Discipline replaces the hidden Ledger card.
+- `/discipline/`: Home with monthly achievement and a colored calendar. Statistics exclude weekends (even makeup workdays) and Mainland China holidays. Official 2026/2027 calendars are bundled; unmaintained years are excluded. Dates before the first record do not count; missed workdays afterward remain at 0%.
+- Calendar dates open a read-only side drawer with that day's slots, achievement, and notes, keeping the home page in place.
+- `/discipline/plan`: Today's plan in Asia/Shanghai, with automatic saving of ratings, included-slot choices, and optional notes. Save status and retry are visible. Saving the default routine synchronizes today while keeping existing ratings and notes; history stays read-only. Initial wake-up time defaults to an editable 07:00.
+- `/discipline/screen`: Screen statistics with day/week/month and device filters, application/category breakdowns, and foreground session history. Imports parsed Biome events with deduplication and recalculation for late arrivals. Optional [Mac collector](clients/macos-screen/README.md) synchronizes daily at 09:30 using a restricted upload credential in Keychain, a durable local queue, and login/wake catch-up. See [screen statistics](docs/discipline-screen.md) for rules and the import format.
+- The date drawer is capped at 78% of the viewport and 640px. Scored slots use full-card green/yellow/red backgrounds for aligned/partial/off-track in both daily plans and home drawers; pending and excluded slots stay neutral.
+- Routine edits synchronize today's time, theme, and scored-slot choices while retaining ratings/notes, so today's rate may change. Past results remain unchanged; uncreated future dates use the latest routine when generated. Routine History stores append-only versions, timestamps, routine snapshots, and today's before/after snapshots atomically. Legacy configurations have an existing-version baseline without invented older edits or timestamps.
+- Deleted routine slots are removed from today's active plan; their ratings and notes remain in the before-snapshot. New replacements may reuse the same time and start with no rating or notes. New slots fill available gaps, and validation identifies the offending interval or missing field.
 - `/login`: Shared login page.
 - `/trading/`: Trading home workspace; records, analytics, plans, research, maintenance, and recycle remain available as dedicated subpages.
 - `/notes/`: Notes workspace entry.
 - `/monitor/`: Monitor and admin workspace entry.
-- `/ledger/`: Ledger SPA entry; the app redirects to `/ledger/imports`.
+- `/ledger/`: Direct Ledger SPA entry for authorized users; the app redirects to `/ledger/imports`, but this entry is hidden from the portal home page.
 - `/api/*`: Shared FastAPI API for auth, trading, notes, monitor, ledger, uploads, and related services.
 
 ## Architecture Overview
-The portal is the entry layer for the workspace. Each frontend is built independently and served on its own subpath, while FastAPI provides the shared API surface behind `/api/*`. Persistent SQLite data is stored under `backend/data`; production uploads are stored outside the Git checkout through `UPLOAD_DIR`. In production, Nginx handles path dispatch for the portal, each SPA, and the API, including SPA fallbacks; `/ledger` is redirected to `/ledger/`.
+The portal links to independently built apps, including Discipline, and hides the Ledger card. FastAPI serves `/api/*`; Discipline uses `/api/discipline/*` and per-user storage. SQLite data lives under `backend/data`, and production uploads live outside Git through `UPLOAD_DIR`. Nginx handles SPA fallbacks and redirects `/ledger` and `/discipline` to their trailing-slash paths.
 
 ## Directory Structure
 - `backend/`: Shared FastAPI backend, including the trading domain and the standalone ledger backend domain under `/api/ledger/*`.
@@ -159,6 +169,8 @@ The portal is the entry layer for the workspace. Each frontend is built independ
 - `frontend-notes/`: Notes frontend served under `/notes/`.
 - `frontend-monitor/`: Monitor and admin frontend served under `/monitor/`.
 - `frontend-ledger/`: Independent ledger frontend served under `/ledger/`.
+- `frontend-discipline/`: Discipline frontend served under `/discipline/` on local port 5177. Run `npm ci` in this directory before `./dev.sh up`; deployment scripts build it automatically.
+- `clients/macos-screen/`: Optional daily Mac screen collector, native Keychain launcher, local retry queue, installer and tests.
 - `portal/`: Static portal and login entry used in local development and production.
 - `deploy/`: Bare-metal deployment scripts, systemd service, and Nginx runtime config.
 - `dev.sh`: Unified local development script for backend, portal, and auto-discovered frontends.

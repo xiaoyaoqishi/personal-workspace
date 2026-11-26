@@ -1,4 +1,6 @@
 from models.auth import User
+from models.discipline import DisciplinePlan, DisciplineRoutineVersion
+from models.discipline_screen import ScreenAppPreference, ScreenCollector, ScreenDevice, ScreenEvent, ScreenImport, ScreenSession
 from models.audit import BrowseLog
 from models.ledger import (
     LedgerAsset,

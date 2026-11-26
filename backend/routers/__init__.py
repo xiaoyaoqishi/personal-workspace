@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+from routers.discipline import router as discipline_router
+from routers.discipline_screen import router as discipline_screen_router
 
 from routers.admin import router as admin_router
 from routers.audit import router as audit_router
@@ -17,6 +19,8 @@ from routers.trading import router as trading_router
 from routers.upload import router as upload_router
 
 api_router = APIRouter()
+api_router.include_router(discipline_router)
+api_router.include_router(discipline_screen_router)
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
 api_router.include_router(admin_router)

@@ -19,7 +19,7 @@ DEV_MODE = settings.dev_mode
 AUTH_COOKIE = settings.auth_cookie
 AUTH_WHITELIST = set(settings.auth_whitelist)
 COOKIE_SECURE = settings.cookie_secure
-ALL_USER_MODULES = {"trading", "notes", "ledger"}
+ALL_USER_MODULES = {"trading", "notes", "ledger", "discipline"}
 READ_WRITE_VALUES = {"read_write", "read_only"}
 
 
@@ -72,6 +72,8 @@ def serialize_user_permissions(user: User) -> tuple[list[str], dict[str, str]]:
 
 
 def api_module_from_path(path: str):
+    if path == '/api/discipline' or path.startswith('/api/discipline/'):
+        return 'discipline'
     if path.startswith("/api/ledger"):
         return "ledger"
     if path.startswith("/api/notebooks") or path.startswith("/api/notes") or path.startswith("/api/todos"):

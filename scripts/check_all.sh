@@ -39,6 +39,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 run_step "python3 scripts/check_router_style.py" python3 scripts/check_router_style.py
+run_step "Mac screen collector tests" python3 -m unittest discover -s clients/macos-screen/tests
 
 if python3 -m pytest --version >/dev/null 2>&1; then
   run_step "python3 -m pytest -q backend/tests" python3 -m pytest -q backend/tests
@@ -50,7 +51,7 @@ else
 fi
 
 if require_cmd_or_fail "npm" "install Node.js and npm first."; then
-  for app in frontend-trading frontend-notes frontend-monitor frontend-ledger; do
+  for app in frontend-trading frontend-notes frontend-monitor frontend-ledger frontend-discipline; do
     if [[ ! -f "${ROOT_DIR}/${app}/package.json" ]]; then
       echo "[check_all] FAIL: missing package.json in ${app}"
       status=1
@@ -65,6 +66,9 @@ if require_cmd_or_fail "npm" "install Node.js and npm first."; then
       continue
     fi
     run_step "npm run build (${app})" bash -lc "cd '$ROOT_DIR/${app}' && npm run build"
+    if [[ "$app" == "frontend-discipline" ]]; then
+      run_step "npm test (${app})" bash -lc "cd '$ROOT_DIR/${app}' && npm test"
+    fi
   done
 fi
 

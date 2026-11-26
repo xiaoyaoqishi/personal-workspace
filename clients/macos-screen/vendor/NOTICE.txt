@@ -1,0 +1,7 @@
+Biome parser: SonyCore/biome-screentime-exporter
+Upstream: https://github.com/SonyCore/biome-screentime-exporter
+Pinned commit: 0f384a39110d40effb4ce6a444735bac311e923b
+Files: biome_screentime/{__init__,infocus,protobuf,segb}.py
+License: MIT; see LICENSE.biome-screentime.
+The collector does not use upstream timestamp-watermark incremental export.
+It rescans retained files and maintains a durable per-target event outbox instead.

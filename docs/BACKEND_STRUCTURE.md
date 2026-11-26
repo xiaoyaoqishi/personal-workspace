@@ -27,6 +27,13 @@
 
 ## 新逻辑落点
 
+- 屏幕采集凭证位于 `services/discipline_screen/collectors.py` 与独立 `discipline_screen_collectors` 表；请求上下文 middleware 仅识别两个受限接口并调用 service，不把凭证加入匿名白名单。成功上传状态与原始事件入库共用事务，撤销和账户权限会再次校验。
+
+- 屏幕统计使用 `models/discipline_screen.py`、`schemas/discipline_screen.py`、`routers/discipline_screen.py` 与 `services/discipline_screen/`。`store.py` 负责用户隔离、事件去重和事务内时段重建；`analytics.py` 负责时区切分、重叠合并和查询；`catalog.py` 提供可由个人偏好覆盖的应用分类。独立表通过现有 `init_db` 创建，不改 runtime 顶层函数。
+
+- `discipline` 的每日时段、默认作息、用户隔离与并发版本检查位于 `backend/services/discipline_service.py`，表结构位于 `backend/models/discipline.py`；不进入 runtime。
+- 默认作息版本使用 `discipline_routine_versions` 独立追加表及 `services/discipline_history.py`，与模板和当天同步共用事务；历史快照不引用可变对象，不提供修改或删除入口。
+
 - `trading` 新业务逻辑进入 `backend/trading/` 下对应 service；止损点/目标点快照逻辑位于 `backend/trading/risk_point_service.py`，独立研究逻辑位于 `backend/trading/research_service.py`。
 - `ledger` 新业务逻辑进入 `backend/services/ledger/` 下对应 service。
 - `notes`、`monitor`、`auth`、`admin`、`audit`、`recycle` 等后续新增逻辑，应进入各自 dedicated runtime / service，不应新增到 `runtime.py`。

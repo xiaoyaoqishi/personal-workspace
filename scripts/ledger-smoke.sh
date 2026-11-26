@@ -3,13 +3,18 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "[1/4] 检查 portal 是否包含账务管理入口"
-if ! rg -n 'href="/ledger/"' "$ROOT_DIR/portal/index.html" >/dev/null; then
-  echo "FAIL: portal/index.html 未找到 /ledger/ 入口"
+echo "[1/5] 检查 portal 已隐藏账务入口并展示自律养成入口"
+if rg -n 'href="/ledger/"|id="ledgerNavItem"' "$ROOT_DIR/portal/index.html" >/dev/null; then
+  echo "FAIL: portal/index.html 仍包含账务入口"
+  exit 1
+fi
+if ! rg -n 'id="disciplineNavItem"' "$ROOT_DIR/portal/index.html" >/dev/null || \
+   ! rg -n '>自律养成<' "$ROOT_DIR/portal/index.html" >/dev/null; then
+  echo "FAIL: portal/index.html 缺少自律养成入口"
   exit 1
 fi
 
-echo "[2/4] 检查 nginx 是否包含 /ledger/ 静态路由"
+echo "[2/5] 检查 nginx 是否包含 /ledger/ 静态路由"
 if ! rg -n 'location /ledger/' "$ROOT_DIR/deploy/nginx.conf" >/dev/null; then
   echo "FAIL: deploy/nginx.conf 缺少 location /ledger/"
   exit 1
@@ -27,13 +32,13 @@ if ! rg -n '/ledger/index.html' "$ROOT_DIR/deploy/nginx.conf" >/dev/null; then
   exit 1
 fi
 
-echo "[3/4] 检查 frontend-ledger 构建产物"
+echo "[3/5] 检查 frontend-ledger 构建产物"
 if [[ ! -f "$ROOT_DIR/frontend-ledger/dist/index.html" ]]; then
   echo "FAIL: frontend-ledger/dist/index.html 不存在，请先执行 frontend-ledger npm run build"
   exit 1
 fi
-if ! rg -n '/ledger/assets/' "$ROOT_DIR/frontend-ledger/dist/index.html" >/dev/null; then
-  echo "FAIL: dist/index.html 未引用 /ledger/assets/，请检查 vite base 配置"
+if ! rg -n '/ledger/_assets/' "$ROOT_DIR/frontend-ledger/dist/index.html" >/dev/null; then
+  echo "FAIL: dist/index.html 未引用 /ledger/_assets/，请检查 vite base 配置"
   exit 1
 fi
 
@@ -76,13 +81,17 @@ BASE_URL="${BASE_URL:-}"
 if [[ -n "$BASE_URL" ]]; then
   BASE_URL="${BASE_URL%/}"
   portal_html="$(curl -fsSL "$BASE_URL/")"
-  echo "$portal_html" | rg -n 'href="/ledger/"' >/dev/null || {
-    echo "FAIL: 在线 portal 页面未找到 /ledger/ 入口"
+  if echo "$portal_html" | rg -n 'href="/ledger/"|id="ledgerNavItem"' >/dev/null; then
+    echo "FAIL: 在线 portal 页面仍包含账务入口"
+    exit 1
+  fi
+  echo "$portal_html" | rg -n 'id="disciplineNavItem"' >/dev/null || {
+    echo "FAIL: 在线 portal 页面未找到自律养成入口"
     exit 1
   }
 
   ledger_html="$(curl -fsSL "$BASE_URL/ledger/")"
-  asset_path="$(echo "$ledger_html" | rg -o '/ledger/assets/[^" ]+\.(js|css)' | head -n 1 || true)"
+  asset_path="$(echo "$ledger_html" | rg -o '/ledger/_assets/[^" ]+\.(js|css)' | head -n 1 || true)"
   if [[ -z "$asset_path" ]]; then
     echo "FAIL: 在线 /ledger/ 页面未解析到资源路径"
     exit 1

@@ -7,6 +7,7 @@ Serves static files under ./portal and proxies app paths:
 - /notes/    -> notes vite (default 127.0.0.1:5174)
 - /monitor/  -> monitor vite (default 127.0.0.1:5175)
 - /ledger/   -> ledger vite (default 127.0.0.1:5176)
+- /discipline/ -> discipline vite (default 127.0.0.1:5177)
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ UPSTREAMS = {
     "/notes/": ("localhost", _env_port("PORTAL_NOTES_PORT", 5174)),
     "/monitor/": ("localhost", _env_port("PORTAL_MONITOR_PORT", 5175)),
     "/ledger/": ("localhost", _env_port("PORTAL_LEDGER_PORT", 5176)),
+    "/discipline/": ("localhost", _env_port("PORTAL_DISCIPLINE_PORT", 5177)),
 }
 
 HOP_BY_HOP_HEADERS = {

@@ -63,7 +63,7 @@ check_file_contains "deploy/setup.sh" "frontend-ledger" "setup.sh contains front
 check_file_contains "deploy/update.sh" "frontend-ledger" "update.sh contains frontend-ledger"
 check_file_contains "deploy/nginx.conf" "frontend-ledger" "nginx.conf contains frontend-ledger"
 
-for app in frontend-trading frontend-notes frontend-monitor frontend-ledger; do
+for app in frontend-trading frontend-notes frontend-monitor frontend-ledger frontend-discipline; do
   check_build_dir "deploy/setup.sh" "../${app}" "setup.sh builds ${app}"
   check_build_dir "deploy/update.sh" "../${app}" "update.sh builds ${app}"
 done
@@ -71,6 +71,9 @@ done
 check_file_contains "deploy/nginx.conf" "location /ledger/" "nginx serves /ledger/"
 check_file_contains "deploy/nginx.conf" "location = /ledger" "nginx defines /ledger redirect location"
 check_file_contains "deploy/nginx.conf" "return 301 /ledger/;" "nginx redirects /ledger to /ledger/"
+check_file_contains "deploy/nginx.conf" "location /discipline/" "nginx serves /discipline/"
+check_file_contains "deploy/nginx.conf" "return 301 /discipline/;" "nginx redirects /discipline to /discipline/"
+check_file_contains "deploy/nginx.conf" "frontend-discipline/dist/" "nginx contains discipline static directory"
 check_file_contains "deploy/setup.sh" "n 22.22.0" "setup.sh installs the required Node.js runtime"
 check_file_contains "deploy/update.sh" "NODE_MIN_VERSION=\"22.22.0\"" "update.sh enforces the required Node.js runtime"
 

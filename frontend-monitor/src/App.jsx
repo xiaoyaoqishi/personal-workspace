@@ -24,9 +24,10 @@ const MODULE_OPTIONS = [
   { label: '交易模块', value: 'trading' },
   { label: '笔记模块', value: 'notes' },
   { label: '账务模块', value: 'ledger' },
+  { label: '自律养成', value: 'discipline' },
 ];
 const DEFAULT_MODULES = MODULE_OPTIONS.map((x) => x.value);
-const DEFAULT_DATA_PERMISSIONS = { trading: 'read_write', notes: 'read_write', ledger: 'read_write' };
+const DEFAULT_DATA_PERMISSIONS = { trading: 'read_write', notes: 'read_write', ledger: 'read_write', discipline: 'read_write' };
 const EMPTY_FILTERS = {
   username: '',
   module: '',
