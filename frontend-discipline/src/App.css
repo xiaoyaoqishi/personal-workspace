@@ -306,4 +306,3 @@ h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
 [data-compact=true] .plan-slot { padding: 12px 16px; margin-bottom: 8px; }
 [data-compact=true] .day-overview { padding-top: 16px; padding-bottom: 16px; }
 @media(max-width:760px) { .plan-toolbar { padding: 12px; } .day-overview { padding: 20px 16px; flex-direction: column; gap: 12px; } .day-stats { text-align: left; } .day-stats strong { font-size: 22px; } .plan-scroll { padding: 0 12px 20px; } .plan-slot { padding: 14px 12px; gap: 12px; } .slot-time { padding-right: 12px; font-size: 13px; } .slot-top { align-items: flex-start; gap: 10px; flex-direction: column; } .editor-row { flex-wrap: wrap; } .editor-row .ant-input { flex-basis: 65%; } }
-
